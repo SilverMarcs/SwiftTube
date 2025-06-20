@@ -4,12 +4,10 @@ struct Instance: Identifiable, Hashable {
     let id: String
     let name: String
     let apiURLString: String
-    let app: VideosApp
     
-    init(app: VideosApp = .piped, id: String? = nil, name: String? = nil, apiURLString: String) {
-        self.app = app
+    init(id: String? = nil, name: String? = nil, apiURLString: String) {
         self.id = id ?? UUID().uuidString
-        self.name = name ?? app.name
+        self.name = name ?? "Piped"
         self.apiURLString = apiURLString
     }
     
