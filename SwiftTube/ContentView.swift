@@ -17,10 +17,7 @@ struct ContentView: View {
             }
             
             Tab("Subscriptions", systemImage: "person.2", value: .subscriptions) {
-                NavigationStack {
-                       SubscriptionsTab()
-                           .navigationTitle("Subscriptions")
-                   }
+               SubscriptionsTab()
             }
             
             Tab("Settings", systemImage: "gearshape.fill", value: .settings) {

@@ -7,47 +7,11 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Current Account Section
-                if let currentAccount = accountManager.currentAccount {
-                    Section("Current Account") {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(currentAccount.name)
-                                    .font(.headline)
-                                Text("@\(currentAccount.username)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(currentAccount.instance.name)
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        }
-                    }
-                }
-                
                 // All Accounts Section
                 if !accountManager.accounts.isEmpty {
-                    Section("All Accounts") {
+                    Section("Accounts") {
                         ForEach(accountManager.accounts, id: \.id) { account in
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(account.name)
-                                        .font(.headline)
-                                    Text("@\(account.username)")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Text(account.instance.name)
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                
-                                Spacer()
-                                
+                            LabeledContent {
                                 if account.id == accountManager.currentAccount?.id {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundStyle(.green)
@@ -58,6 +22,9 @@ struct SettingsView: View {
                                     .buttonStyle(.borderedProminent)
                                     .controlSize(.small)
                                 }
+                            } label: {
+                                Text(account.name)
+                                Text("@\(account.username)")
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button("Delete", role: .destructive) {
@@ -69,51 +36,19 @@ struct SettingsView: View {
                 }
                 
                 // Account Actions Section
-                Section("Account Actions") {
-                    Button(action: {
-                        showingAddAccount = true
-                    }) {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(.blue)
+                Section {
+                    Button(action: {showingAddAccount = true }) {
+                        Label {
                             Text("Add Account")
+                        } icon: {
+                            Image(systemName: "plus.circle.fill")
                         }
-                    }
-                    
-                    if accountManager.currentAccount != nil {
-                        Button(action: {
-                            if let currentAccount = accountManager.currentAccount {
-                                accountManager.removeAccount(currentAccount)
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                    .foregroundStyle(.red)
-                                Text("Logout")
-                            }
-                        }
-                        .foregroundStyle(.red)
-                    }
-                }
-                
-                // App Information Section
-                Section("App Information") {
-                    HStack {
-                        Text("Version")
-                        Spacer()
-                        Text("1.0.0")
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("Build")
-                        Spacer()
-                        Text("1")
-                            .foregroundStyle(.secondary)
+                        .foregroundStyle(.blue)
                     }
                 }
             }
             .navigationTitle("Settings")
+            .toolbarTitleDisplayMode(.inlineLarge)
         }
         .sheet(isPresented: $showingAddAccount) {
             LoginView()

@@ -8,57 +8,38 @@ struct LoginView: View {
     @State private var password = ""
     @State private var isLoading = false
     @State private var errorMessage = ""
-    @State private var showingAddAccount = false
     
     var body: some View {
-        NavigationStack {
-            Form {
-                headerSection
-                
-                if accountManager.accounts.isEmpty {
-                    addAccountForm
-                } else {
-                    accountsList
-                }
-            }
-            .navigationTitle("SwiftTube")
-            .toolbarTitleDisplayMode(.inlineLarge)
-            .toolbar {
-                if !accountManager.accounts.isEmpty {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("Add") {
-                            showingAddAccount = true
-                        }
-                    }
-                }
-            }
-            .sheet(isPresented: $showingAddAccount) {
-                AddAccountSheet()
-            }
+        Form {
+            headerSection
+            
+            addAccountForm
         }
     }
     
     private var headerSection: some View {
-        VStack {
-            Image(systemName: "play.rectangle.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(.accent)
-            
-            Text("SwiftTube")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            Text("Connect to your Piped instance")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        Section {
+            VStack  {
+                Image(systemName: "play.rectangle.fill")
+                    .font(.system(size: 60))
+                    .foregroundStyle(.accent)
+                
+                Text("SwiftTube")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                
+                Text("Connect to your Piped instance")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
         }
-        .padding(.top, 40)
+        .listRowBackground(Color.clear)
     }
     
     @ViewBuilder
     private var addAccountForm: some View {
         Section("Add Account") {
-            
             TextField("https://pipedapi.kavin.rocks", text: $instanceURL)
                 .keyboardType(.URL)
                 .autocapitalization(.none)
@@ -70,7 +51,6 @@ struct LoginView: View {
                 .autocapitalization(.none)
             
             SecureField("Password", text: $password)
-            
         }
         
         Section {
@@ -87,10 +67,9 @@ struct LoginView: View {
                         .progressViewStyle(CircularProgressViewStyle())
                         .tint(.white)
                 } else {
-                    Text("Login")
+                    Text("Add Account")
                 }
             }
-            .frame(height: 50)
             .disabled(isLoading || username.isEmpty || password.isEmpty || instanceURL.isEmpty)
         }
     }
@@ -123,103 +102,6 @@ struct LoginView: View {
             
             isLoading = false
             if !success {
-                errorMessage = "Login failed. Please check your credentials and try again."
-            }
-        }
-    }
-}
-
-struct AddAccountSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var accountManager = AccountManager.shared
-    @State private var instanceURL = "https://pipedapi.reallyaweso.me/"
-    @State private var instanceName = "Piped"
-    @State private var username = "SilverMarcs"
-    @State private var password = "norfYp-duzhed-1porme"
-    @State private var isLoading = false
-    @State private var errorMessage = ""
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Instance URL")
-                        .font(.headline)
-                    TextField("https://pipedapi.kavin.rocks", text: $instanceURL)
-                        .textFieldStyle(.roundedBorder)
-                        .keyboardType(.URL)
-                        .autocapitalization(.none)
-                        .autocorrectionDisabled()
-                }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Instance Name")
-                        .font(.headline)
-                    TextField("My Piped Instance", text: $instanceName)
-                        .textFieldStyle(.roundedBorder)
-                }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Username")
-                        .font(.headline)
-                    TextField("username", text: $username)
-                        .textFieldStyle(.roundedBorder)
-                        .autocapitalization(.none)
-                        .autocorrectionDisabled()
-                }
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Password")
-                        .font(.headline)
-                    SecureField("password", text: $password)
-                        .textFieldStyle(.roundedBorder)
-                }
-                
-                if !errorMessage.isEmpty {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                        .multilineTextAlignment(.center)
-                }
-                
-                Spacer()
-            }
-            .padding()
-            .navigationTitle("Add Account")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
-                        addAccount()
-                    }
-                    .disabled(isLoading || username.isEmpty || password.isEmpty || instanceURL.isEmpty)
-                }
-            }
-        }
-    }
-    
-    private func addAccount() {
-        isLoading = true
-        errorMessage = ""
-        
-        Task {
-            let success = await accountManager.addAccount(
-                instanceURL: instanceURL,
-                name: instanceName,
-                username: username,
-                password: password
-            )
-            
-            isLoading = false
-            if success {
-                dismiss()
-            } else {
                 errorMessage = "Login failed. Please check your credentials and try again."
             }
         }

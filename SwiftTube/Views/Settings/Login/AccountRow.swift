@@ -1,3 +1,12 @@
+//
+//  AccountRow.swift
+//  SwiftTube
+//
+//  Created by Zabir Raihan on 21/06/2025.
+//
+
+import SwiftUI
+
 struct AccountRow: View {
     let account: Account
     let onTap: () -> Void
@@ -20,9 +29,6 @@ struct AccountRow: View {
                 Image(systemName: "chevron.right")
                     .foregroundStyle(.secondary)
             }
-            .padding()
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
         }
-        .buttonStyle(.plain)
     }
 }
