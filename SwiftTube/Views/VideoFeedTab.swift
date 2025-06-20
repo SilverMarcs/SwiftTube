@@ -1,56 +1,50 @@
 import SwiftUI
 
 struct VideoFeedTab: View {
-    @StateObject private var accountManager = AccountManager.shared
     @State private var videos: [Video] = []
-    @State private var isLoadingFeed = false
+    @State private var isLoading = false
+    @Namespace private var namespace
     
     var body: some View {
-        Group {
-            if isLoadingFeed {
-                VStack {
-                    Spacer()
-                    ProgressView("Loading feed...")
-                    Spacer()
+        NavigationStack {
+            List {
+                ForEach(videos) { video in
+                    VideoRow(video: video, namespace: namespace)
+                        .listRowInsets(.vertical, 5)
+                        .listRowInsets(.horizontal, 5)
+                        .listRowSeparator(.hidden)
                 }
-            } else if videos.isEmpty {
-                VStack {
-                    Spacer()
-                    Image(systemName: "video.slash")
-                        .font(.system(size: 50))
-                        .foregroundStyle(.secondary)
-                    Text("No videos in feed")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                    Text("Subscribe to channels to see their videos here")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .multilineTextAlignment(.center)
-                    Spacer()
+                
+                if isLoading {
+                    ProgressView()
+//                        .id(UUID())
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .listRowSeparator(.hidden)
                 }
-                .padding()
-            } else {
-                List(videos) { video in
-                    VideoRow(video: video)
-                }
-                .listStyle(.plain)
+            }
+            .listStyle(.plain)
+            .navigationTitle("Feed")
+            .toolbarTitleDisplayMode(.inlineLarge)
+            .navigationDestination(for: Video.self) { video in
+                VideoPlayerView(video: video, namespace: namespace)
+             }
+            .task {
+                await loadFeed()
+            }
+            .refreshable {
+                await loadFeed()
             }
         }
-        .task {
-            await loadFeed()
-        }
-        .refreshable {
-            await loadFeed()
-        }
+        .navigationLinkIndicatorVisibility(.hidden)
     }
     
     private func loadFeed() async {
-        guard accountManager.currentAccount != nil else { return }
-        guard videos.isEmpty else { return }
+        guard !isLoading && videos.isEmpty else { return }
         
-        isLoadingFeed = true
+        isLoading = true
         let feedVideos = await PipedAPI.shared.fetchSubscribedFeed()
         videos = feedVideos
-        isLoadingFeed = false
+        isLoading = false
     }
 }

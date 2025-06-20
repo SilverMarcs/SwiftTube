@@ -10,6 +10,7 @@ import YouTubePlayerKit
 
 struct VideoPlayerView: View {
     let video: Video
+    let namespace: Namespace.ID
 
     var youTubePlayer: YouTubePlayer { YouTubePlayer(
         // Possible values: .video, .videos, .playlist, .channel
@@ -28,17 +29,37 @@ struct VideoPlayerView: View {
     
     
     var body: some View {
-        ScrollView {
-            YouTubePlayerView(youTubePlayer)
-                .frame(height: 400)
-            
-            Text(video.title)
-                .font(.title)
-                .padding()
-            
-            Spacer()
+        VStack {
+            YouTubePlayerView(youTubePlayer) { state in
+                switch state {
+                case .idle:
+                    Rectangle()
+                        .fill(.background.secondary)
+                        .overlay {
+                            ProgressView()
+                        }
+                case .ready:
+                    EmptyView()
+                case .error(let error):
+                    ContentUnavailableView(
+                        "Error",
+                        systemImage: "exclamationmark.triangle.fill",
+                        description: Text("YouTube player couldn't be loaded: \(error.localizedDescription)")
+                    )
+                }
+            }
+            .navigationTransition(.zoom(sourceID: "video-\(video.id)", in: namespace))
+            .aspectRatio(16/9, contentMode: .fit)
+                     
+            ScrollView {
+                Text(video.title)
+                    .font(.headline)
+   
+            }
         }
-        .toolbarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+        
     }
 }
 

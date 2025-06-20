@@ -2,80 +2,59 @@ import SwiftUI
 
 struct VideoRow: View {
     let video: Video
-    @State private var isLoadingStreams = false
+    let namespace: Namespace.ID
     
     var body: some View {
         NavigationLink(value: video) {
-            
-            HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 AsyncImage(url: video.thumbnailURL) { image in
                     image
                         .resizable()
+                        .aspectRatio(16/9, contentMode: .fit)
                         .aspectRatio(contentMode: .fit)
+                        .overlay(alignment: .bottomTrailing) {
+                            if video.duration > 0 {
+                                Text(video.durationText)
+                                    .font(.caption)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .foregroundStyle(.white)
+                                    .background(RoundedRectangle(cornerRadius: 4).fill(.black.secondary))
+                                    .padding(10)
+                            }
+                        }
                 } placeholder: {
                     Rectangle()
-                        .fill(.quaternary)
+                        .fill(.background.secondary)
+                        .aspectRatio(16/9, contentMode: .fit)
                         .overlay {
-                            Image(systemName: "video")
-                                .foregroundStyle(.secondary)
+                            ProgressView()
                         }
                 }
-                .frame(width: 120, height: 90)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .matchedTransitionSource(id: "video-\(video.id)", in: namespace)
+                .padding(.horizontal, -12)
+                .padding(.top, -12)
+                // Title
+                Text(video.title)
+                    .font(.headline)
+                    .lineLimit(2)
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(video.title)
-                        .font(.headline)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    
+                // Author and view count
+                HStack {
                     Text(video.author)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     
-                    HStack {
-                        Text(video.viewsText + " views")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        
-                        Text("•")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        
-                        Text(video.published)
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        
-                        Spacer()
-                        
-                        if video.duration > 0 {
-                            Text(video.durationText)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(.black.opacity(0.8))
-                                .foregroundStyle(.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                        }
-                    }
-                    
-                    if isLoadingStreams {
-                        HStack {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                            Text("Loading streams...")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.top, 4)
-                    }
+                    Spacer()
+
+                    Text("\(video.viewsText) views")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
-                
-                Spacer()
             }
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
+            .padding(12)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(.background.secondary, in: .rect(cornerRadius: 16))
         }
     }
 }

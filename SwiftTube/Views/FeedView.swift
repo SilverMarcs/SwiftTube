@@ -6,13 +6,7 @@ struct FeedView: View {
     var body: some View {
         TabView(selection: $selection) {
             Tab("Feed", systemImage: "video", value: .videos) {
-                NavigationStack {
-                    VideoFeedTab()
-                        .navigationTitle("Feed")
-                        .navigationDestination(for: Video.self) { video in
-                            VideoPlayerView(video: video)
-                        }
-                }
+                VideoFeedTab()
             }
             
             Tab("Subscriptions", systemImage: "person.2", value: .subscriptions) {
