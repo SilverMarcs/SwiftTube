@@ -11,15 +11,6 @@ struct ContentView: View {
     @StateObject private var accountManager = AccountManager.shared
     
     var body: some View {
-        Group {
-            if accountManager.currentAccount != nil {
-                FeedView()
-            } else {
-                LoginView()
-            }
-        }
-        .onAppear {
-            // This will check if there's a saved account and set it as current
-        }
+        FeedView()
     }
 }

@@ -2,43 +2,32 @@ import Foundation
 import Combine
 
 final class PipedAPI: ObservableObject {
-    @Published var isAuthenticated = false
-    @Published var errorMessage: String?
+    static let shared = PipedAPI()
     
-    private let account: Account
+    @Published var isAuthenticated = false
+    
     private let keychainManager = KeychainManager.shared
     
-    init(account: Account) {
-        self.account = account
-        checkAuthenticationStatus()
+    private init() {}
+    
+    private var currentAccount: Account? {
+        AccountManager.shared.currentAccount
     }
     
     private var baseURL: URL? {
-        account.instance.apiURL
+        currentAccount?.instance.apiURL
     }
     
     private var token: String? {
-        keychainManager.loadAccountToken(account)
+        guard let account = currentAccount else { return nil }
+        return keychainManager.loadAccountToken(account)
     }
     
-    private func checkAuthenticationStatus() {
-        let currentToken = token
-        let wasAuthenticated = isAuthenticated
-        isAuthenticated = currentToken != nil && !currentToken!.isEmpty
-        
-        print("Auth status check - Token exists: \(currentToken != nil), Token empty: \(currentToken?.isEmpty ?? true), Was authenticated: \(wasAuthenticated), Now authenticated: \(isAuthenticated)")
-        
-        if let token = currentToken {
-            print("Token preview: \(String(token.prefix(10)))...")
-        }
-    }
     // MARK: - Authentication
     
-    func login(username: String, password: String) async {
-        guard let baseURL = baseURL else {
-            await MainActor.run {
-                errorMessage = "Invalid instance URL"
-            }
+    func login(username: String, password: String, account: Account) async {
+        guard let baseURL = URL(string: account.instance.apiURLString) else {
+            print("Invalid instance URL")
             return
         }
         
@@ -56,54 +45,35 @@ final class PipedAPI: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("Login response status: \(httpResponse.statusCode)")
                 
                 if httpResponse.statusCode == 200 {
                     let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
                     
-                    print("Auth response - token exists: \(authResponse.token != nil), error: \(authResponse.error ?? "none")")
                     
                     if let token = authResponse.token, !token.isEmpty {
                         // Save credentials and token
                         keychainManager.saveAccountCredentials(account, username: username, password: password)
                         keychainManager.saveAccountToken(account, token: token)
                         
-                        await MainActor.run {
-                            isAuthenticated = true
-                            errorMessage = nil
-                        }
-                        print("Login successful, token saved")
+                        isAuthenticated = true
                     } else if let error = authResponse.error {
-                        await MainActor.run {
-                            errorMessage = error
-                        }
-                        print("Login error: \(error)")
+                            print("Authentication error: \(error)")
                     } else {
-                        await MainActor.run {
-                            errorMessage = "Authentication failed"
-                        }
-                        print("Login failed: no token or error in response")
+                        print("No token or error in response")
                     }
                 } else {
-                    let responseBody = String(data: data, encoding: .utf8) ?? "No response body"
-                    await MainActor.run {
-                        errorMessage = "HTTP error: \(httpResponse.statusCode)"
-                    }
-                    print("HTTP error \(httpResponse.statusCode): \(responseBody)")
+                    print("HTTP error: \(httpResponse.statusCode)")
                 }
             }
         } catch {
-            await MainActor.run {
-                errorMessage = "Network error: \(error.localizedDescription)"
-            }
-            print("Network error: \(error)")
+            print("Network error: \(error.localizedDescription)")
         }
     }
     
     func logout() {
+        guard let account = currentAccount else { return }
         keychainManager.deleteAccountData(account)
         isAuthenticated = false
-        errorMessage = nil
     }
     
     // MARK: - Authenticated Requests
@@ -114,7 +84,6 @@ final class PipedAPI: ObservableObject {
         }
         
         guard let token = token else {
-            print("No token available for \(endpoint) request")
             throw URLError(.userAuthenticationRequired)
         }
         
@@ -122,14 +91,11 @@ final class PipedAPI: ObservableObject {
         var request = URLRequest(url: url)
         request.setValue(token, forHTTPHeaderField: "Authorization")
         
-        print("Making authenticated request to: \(url.absoluteString)")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
         if let httpResponse = response as? HTTPURLResponse {
-            print("\(endpoint) request response status: \(httpResponse.statusCode)")
             guard httpResponse.statusCode == 200 else {
-                print("\(endpoint) request failed with status: \(httpResponse.statusCode)")
                 throw URLError(.badServerResponse)
             }
         }
@@ -143,7 +109,6 @@ final class PipedAPI: ObservableObject {
         }
         
         guard let token = token else {
-            print("No token available for feed request")
             throw URLError(.userAuthenticationRequired)
         }
         
@@ -155,15 +120,12 @@ final class PipedAPI: ObservableObject {
             throw URLError(.badURL)
         }
         
-        print("Making feed request to: \(finalURL.absoluteString)")
         
         let request = URLRequest(url: finalURL)
         let (data, response) = try await URLSession.shared.data(for: request)
         
         if let httpResponse = response as? HTTPURLResponse {
-            print("Feed request response status: \(httpResponse.statusCode)")
             guard httpResponse.statusCode == 200 else {
-                print("Feed request failed with status: \(httpResponse.statusCode)")
                 throw URLError(.badServerResponse)
             }
         }
@@ -175,37 +137,17 @@ final class PipedAPI: ObservableObject {
     
     func fetchSubscribedFeed() async -> [Video] {
         do {
-            print("Fetching subscribed feed...")
             let data = try await makeFeedRequest()
-            print("Feed data received: \(data.count) bytes")
             
             // Parse JSON response
             if let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-                print("Parsed \(jsonArray.count) videos from feed")
-                
-                // Debug: print first video structure if available
-                if let firstVideo = jsonArray.first {
-                    print("First video keys: \(firstVideo.keys.sorted())")
-                    print("Sample video data: \(firstVideo)")
-                }
-                
                 let videos = jsonArray.compactMap { videoDict in
                     parseVideo(from: videoDict)
                 }
-                print("Successfully parsed \(videos.count) videos")
                 return videos
-            } else {
-                print("Failed to parse feed response as JSON array")
-                // Try to see what we actually got
-                if let jsonString = String(data: data, encoding: .utf8) {
-                    print("Response was: \(String(jsonString.prefix(1000)))...")
-                }
             }
         } catch {
-            print("Error fetching feed: \(error)")
-            await MainActor.run {
-                errorMessage = "Failed to fetch feed: \(error.localizedDescription)"
-            }
+            print("Failed to fetch feed: \(error.localizedDescription)")
         }
         
         return []
@@ -213,30 +155,17 @@ final class PipedAPI: ObservableObject {
     
     func fetchSubscriptions() async -> [Channel] {
         do {
-            print("Fetching subscriptions...")
             let data = try await makeAuthenticatedRequest(to: "subscriptions")
-            print("Subscriptions data received: \(data.count) bytes")
             
             // Parse JSON response
             if let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-                print("Parsed \(jsonArray.count) channels from subscriptions")
                 let channels = jsonArray.compactMap { channelDict in
                     parseChannel(from: channelDict)
                 }
-                print("Successfully parsed \(channels.count) channels")
                 return channels
-            } else {
-                print("Failed to parse subscriptions response as JSON array")
-                // Try to see what we actually got
-                if let jsonString = String(data: data, encoding: .utf8) {
-                    print("Response was: \(jsonString)")
-                }
             }
         } catch {
-            print("Error fetching subscriptions: \(error)")
-            await MainActor.run {
-                errorMessage = "Failed to fetch subscriptions: \(error.localizedDescription)"
-            }
+            print("Failed to fetch subscriptions: \(error.localizedDescription)")
         }
         
         return []
@@ -263,9 +192,7 @@ final class PipedAPI: ObservableObject {
                 return httpResponse.statusCode == 200
             }
         } catch {
-            await MainActor.run {
-                errorMessage = "Failed to subscribe: \(error.localizedDescription)"
-            }
+            print("Failed to subscribe: \(error.localizedDescription)")
         }
         
         return false
@@ -292,9 +219,7 @@ final class PipedAPI: ObservableObject {
                 return httpResponse.statusCode == 200
             }
         } catch {
-            await MainActor.run {
-                errorMessage = "Failed to unsubscribe: \(error.localizedDescription)"
-            }
+            print("Failed to unsubscribe: \(error.localizedDescription)")
         }
         
         return false
@@ -305,7 +230,6 @@ final class PipedAPI: ObservableObject {
     private func parseVideo(from dict: [String: Any]) -> Video? {
         guard let url = dict["url"] as? String,
               let title = dict["title"] as? String else {
-            print("Missing required fields in video dict: \(dict.keys.sorted())")
             return nil
         }
         
@@ -346,14 +270,12 @@ final class PipedAPI: ObservableObject {
             thumbnailURL: thumbnailURL
         )
         
-        print("Successfully parsed video: \(title) by \(uploader)")
         return video
     }
     
     private func parseChannel(from dict: [String: Any]) -> Channel? {
         guard let url = dict["url"] as? String,
               let name = dict["name"] as? String else {
-            print("Missing required fields in channel dict: \(dict.keys.sorted())")
             return nil
         }
         
@@ -381,7 +303,6 @@ final class PipedAPI: ObservableObject {
             subscribersCount: subscriberCount
         )
         
-        print("Successfully parsed channel: \(name)")
         return channel
     }
     

@@ -6,7 +6,6 @@ final class AccountManager: ObservableObject {
     
     @Published var accounts: [Account] = []
     @Published var currentAccount: Account?
-    @Published var currentAPI: PipedAPI?
     
     private let userDefaults = UserDefaults.standard
     private let accountsKey = "saved_accounts"
@@ -21,8 +20,6 @@ final class AccountManager: ObservableObject {
     }
     
     func addAccount(instanceURL: String, name: String, username: String, password: String) async -> Bool {
-        print("Adding account: \(name) - \(username) to \(instanceURL)")
-        
         let instance = Instance(name: name, apiURLString: instanceURL)
         let account = Account(
             instanceID: instance.id,
@@ -31,10 +28,8 @@ final class AccountManager: ObservableObject {
             instance: instance
         )
         
-        let api = PipedAPI(account: account)
-        await api.login(username: username, password: password)
-        
-        print("Login attempt completed - authenticated: \(api.isAuthenticated)")
+        let api = PipedAPI.shared
+        await api.login(username: username, password: password, account: account)
         
         if api.isAuthenticated {
             accounts.append(account)
@@ -42,7 +37,6 @@ final class AccountManager: ObservableObject {
             setCurrentAccount(account)
             return true
         } else {
-            print("Login failed - error: \(api.errorMessage ?? "unknown")")
             return false
         }
     }
@@ -55,7 +49,6 @@ final class AccountManager: ObservableObject {
         
         if currentAccount?.id == account.id {
             currentAccount = nil
-            currentAPI = nil
             userDefaults.removeObject(forKey: currentAccountKey)
         }
         
@@ -63,15 +56,8 @@ final class AccountManager: ObservableObject {
     }
     
     func setCurrentAccount(_ account: Account) {
-        print("Setting current account: \(account.name) - \(account.username)")
         currentAccount = account
-        currentAPI = PipedAPI(account: account)
         userDefaults.set(account.id, forKey: currentAccountKey)
-        
-        // Check if the API is authenticated after creation
-        if let api = currentAPI {
-            print("Created API - authenticated: \(api.isAuthenticated)")
-        }
     }
     
     private func saveAccounts() {

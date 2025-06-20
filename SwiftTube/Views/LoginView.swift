@@ -2,8 +2,8 @@ import SwiftUI
 
 struct LoginView: View {
     @StateObject private var accountManager = AccountManager.shared
-    @State private var instanceURL = "https://pipedapi.kavin.rocks"
-    @State private var instanceName = "Kavin Rocks"
+    @State private var instanceURL = "https://pipedapi.reallyaweso.me/"
+    @State private var instanceName = "Piped"
     @State private var username = ""
     @State private var password = ""
     @State private var isLoading = false
@@ -150,11 +150,9 @@ struct LoginView: View {
                 password: password
             )
             
-            await MainActor.run {
-                isLoading = false
-                if !success {
-                    errorMessage = "Login failed. Please check your credentials and try again."
-                }
+            isLoading = false
+            if !success {
+                errorMessage = "Login failed. Please check your credentials and try again."
             }
         }
     }
@@ -192,10 +190,10 @@ struct AccountRow: View {
 struct AddAccountSheet: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var accountManager = AccountManager.shared
-    @State private var instanceURL = "https://pipedapi.kavin.rocks"
-    @State private var instanceName = "Kavin Rocks"
-    @State private var username = ""
-    @State private var password = ""
+    @State private var instanceURL = "https://pipedapi.reallyaweso.me/"
+    @State private var instanceName = "Piped"
+    @State private var username = "SilverMarcs"
+    @State private var password = "norfYp-duzhed-1porme"
     @State private var isLoading = false
     @State private var errorMessage = ""
     
@@ -276,13 +274,11 @@ struct AddAccountSheet: View {
                 password: password
             )
             
-            await MainActor.run {
-                isLoading = false
-                if success {
-                    dismiss()
-                } else {
-                    errorMessage = "Login failed. Please check your credentials and try again."
-                }
+            isLoading = false
+            if success {
+                dismiss()
+            } else {
+                errorMessage = "Login failed. Please check your credentials and try again."
             }
         }
     }

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct VideoRow: View {
     let video: Video
-    let pipedAPI: PipedAPI
     @State private var isLoadingStreams = false
     
     var body: some View {

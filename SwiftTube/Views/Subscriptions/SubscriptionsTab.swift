@@ -45,13 +45,11 @@ struct SubscriptionsTab: View {
     }
     
     private func loadSubscriptions() async {
-        guard let api = accountManager.currentAPI else { return }
+        guard accountManager.currentAccount != nil else { return }
         
-        await MainActor.run { isLoadingSubscriptions = true }
-        let channels = await api.fetchSubscriptions()
-        await MainActor.run {
-            subscriptions = channels
-            isLoadingSubscriptions = false
-        }
+        isLoadingSubscriptions = true
+        let channels = await PipedAPI.shared.fetchSubscriptions()
+        subscriptions = channels
+        isLoadingSubscriptions = false
     }
 }

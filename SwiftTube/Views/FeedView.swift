@@ -1,64 +1,45 @@
 import SwiftUI
 
 struct FeedView: View {
-    @StateObject private var accountManager = AccountManager.shared
+    @State private var selection: Tabs = .videos
     
     var body: some View {
-        TabView {
-            NavigationStack {
-                VideoFeedTab()
-                    .navigationDestination(for: Video.self) { video in
-                        VideoPlayerView(video: video)
-                    }
-                    .navigationTitle("Feed")
-                    .toolbar {
-                        ToolbarItem(placement: .primaryAction) {
-                            Menu {
-                                Button("Switch Account") {
-                                    // Implementation for account switching
-                                }
-                                
-                                Button("Logout") {
-                                    if let currentAccount = accountManager.currentAccount {
-                                        accountManager.removeAccount(currentAccount)
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis.circle")
-                            }
+        TabView(selection: $selection) {
+            Tab("Feed", systemImage: "video", value: .videos) {
+                NavigationStack {
+                    VideoFeedTab()
+                        .navigationTitle("Feed")
+                        .navigationDestination(for: Video.self) { video in
+                            VideoPlayerView(video: video)
                         }
-                    }
-            }
-            .tabItem {
-                Image(systemName: "video")
-                Text("Feed")
+                }
             }
             
-            NavigationStack {
-                SubscriptionsTab()
-                    .navigationTitle("Subscriptions")
-                    .toolbar {
-                        ToolbarItem(placement: .primaryAction) {
-                            Menu {
-                                Button("Switch Account") {
-                                    // Implementation for account switching
-                                }
-                                
-                                Button("Logout") {
-                                    if let currentAccount = accountManager.currentAccount {
-                                        accountManager.removeAccount(currentAccount)
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis.circle")
-                            }
-                        }
-                    }
+            Tab("Subscriptions", systemImage: "person.2", value: .subscriptions) {
+                NavigationStack {
+                       SubscriptionsTab()
+                           .navigationTitle("Subscriptions")
+                   }
             }
-            .tabItem {
-                Image(systemName: "person.2")
-                Text("Subscriptions")
+            
+            Tab("Settings", systemImage: "gearshape.fill", value: .settings) {
+                SettingsView()
             }
+            
+//            Tab(value: .search, role: .search) {
+//                SearchTab()
+//            }
+                
         }
+        .tabViewStyle(.sidebarAdaptable)
+        #if !os(macOS)
+        .tabBarMinimizeBehavior(.onScrollDown)
+        #endif
+    }
+    
+    enum Tabs {
+        case videos
+        case subscriptions
+        case settings
     }
 }

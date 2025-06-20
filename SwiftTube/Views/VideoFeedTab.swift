@@ -31,9 +31,7 @@ struct VideoFeedTab: View {
                 .padding()
             } else {
                 List(videos) { video in
-                    if let api = accountManager.currentAPI {
-                        VideoRow(video: video, pipedAPI: api)
-                    }
+                    VideoRow(video: video)
                 }
                 .listStyle(.plain)
             }
@@ -47,14 +45,12 @@ struct VideoFeedTab: View {
     }
     
     private func loadFeed() async {
-        guard let api = accountManager.currentAPI else { return }
+        guard accountManager.currentAccount != nil else { return }
         guard videos.isEmpty else { return }
         
-        await MainActor.run { isLoadingFeed = true }
-        let feedVideos = await api.fetchSubscribedFeed()
-        await MainActor.run {
-            videos = feedVideos
-            isLoadingFeed = false
-        }
+        isLoadingFeed = true
+        let feedVideos = await PipedAPI.shared.fetchSubscribedFeed()
+        videos = feedVideos
+        isLoadingFeed = false
     }
 }
