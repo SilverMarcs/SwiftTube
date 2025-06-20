@@ -4,7 +4,7 @@ struct ChannelRow: View {
     let channel: Channel
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack {
             AsyncImage(url: channel.thumbnailURL) { image in
                 image
                     .resizable()
@@ -13,7 +13,8 @@ struct ChannelRow: View {
                 Circle()
                     .fill(.quaternary)
                     .overlay {
-                        Image(systemName: "person.circle")
+                        Image(systemName: "person")
+                            .imageScale(.large)
                             .foregroundStyle(.secondary)
                     }
             }
@@ -37,12 +38,7 @@ struct ChannelRow: View {
             Button("Subscribed") {
                 // Implementation for unsubscribe
             }
-            .font(.caption)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(.quaternary)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .buttonStyle(.glass)
         }
-        .padding(.vertical, 8)
     }
 }
