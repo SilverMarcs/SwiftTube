@@ -7,6 +7,9 @@ struct FeedView: View {
         TabView {
             NavigationStack {
                 VideoFeedTab()
+                    .navigationDestination(for: Video.self) { video in
+                        VideoPlayerView(video: video)
+                    }
                     .navigationTitle("Feed")
                     .toolbar {
                         ToolbarItem(placement: .primaryAction) {

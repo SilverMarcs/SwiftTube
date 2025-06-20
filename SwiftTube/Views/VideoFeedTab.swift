@@ -48,6 +48,7 @@ struct VideoFeedTab: View {
     
     private func loadFeed() async {
         guard let api = accountManager.currentAPI else { return }
+        guard videos.isEmpty else { return }
         
         await MainActor.run { isLoadingFeed = true }
         let feedVideos = await api.fetchSubscribedFeed()
