@@ -22,8 +22,6 @@ final class AccountManager: ObservableObject {
     func addAccount(instanceURL: String, name: String, username: String, password: String) async -> Bool {
         let instance = Instance(name: name, apiURLString: instanceURL)
         let account = Account(
-            instanceID: instance.id,
-            name: name,
             username: username,
             instance: instance
         )
@@ -64,10 +62,9 @@ final class AccountManager: ObservableObject {
         let accountData = accounts.map { account in
             [
                 "id": account.id,
-                "instanceID": account.instanceID,
-                "name": account.name,
                 "username": account.username,
-                "instanceURL": account.instance.apiURLString
+                "instanceURL": account.instance.apiURLString,
+                "instanceName": account.instance.name
             ]
         }
         userDefaults.set(accountData, forKey: accountsKey)
@@ -80,23 +77,20 @@ final class AccountManager: ObservableObject {
         
         accounts = accountsData.compactMap { data in
             guard let id = data["id"],
-                  let instanceID = data["instanceID"],
-                  let name = data["name"],
                   let username = data["username"],
                   let instanceURL = data["instanceURL"] else {
                 return nil
             }
             
+            let instanceName = data["instanceName"] ?? "Piped"
             let instance = Instance(
-                id: instanceID,
-                name: name,
+                id: data["instanceID"], // Support legacy data
+                name: instanceName,
                 apiURLString: instanceURL
             )
             
             return Account(
                 id: id,
-                instanceID: instanceID,
-                name: name,
                 username: username,
                 instance: instance
             )

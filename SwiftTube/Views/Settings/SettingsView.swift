@@ -10,7 +10,7 @@ struct SettingsView: View {
                 // All Accounts Section
                 if !accountManager.accounts.isEmpty {
                     Section("Accounts") {
-                        ForEach(accountManager.accounts, id: \.id) { account in
+                        ForEach(accountManager.accounts) { account in
                             LabeledContent {
                                 if account.id == accountManager.currentAccount?.id {
                                     Image(systemName: "checkmark.circle.fill")
@@ -23,7 +23,7 @@ struct SettingsView: View {
                                     .controlSize(.small)
                                 }
                             } label: {
-                                Text(account.name)
+                                Text(account.instance.name)
                                 Text("@\(account.username)")
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {

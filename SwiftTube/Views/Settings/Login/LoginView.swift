@@ -1,7 +1,9 @@
 import SwiftUI
 
 struct LoginView: View {
-    @StateObject private var accountManager = AccountManager.shared
+    @Environment(\.dismiss) private var dismiss
+    
+    private var accountManager = AccountManager.shared
     @State private var instanceURL = "https://pipedapi.reallyaweso.me/"
     @State private var instanceName = "Piped"
     @State private var username = ""
@@ -90,8 +92,10 @@ struct LoginView: View {
                 password: password
             )
             
-            isLoading = false
-            if !success {
+            if success {
+                isLoading = false
+                dismiss()
+            } else {
                 errorMessage = "Login failed. Please check your credentials and try again."
             }
         }

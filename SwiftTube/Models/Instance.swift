@@ -15,10 +15,6 @@ struct Instance: Identifiable, Hashable {
         URL(string: apiURLString)
     }
     
-    var description: String {
-        name.isEmpty ? apiURLString : "\(name) (\(apiURLString))"
-    }
-    
     func hash(into hasher: inout Hasher) {
         hasher.combine(apiURLString)
     }
