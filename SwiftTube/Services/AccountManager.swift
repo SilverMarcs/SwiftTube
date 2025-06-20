@@ -67,7 +67,6 @@ final class AccountManager: ObservableObject {
                 "instanceID": account.instanceID,
                 "name": account.name,
                 "username": account.username,
-                "instanceName": account.instance.name,
                 "instanceURL": account.instance.apiURLString
             ]
         }
@@ -84,14 +83,13 @@ final class AccountManager: ObservableObject {
                   let instanceID = data["instanceID"],
                   let name = data["name"],
                   let username = data["username"],
-                  let instanceName = data["instanceName"],
                   let instanceURL = data["instanceURL"] else {
                 return nil
             }
             
             let instance = Instance(
                 id: instanceID,
-                name: instanceName,
+                name: name,
                 apiURLString: instanceURL
             )
             

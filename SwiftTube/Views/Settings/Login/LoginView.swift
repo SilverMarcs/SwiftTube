@@ -74,16 +74,6 @@ struct LoginView: View {
         }
     }
     
-    private var accountsList: some View {
-        Section("Accounts") {
-            ForEach(accountManager.accounts) { account in
-                AccountRow(account: account) {
-                    accountManager.setCurrentAccount(account)
-                }
-            }
-        }
-    }
-    
     private func login() {
         guard !instanceURL.isEmpty, !username.isEmpty, !password.isEmpty else {
             return
