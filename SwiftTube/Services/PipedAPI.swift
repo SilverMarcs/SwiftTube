@@ -76,145 +76,75 @@ final class PipedAPI: ObservableObject {
         isAuthenticated = false
     }
     
-    // MARK: - Authenticated Requests
+    // MARK: - API Methods
     
-    private func makeAuthenticatedRequest(to endpoint: String) async throws -> Data {
-        guard let baseURL = baseURL else {
-            throw URLError(.badURL)
-        }
-        
-        guard let token = token else {
-            throw URLError(.userAuthenticationRequired)
-        }
+    private func makeAuthenticatedRequest(to endpoint: String, method: String = "GET", body: Data? = nil, useQueryToken: Bool = false) async -> Data? {
+        guard let baseURL = baseURL, let token = token else { return nil }
         
         let url = baseURL.appendingPathComponent(endpoint)
-        var request = URLRequest(url: url)
-        request.setValue(token, forHTTPHeaderField: "Authorization")
+        var finalURL = url
         
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        if let httpResponse = response as? HTTPURLResponse {
-            guard httpResponse.statusCode == 200 else {
-                throw URLError(.badServerResponse)
-            }
+        if useQueryToken {
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            components?.queryItems = [URLQueryItem(name: "authToken", value: token)]
+            guard let queryURL = components?.url else { return nil }
+            finalURL = queryURL
         }
         
-        return data
+        var request = URLRequest(url: finalURL)
+        request.httpMethod = method
+        
+        if !useQueryToken {
+            request.setValue(token, forHTTPHeaderField: "Authorization")
+        }
+        
+        if body != nil {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = body
+        }
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else { return nil }
+            return data
+        } catch {
+            return nil
+        }
     }
-    
-    private func makeFeedRequest() async throws -> Data {
-        guard let baseURL = baseURL else {
-            throw URLError(.badURL)
-        }
-        
-        guard let token = token else {
-            throw URLError(.userAuthenticationRequired)
-        }
-        
-        let url = baseURL.appendingPathComponent("feed")
-        var urlComponents = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        urlComponents?.queryItems = [URLQueryItem(name: "authToken", value: token)]
-        
-        guard let finalURL = urlComponents?.url else {
-            throw URLError(.badURL)
-        }
-        
-        
-        let request = URLRequest(url: finalURL)
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        if let httpResponse = response as? HTTPURLResponse {
-            guard httpResponse.statusCode == 200 else {
-                throw URLError(.badServerResponse)
-            }
-        }
-        
-        return data
-    }
-    
-    // MARK: - Feed Methods
     
     func fetchSubscribedFeed() async -> [Video] {
-        do {
-            let data = try await makeFeedRequest()
-            
-            let videoResponses = try JSONDecoder().decode([VideoResponse].self, from: data)
-            let videos = videoResponses.compactMap { $0.toVideo() }
-            return videos
-        } catch {
-            print("Failed to fetch feed: \(error.localizedDescription)")
-        }
+        guard let data = await makeAuthenticatedRequest(to: "feed", useQueryToken: true) else { return [] }
         
-        return []
+        do {
+            let videoResponses = try JSONDecoder().decode([VideoResponse].self, from: data)
+            return videoResponses.compactMap { $0.toVideo() }
+        } catch {
+            return []
+        }
     }
     
     func fetchSubscriptions() async -> [Channel] {
-        do {
-            let data = try await makeAuthenticatedRequest(to: "subscriptions")
-            
-            let channelResponses = try JSONDecoder().decode([ChannelResponse].self, from: data)
-            let channels = channelResponses.compactMap { $0.toChannel() }
-            return channels
-        } catch {
-            print("Failed to fetch subscriptions: \(error.localizedDescription)")
-        }
+        guard let data = await makeAuthenticatedRequest(to: "subscriptions") else { return [] }
         
-        return []
+        do {
+            let channelResponses = try JSONDecoder().decode([ChannelResponse].self, from: data)
+            return channelResponses.compactMap { $0.toChannel() }
+        } catch {
+            return []
+        }
+    }
+    
+    private func manageSubscription(channelId: String, endpoint: String) async -> Bool {
+        guard let body = try? JSONEncoder().encode(SubscriptionRequest(channelId: channelId)) else { return false }
+        return await makeAuthenticatedRequest(to: endpoint, method: "POST", body: body) != nil
     }
     
     func subscribe(to channelId: String) async -> Bool {
-        do {
-            let endpoint = "subscribe"
-            guard let baseURL = baseURL else { return false }
-            guard let token = token else { return false }
-            
-            let url = baseURL.appendingPathComponent(endpoint)
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue(token, forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            
-            let subscriptionRequest = SubscriptionRequest(channelId: channelId)
-            request.httpBody = try JSONEncoder().encode(subscriptionRequest)
-            
-            let (_, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                return httpResponse.statusCode == 200
-            }
-        } catch {
-            print("Failed to subscribe: \(error.localizedDescription)")
-        }
-        
-        return false
+        return await manageSubscription(channelId: channelId, endpoint: "subscribe")
     }
     
     func unsubscribe(from channelId: String) async -> Bool {
-        do {
-            let endpoint = "unsubscribe"
-            guard let baseURL = baseURL else { return false }
-            guard let token = token else { return false }
-            
-            let url = baseURL.appendingPathComponent(endpoint)
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue(token, forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            
-            let subscriptionRequest = SubscriptionRequest(channelId: channelId)
-            request.httpBody = try JSONEncoder().encode(subscriptionRequest)
-            
-            let (_, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                return httpResponse.statusCode == 200
-            }
-        } catch {
-            print("Failed to unsubscribe: \(error.localizedDescription)")
-        }
-        
-        return false
+        return await manageSubscription(channelId: channelId, endpoint: "unsubscribe")
     }
 
 }
