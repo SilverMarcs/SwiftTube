@@ -10,8 +10,8 @@ struct VideoFeedTab: View {
             List {
                 ForEach(videos) { video in
                     VideoRow(video: video, namespace: namespace)
-                        .listRowInsets(.vertical, 5)
-                        .listRowInsets(.horizontal, 5)
+                        .listRowInsets(.vertical, 7)
+                        .listRowInsets(.horizontal, 10)
                         .listRowSeparator(.hidden)
                 }
                 
