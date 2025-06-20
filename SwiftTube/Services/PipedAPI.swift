@@ -302,37 +302,37 @@ final class PipedAPI: ObservableObject {
     
     // MARK: - Video Streams
     
-    func fetchVideoStreams(videoId: String) async throws -> VideoStreams {
-        guard let baseURL = baseURL else {
-            throw URLError(.badURL)
-        }
-        
-        let url = baseURL.appendingPathComponent("streams/\(videoId)")
-        var request = URLRequest(url: url)
-        
-        // Add authentication if available
-        if let token = token {
-            request.setValue(token, forHTTPHeaderField: "Authorization")
-        }
-        
-        print("Fetching streams for video: \(videoId) from: \(url.absoluteString)")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        if let httpResponse = response as? HTTPURLResponse {
-            print("Streams request response status: \(httpResponse.statusCode)")
-            guard httpResponse.statusCode == 200 else {
-                print("Streams request failed with status: \(httpResponse.statusCode)")
-                throw URLError(.badServerResponse)
-            }
-        }
-        
-        // Parse the response
-        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        print("Streams response JSON keys: \(json?.keys.joined(separator: ", ") ?? "none")")
-        
-        return try parseVideoStreams(from: json ?? [:])
-    }
+//    func fetchVideoStreams(videoId: String) async throws -> VideoStreams {
+//        guard let baseURL = baseURL else {
+//            throw URLError(.badURL)
+//        }
+//        
+//        let url = baseURL.appendingPathComponent("streams/\(videoId)")
+//        var request = URLRequest(url: url)
+//        
+//        // Add authentication if available
+//        if let token = token {
+//            request.setValue(token, forHTTPHeaderField: "Authorization")
+//        }
+//        
+//        print("Fetching streams for video: \(videoId) from: \(url.absoluteString)")
+//        
+//        let (data, response) = try await URLSession.shared.data(for: request)
+//        
+//        if let httpResponse = response as? HTTPURLResponse {
+//            print("Streams request response status: \(httpResponse.statusCode)")
+//            guard httpResponse.statusCode == 200 else {
+//                print("Streams request failed with status: \(httpResponse.statusCode)")
+//                throw URLError(.badServerResponse)
+//            }
+//        }
+//        
+//        // Parse the response
+//        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+//        print("Streams response JSON keys: \(json?.keys.joined(separator: ", ") ?? "none")")
+//        
+//        return try parseVideoStreams(from: json ?? [:])
+//    }
     
     private func parseVideoStreams(from json: [String: Any]) throws -> VideoStreams {
         var videoStreams: [Stream] = []

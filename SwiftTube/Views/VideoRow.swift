@@ -75,42 +75,42 @@ struct VideoRow: View {
         }
         .padding(.vertical, 8)
         .contentShape(Rectangle())
-        .onTapGesture {
-            Task {
-                await fetchVideoStreams()
-            }
-        }
+//        .onTapGesture {
+//            Task {
+//                await fetchVideoStreams()
+//            }
+//        }
     }
     
-    private func fetchVideoStreams() async {
-        isLoadingStreams = true
-        defer { isLoadingStreams = false }
-        
-        do {
-            print("Fetching streams for video: \(video.title) (ID: \(video.id))")
-            let streams = try await pipedAPI.fetchVideoStreams(videoId: video.id)
-            
-            print("Successfully fetched streams:")
-            print("- Video streams: \(streams.videoStreams.count)")
-            print("- Audio streams: \(streams.audioStreams.count)")
-            print("- HLS available: \(streams.hlsURL != nil)")
-            
-            if let bestVideo = streams.bestVideoStream {
-                print("Best video stream: \(bestVideo.quality) \(bestVideo.format)")
-                print("Video URL: \(bestVideo.url.absoluteString)")
-            }
-            
-            if let bestAudio = streams.bestAudioStream {
-                print("Best audio stream: \(bestAudio.format) (\(bestAudio.bitrate ?? 0)kbps)")
-                print("Audio URL: \(bestAudio.url.absoluteString)")
-            }
-            
-            if let hlsURL = streams.hlsURL {
-                print("HLS stream URL: \(hlsURL.absoluteString)")
-            }
-            
-        } catch {
-            print("Failed to fetch video streams: \(error)")
-        }
-    }
+//    private func fetchVideoStreams() async {
+//        isLoadingStreams = true
+//        defer { isLoadingStreams = false }
+//
+//        do {
+//            print("Fetching streams for video: \(video.title) (ID: \(video.id))")
+//            let streams = try await pipedAPI.fetchVideoStreams(videoId: video.id)
+//
+//            print("Successfully fetched streams:")
+//            print("- Video streams: \(streams.videoStreams.count)")
+//            print("- Audio streams: \(streams.audioStreams.count)")
+//            print("- HLS available: \(streams.hlsURL != nil)")
+//
+//            if let bestVideo = streams.bestVideoStream {
+//                print("Best video stream: \(bestVideo.quality) \(bestVideo.format)")
+//                print("Video URL: \(bestVideo.url.absoluteString)")
+//            }
+//
+//            if let bestAudio = streams.bestAudioStream {
+//                print("Best audio stream: \(bestAudio.format) (\(bestAudio.bitrate ?? 0)kbps)")
+//                print("Audio URL: \(bestAudio.url.absoluteString)")
+//            }
+//
+//            if let hlsURL = streams.hlsURL {
+//                print("HLS stream URL: \(hlsURL.absoluteString)")
+//            }
+//
+//        } catch {
+//            print("Failed to fetch video streams: \(error)")
+//        }
+//    }
 }
