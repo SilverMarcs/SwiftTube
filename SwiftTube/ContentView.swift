@@ -8,17 +8,18 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var accountManager = AccountManager.shared
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        Group {
+            if accountManager.currentAccount != nil {
+                FeedView()
+            } else {
+                LoginView()
+            }
         }
-        .padding()
+        .onAppear {
+            // This will check if there's a saved account and set it as current
+        }
     }
-}
-
-#Preview {
-    ContentView()
 }
