@@ -26,47 +26,27 @@ final class PipedAPI: ObservableObject {
     // MARK: - Authentication
     
     func login(username: String, password: String, account: Account) async {
-        guard let baseURL = URL(string: account.instance.apiURLString) else {
-            print("Invalid instance URL")
-            return
-        }
+        guard let baseURL = URL(string: account.instance.apiURLString) else { return }
         
         let loginURL = baseURL.appendingPathComponent("login")
+        let authRequest = AuthRequest(username: username, password: password)
         
         var request = URLRequest(url: loginURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let credentials = ["username": username, "password": password]
-        
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: credentials)
+            request.httpBody = try JSONEncoder().encode(authRequest)
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
             
-            let (data, response) = try await URLSession.shared.data(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                
-                if httpResponse.statusCode == 200 {
-                    let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
-                    
-                    
-                    if let token = authResponse.token, !token.isEmpty {
-                        // Save credentials and token
-                        keychainManager.saveAccountCredentials(account, username: username, password: password)
-                        keychainManager.saveAccountToken(account, token: token)
-                        
-                        isAuthenticated = true
-                    } else if let error = authResponse.error {
-                            print("Authentication error: \(error)")
-                    } else {
-                        print("No token or error in response")
-                    }
-                } else {
-                    print("HTTP error: \(httpResponse.statusCode)")
-                }
+            if let token = authResponse.token, !token.isEmpty {
+                keychainManager.saveAccountCredentials(account, username: username, password: password)
+                keychainManager.saveAccountToken(account, token: token)
+                isAuthenticated = true
             }
         } catch {
-            print("Network error: \(error.localizedDescription)")
+            print("Login error: \(error.localizedDescription)")
         }
     }
     
