@@ -48,8 +48,10 @@ struct VideoPlayerView: View {
                     )
                 }
             }
-            .navigationTransition(.zoom(sourceID: "video-\(video.id)", in: namespace))
             .aspectRatio(16/9, contentMode: .fit)
+            #if !os(macOS)
+            .navigationTransition(.zoom(sourceID: "video-\(video.id)", in: namespace))
+            #endif
                      
             ScrollView {
                 Text(video.title)
@@ -57,9 +59,10 @@ struct VideoPlayerView: View {
    
             }
         }
+        #if !os(macOS)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
-        
+        #endif
     }
 }
 

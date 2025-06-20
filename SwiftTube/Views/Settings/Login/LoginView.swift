@@ -17,6 +17,7 @@ struct LoginView: View {
             
             addAccountForm
         }
+        .formStyle(.grouped)
     }
     
     private var headerSection: some View {
@@ -42,15 +43,19 @@ struct LoginView: View {
     @ViewBuilder
     private var addAccountForm: some View {
         Section("Add Account") {
-            TextField("https://pipedapi.kavin.rocks", text: $instanceURL)
+            TextField("Instance URL", text: $instanceURL)
+                #if !os(macOS)
                 .keyboardType(.URL)
                 .autocapitalization(.none)
+                #endif
                 .autocorrectionDisabled()
             
             TextField("My Piped Instance", text: $instanceName)
             
             TextField("Username", text: $username)
+                #if !os(macOS)
                 .autocapitalization(.none)
+                #endif
             
             SecureField("Password", text: $password)
         }
@@ -66,8 +71,7 @@ struct LoginView: View {
             Button(action: login) {
                 if isLoading {
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .tint(.white)
+                        .controlSize(.small)
                 } else {
                     Text("Add Account")
                 }
@@ -92,8 +96,9 @@ struct LoginView: View {
                 password: password
             )
             
+            isLoading = false
+            
             if success {
-                isLoading = false
                 dismiss()
             } else {
                 errorMessage = "Login failed. Please check your credentials and try again."
