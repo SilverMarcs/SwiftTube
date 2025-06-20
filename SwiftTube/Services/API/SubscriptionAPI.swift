@@ -32,8 +32,15 @@ extension PipedAPI {
         }
     }
     
-    func fetchSubscribedFeed() async -> [Video] {
-        guard let data = await makeAuthenticatedRequest(to: "feed", useQueryToken: true) else { return [] }
+    func fetchSubscribedFeed(page: Int? = nil) async -> [Video] {
+        let endpoint = "feed"
+        var parameters: [String: String] = [:]
+        
+        if let page = page {
+            parameters["page"] = String(page)
+        }
+        
+        guard let data = await makeAuthenticatedRequest(to: "feed", useQueryToken: true, parameters: parameters) else { return [] }
         
         do {
             let videoResponses = try JSONDecoder().decode([VideoResponse].self, from: data)

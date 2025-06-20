@@ -14,9 +14,25 @@ struct VideoResponse: Codable {
     let thumbnail: String?
     let thumbnailUrl: String?
     
+    // Additional fields from Piped API
+    let description: String?
+    let likes: Int?
+    let dislikes: Int?
+    let livestream: Bool?
+    let isShort: Bool?
+    let uploaderUrl: String?
+    let uploaderAvatar: String?
+    let uploaderSubscriberCount: Int?
+    let avatarUrl: String?
+    let avatar: String?
+    
     // Computed properties to handle multiple field names
     var authorName: String {
         return uploaderName ?? uploader ?? author ?? ""
+    }
+    
+    var channelId: String {
+        uploaderUrl?.components(separatedBy: "/").last ?? "unknown"
     }
     
     var videoDuration: TimeInterval {
@@ -31,6 +47,18 @@ struct VideoResponse: Codable {
         return thumbnail ?? thumbnailUrl
     }
     
+    var avatarURLString: String? {
+        return uploaderAvatar ?? avatarUrl ?? avatar
+    }
+    
+    var isLive: Bool {
+        return livestream ?? (duration == -1)
+    }
+    
+    var isShortVideo: Bool {
+        return isShort ?? ((duration ?? 0) <= 61)
+    }
+    
     var uploadedDateString: String {
         if let uploadedTimestamp = uploaded, uploadedTimestamp > 0 {
             let date = Date(timeIntervalSince1970: uploadedTimestamp / 1000)
@@ -39,6 +67,17 @@ struct VideoResponse: Codable {
             return uploadedString
         }
         return ""
+    }
+    
+    var publishedDate: Date? {
+        if let uploadedTimestamp = uploaded, uploadedTimestamp > 0 {
+            return Date(timeIntervalSince1970: uploadedTimestamp / 1000)
+        } else if let dateString = uploadedDate ?? uploadDate {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            return formatter.date(from: dateString)
+        }
+        return nil
     }
     
     // Convert to Video model
@@ -52,7 +91,15 @@ struct VideoResponse: Codable {
             duration: videoDuration,
             published: uploadedDateString,
             views: videoViews,
-            thumbnailURL: thumbnailURLString.flatMap { URL(string: $0) }
+            thumbnailURL: thumbnailURLString.flatMap { URL(string: $0) },
+            description: description,
+            likes: likes,
+            dislikes: dislikes,
+            isLive: isLive,
+            isShort: isShortVideo,
+            publishedAt: publishedDate,
+            channelId: channelId,
+            channelSubscriberCount: uploaderSubscriberCount
         )
         
         return video

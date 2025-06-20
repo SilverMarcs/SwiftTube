@@ -14,7 +14,7 @@ final class PipedAPI {
         AccountManager.shared.currentAccount
     }
     
-    private var baseURL: URL? {
+    internal var baseURL: URL? {
         currentAccount?.instance.apiURL
     }
     
@@ -25,18 +25,21 @@ final class PipedAPI {
     
     // MARK: - API Methods
     
-    internal func makeAuthenticatedRequest(to endpoint: String, method: String = "GET", body: Data? = nil, useQueryToken: Bool = false) async -> Data? {
+    internal func makeAuthenticatedRequest(to endpoint: String, method: String = "GET", body: Data? = nil, useQueryToken: Bool = false, parameters: [String: String] = [:]) async -> Data? {
         guard currentAccount != nil, let baseURL = baseURL, let token = token else { return nil }
         
-        let url = baseURL.appendingPathComponent(endpoint)
-        var finalURL = url
+        var components = URLComponents(url: baseURL.appendingPathComponent(endpoint), resolvingAgainstBaseURL: false)
+        var queryItems = parameters.map { URLQueryItem(name: $0.key, value: $0.value) }
         
         if useQueryToken {
-            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-            components?.queryItems = [URLQueryItem(name: "authToken", value: token)]
-            guard let queryURL = components?.url else { return nil }
-            finalURL = queryURL
+            queryItems.append(URLQueryItem(name: "authToken", value: token))
         }
+        
+        if !queryItems.isEmpty {
+            components?.queryItems = queryItems
+        }
+        
+        guard let finalURL = components?.url else { return nil }
         
         var request = URLRequest(url: finalURL)
         request.httpMethod = method
@@ -49,6 +52,29 @@ final class PipedAPI {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = body
         }
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else { return nil }
+            return data
+        } catch {
+            return nil
+        }
+    }
+    
+    
+    internal func makeUnauthenticatedRequest(to endpoint: String, parameters: [String: String] = [:]) async -> Data? {
+        guard let baseURL = baseURL else { return nil }
+        
+        var components = URLComponents(url: baseURL.appendingPathComponent(endpoint), resolvingAgainstBaseURL: false)
+        if !parameters.isEmpty {
+            components?.queryItems = parameters.map { URLQueryItem(name: $0.key, value: $0.value) }
+        }
+        
+        guard let url = components?.url else { return nil }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)

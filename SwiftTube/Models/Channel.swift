@@ -6,16 +6,27 @@ struct Channel: Identifiable, Hashable {
     let thumbnailURL: URL?
     let subscribersCount: Int?
     
+    // Additional fields from Piped API
+    let description: String?
+    let verified: Bool
+    let videos: [Video]
+    
     init(
         id: String,
         name: String,
         thumbnailURL: URL? = nil,
-        subscribersCount: Int? = nil
+        subscribersCount: Int? = nil,
+        description: String? = nil,
+        verified: Bool = false,
+        videos: [Video] = []
     ) {
         self.id = id
         self.name = name
         self.thumbnailURL = thumbnailURL
         self.subscribersCount = subscribersCount
+        self.description = description
+        self.verified = verified
+        self.videos = videos
     }
     
     var subscribersText: String? {

@@ -10,6 +10,11 @@ struct ChannelResponse: Codable {
     let avatarUrl: String?
     let uploaderAvatar: String?
     
+    // Additional fields from Piped API
+    let description: String?
+    let verified: Bool?
+    let relatedStreams: [VideoResponse]?
+    
     // Computed properties to handle multiple field names
     var channelSubscriberCount: Int? {
         return subscriberCount ?? subscribers ?? uploaderSubscriberCount
@@ -27,7 +32,10 @@ struct ChannelResponse: Codable {
             id: channelId,
             name: name,
             thumbnailURL: avatarURLString.flatMap { URL(string: $0) },
-            subscribersCount: channelSubscriberCount
+            subscribersCount: channelSubscriberCount,
+            description: description,
+            verified: verified ?? false,
+            videos: relatedStreams?.compactMap { $0.toVideo() } ?? []
         )
         
         return channel
