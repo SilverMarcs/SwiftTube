@@ -93,28 +93,22 @@ struct VideoDetailResponse: Codable {
         return nil
     }
     
-    func toVideo() -> Video? {
-        Video(
-            id: videoId,
-            title: title,
-            author: authorName,
-            duration: duration ?? 0,
-            published: publishedDateString,
-            views: views ?? 0,
-            thumbnailURL: thumbnailURL.flatMap { URL(string: $0) },
-            description: description,
-            likes: likes,
-            dislikes: dislikes,
-            isLive: isLive,
-            isShort: isShortVideo,
-            publishedAt: publishedDate,
-            channelId: channelId,
-            channelSubscriberCount: uploaderSubscriberCount,
-            chapters: chapters?.compactMap { $0.toChapter() } ?? [],
-            captions: subtitles?.compactMap { $0.toCaption() } ?? [],
-            relatedVideos: relatedStreams?.compactMap { $0.toVideo() } ?? []
-        )
-    }
+//    func toVideo() -> Video? {
+//        Video(
+//            id: videoId,
+//            title: title,
+//            author: authorName,
+//            duration: duration ?? 0,
+//            published: publishedDateString,
+//            views: views ?? 0,
+//            thumbnailURL: thumbnailURL.flatMap { URL(string: $0) },
+//            isLive: isLive,
+//            isShort: isShortVideo,
+//            publishedAt: publishedDate,
+//            channelId: channelId,
+//            channelSubscriberCount: uploaderSubscriberCount
+//        )
+//    }
     
     private func extractVideoId(from url: String) -> String {
         if url.contains("watch?v=") {

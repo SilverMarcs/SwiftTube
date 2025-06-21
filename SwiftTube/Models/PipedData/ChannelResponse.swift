@@ -35,7 +35,7 @@ struct ChannelResponse: Codable {
             subscribersCount: channelSubscriberCount,
             description: description,
             verified: verified ?? false,
-            videos: relatedStreams?.compactMap { $0.toVideo() } ?? []
+            videos: [] // TODO: 
         )
         
         return channel

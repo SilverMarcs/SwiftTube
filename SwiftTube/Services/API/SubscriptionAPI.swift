@@ -32,8 +32,7 @@ extension PipedAPI {
         }
     }
     
-    func fetchSubscribedFeed(page: Int? = nil) async -> [Video] {
-        let endpoint = "feed"
+    func fetchSubscribedFeed(page: Int? = nil) async -> [VideoResponse] {
         var parameters: [String: String] = [:]
         
         if let page = page {
@@ -44,8 +43,9 @@ extension PipedAPI {
         
         do {
             let videoResponses = try JSONDecoder().decode([VideoResponse].self, from: data)
-            return videoResponses.compactMap { $0.toVideo() }
+            return videoResponses.compactMap { $0 }
         } catch {
+            print("Error decoding subscribed feed: \(error.localizedDescription)")
             return []
         }
     }

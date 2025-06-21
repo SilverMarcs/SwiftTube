@@ -9,7 +9,7 @@ import SwiftUI
 import YouTubePlayerKit
 
 struct VideoPlayerView: View {
-    let video: Video
+    let video: VideoResponse
     let namespace: Namespace.ID
 
     var youTubePlayer: YouTubePlayer { YouTubePlayer(
@@ -54,11 +54,13 @@ struct VideoPlayerView: View {
             #endif
                      
             ScrollView {
-                Text(video.title)
-                    .font(.headline)
-   
+                VideoDetailView(video: video)
             }
         }
+//        .task {
+//            // Fetch detailed video information when view appears
+//            detailedVideo = await PipedAPI.shared.fetchVideoDetail(for: video)
+//        }
         #if !os(macOS)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)

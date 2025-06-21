@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct VideoRow: View {
-    let video: Video
+    let video: VideoResponse
     let namespace: Namespace.ID
     
     var body: some View {
@@ -13,15 +13,13 @@ struct VideoRow: View {
                         .aspectRatio(16/9, contentMode: .fit)
                         .aspectRatio(contentMode: .fit)
                         .overlay(alignment: .bottomTrailing) {
-                            if video.duration > 0 {
-                                Text(video.durationText)
-                                    .font(.caption)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
-                                    .foregroundStyle(.white)
-                                    .background(RoundedRectangle(cornerRadius: 4).fill(.black.secondary))
-                                    .padding(10)
-                            }
+                            Text(video.durationText)
+                                .font(.caption)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .foregroundStyle(.white)
+                                .background(RoundedRectangle(cornerRadius: 4).fill(.black.secondary))
+                                .padding(10)
                         }
                 } placeholder: {
                     Rectangle()
@@ -41,7 +39,22 @@ struct VideoRow: View {
                 
                 // Author and view count
                 HStack {
-                    Text(video.author)
+                    if let uploaderUrl = video.uploaderAvatar, let url = URL(string: uploaderUrl) {
+                        AsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 22, height: 22)
+                                .clipShape(Circle())
+                        } placeholder: {
+                            Image(systemName: "person.circle.fill")
+                                .resizable()
+                                .frame(width: 22, height: 22)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    Text(video.uploaderName ?? "Unknown")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     
