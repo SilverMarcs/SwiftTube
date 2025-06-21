@@ -52,7 +52,7 @@ struct VideoRow: View {
                         }
                     }
                     
-                    Text(video.channelName)
+                    Text(video.uploaderName)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     

@@ -6,13 +6,13 @@ struct Video: Codable, Equatable, Hashable, Identifiable {
     let duration: Int?
     let type: String?
     let thumbnail: String?
-    let uploaded: Double?
-    let uploaderVerified: Bool?
-    let uploaderName: String?
+    var uploaded: Double = 0.0
+    var uploaderVerified: Bool = false
+    var uploaderName: String = "Unknown Channel"
     let uploaderUrl: String?
     let uploaderAvatar: String?
-    let isShort: Bool?
-    let views: Int?
+    var isShort: Bool = false
+    var views: Int = 0
     
     static func == (lhs: Video, rhs: Video) -> Bool {
         return lhs.url == rhs.url
@@ -21,11 +21,7 @@ struct Video: Codable, Equatable, Hashable, Identifiable {
     var id : String {
         return url
     }
-    
-    var channelName: String {
-        return uploaderName ?? "Unknown Channel"
-    }
-    
+
     var thumbnailURL: URL {
         return URL(string: thumbnail ?? "https://picsum.photos/seed/picsum/200/300")!
     }
@@ -45,8 +41,6 @@ struct Video: Codable, Equatable, Hashable, Identifiable {
     }
     
     var viewsText: String {
-        guard let views = views else { return "0 views" }
-        
         let suffix = views == 1 ? " view" : " views"
         
         if views >= 1_000_000 {
