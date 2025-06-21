@@ -64,4 +64,18 @@ extension PipedAPI {
             return nil
         }
     }
+    
+    func fetchComments(videoId: String) async -> CommentsData? {
+        guard let data = await makeUnauthenticatedRequest(to: "comments/\(videoId)") else {
+            return nil
+        }
+        
+        do {
+            let commentsResponse = try JSONDecoder().decode(CommentsResponse.self, from: data)
+            return commentsResponse.toCommentsData()
+        } catch {
+            print("Error decoding comments: \(error.localizedDescription)")
+            return nil
+        }
+    }
 }

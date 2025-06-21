@@ -18,7 +18,7 @@ struct ContentView: View {
                     .environment(\.videoNameSpace, namespace)
             }
             
-            Tab("Subscriptions", systemImage: "person.2", value: .subscriptions) {
+            Tab("Subs", systemImage: "person.2", value: .subscriptions) {
                SubscriptionsTab()
             }
             

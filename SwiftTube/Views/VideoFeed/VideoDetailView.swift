@@ -16,7 +16,7 @@ struct VideoDetailView: View {
     var body: some View {
         VStack(alignment: .leading) {
             if isLoading {
-                ProgressView("Loading video details...")
+                ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let videoDetail = videoDetail {
                 // Video Title
@@ -35,6 +35,10 @@ struct VideoDetailView: View {
                 if let description = videoDetail.description, !description.isEmpty {
                     descriptionSection(description)
                 }
+                
+                // Comments Section
+                VideoCommentsView(videoId: video.id)
+                    .padding(.top, 10)
                 
                 // Related Videos
 //                if !videoDetail.relatedVideos.isEmpty {
@@ -129,13 +133,11 @@ struct VideoDetailView: View {
             if description.containsHTML {
                 Text(description.htmlToAttributedString(font: .subheadline, color: .primary))
                     .lineLimit(isDescriptionExpanded ? nil : 5)
-//                    .animation(.easeInOut(duration: 0.3), value: isDescriptionExpanded)
                     .textSelection(.enabled)
             } else {
                 Text(description)
                     .font(.subheadline)
                     .lineLimit(isDescriptionExpanded ? nil : 5)
-//                    .animation(.easeInOut(duration: 0.3), value: isDescriptionExpanded)
                     .textSelection(.enabled)
             }
             
@@ -147,6 +149,7 @@ struct VideoDetailView: View {
             .font(.caption)
             .foregroundStyle(.blue)
         }
+        .frame(maxWidth: .infinity, alignment: .leading) // Add this line
         .padding(.vertical, 12)
         .padding(.horizontal, 12)
         .background(RoundedRectangle(cornerRadius: 12).fill(.background.secondary))

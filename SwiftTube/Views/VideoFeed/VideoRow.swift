@@ -29,7 +29,6 @@ struct VideoRow: View {
                             ProgressView()
                         }
                 }
-                .matchedTransitionSource(id: "video-\(video.id)", in: namespace)
                 .padding(.horizontal, -12)
                 .padding(.top, -12)
                 Text(video.title)
@@ -66,6 +65,7 @@ struct VideoRow: View {
             .padding(12)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .background(.background.secondary, in: .rect(cornerRadius: 16))
+            .matchedTransitionSource(id: "video-\(video.id)", in: namespace)
         }
     }
 }
