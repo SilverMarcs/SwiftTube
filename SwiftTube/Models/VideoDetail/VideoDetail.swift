@@ -121,4 +121,9 @@ struct VideoDetail: Codable {
             return "\(uploaderSubscriberCount) subscribers"
         }
     }
+    
+    // Filter WEBM video streams
+    var webmVideoStreams: [VideoStreamResponse] {
+        videoStreams?.filter { $0.format?.uppercased() == "WEBM" } ?? []
+    }
 }
