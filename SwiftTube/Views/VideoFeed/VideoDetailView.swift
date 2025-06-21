@@ -122,27 +122,33 @@ struct VideoDetailView: View {
     
     private func descriptionSection(_ description: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Description")
-                    .font(.headline)
-                Spacer()
-                Button(isDescriptionExpanded ? "Show Less" : "Show More") {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        isDescriptionExpanded.toggle()
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.blue)
+            Text("Description")
+                .font(.headline)
+            
+            // Parse HTML description if it contains HTML tags
+            if description.containsHTML {
+                Text(description.htmlToAttributedString(font: .subheadline, color: .primary))
+                    .lineLimit(isDescriptionExpanded ? nil : 5)
+//                    .animation(.easeInOut(duration: 0.3), value: isDescriptionExpanded)
+                    .textSelection(.enabled)
+            } else {
+                Text(description)
+                    .font(.subheadline)
+                    .lineLimit(isDescriptionExpanded ? nil : 5)
+//                    .animation(.easeInOut(duration: 0.3), value: isDescriptionExpanded)
+                    .textSelection(.enabled)
             }
             
-            Text(description)
-                .font(.subheadline)
-                .lineLimit(isDescriptionExpanded ? nil : 3)
-                .animation(.easeInOut(duration: 0.3), value: isDescriptionExpanded)
+            Button(isDescriptionExpanded ? "Show Less" : "Show More") {
+                withAnimation {
+                    isDescriptionExpanded.toggle()
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.blue)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 12)
-        .background(.background.secondary)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(RoundedRectangle(cornerRadius: 12).fill(.background.secondary))
     }
 }
