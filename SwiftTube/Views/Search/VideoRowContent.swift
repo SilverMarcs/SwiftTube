@@ -1,8 +1,15 @@
+//
+//  VideoRowContent.swift
+//  SwiftTube
+//
+//  Created by Zabir Raihan on 21/06/2025.
+//
+
 import SwiftUI
 
-struct VideoRow: View {
-    @Environment(\.videoNameSpace) private var namespace: Namespace.ID
+struct VideoRowContent: View {
     let video: Video
+    let namespace: Namespace.ID
     
     var body: some View {
         NavigationLink(value: video) {
@@ -32,6 +39,7 @@ struct VideoRow: View {
                 .matchedTransitionSource(id: "video-\(video.id)", in: namespace)
                 .padding(.horizontal, -12)
                 .padding(.top, -12)
+                
                 Text(video.title)
                     .font(.headline)
                     .lineLimit(2)

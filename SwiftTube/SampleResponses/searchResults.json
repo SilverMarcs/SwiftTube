@@ -1,0 +1,40 @@
+{
+  "items": [
+    {
+      "url": "/watch?v=dQw4w9WgXcQ",
+      "type": "stream",
+      "title": "Rick Astley - Never Gonna Give You Up (Official Video)",
+      "thumbnail": "https://pipedproxy.example.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+      "uploaderName": "Rick Astley",
+      "uploaderUrl": "/channel/UCuAXFkgsw1L7xaCfnd5JJOw",
+      "uploaderAvatar": "https://pipedproxy.example.com/ytc/AAUvwnjl7tBbC6XTL_gq.jpg",
+      "uploaderVerified": true,
+      "duration": 213,
+      "views": 1300000000,
+      "uploaded": 1699920000000,
+      "uploadedDate": "16 years ago",
+      "shortDescription": "The official video for 'Never Gonna Give You Up' by Rick Astley..."
+    },
+    {
+      "url": "/channel/UCuAXFkgsw1L7xaCfnd5JJOw",
+      "type": "channel",
+      "name": "Rick Astley",
+      "avatar": "https://pipedproxy.example.com/ytc/AAUvwnjl7tBbC6XTL_gq.jpg",
+      "subscribers": 3200000,
+      "description": "Official Rick Astley YouTube Channel",
+      "verified": true
+    },
+    {
+      "url": "/playlist?list=PLrAKXoJEGnhgdJk7yW6D5NZMZWQtgILPG",
+      "type": "playlist",
+      "name": "Rick Astley Greatest Hits",
+      "thumbnail": "https://pipedproxy.example.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+      "uploaderName": "Rick Astley",
+      "uploaderUrl": "/channel/UCuAXFkgsw1L7xaCfnd5JJOw",
+      "videos": 15
+    }
+  ],
+  "nextpage": "ChIQAhABGAE%3D",
+  "suggestion": null,
+  "corrected": false
+}

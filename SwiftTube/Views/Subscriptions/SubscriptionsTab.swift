@@ -7,7 +7,8 @@ struct SubscriptionsTab: View {
     var body: some View {
         NavigationStack {
             List(subscriptions) { channel in
-                ChannelRow(channel: channel)
+//                ChannelRow(channel: channel)
+                ChannelRowContent(channel: channel)
                 
                 if isLoading {
                     ProgressView()
@@ -17,6 +18,7 @@ struct SubscriptionsTab: View {
                         .listRowSeparator(.hidden)
                 }
             }
+            .navigationDestinations()
             .listStyle(.plain)
             .navigationTitle("Subscriptions")
             .toolbarTitleDisplayMode(.inlineLarge)

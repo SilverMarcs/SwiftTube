@@ -10,7 +10,7 @@ import YouTubePlayerKit
 
 struct VideoPlayerView: View {
     let video: Video
-    let namespace: Namespace.ID
+    @Environment(\.videoNameSpace) private var namespace
 
     var youTubePlayer: YouTubePlayer { YouTubePlayer(
         // Possible values: .video, .videos, .playlist, .channel
@@ -57,10 +57,6 @@ struct VideoPlayerView: View {
                 VideoDetailView(video: video)
             }
         }
-//        .task {
-//            // Fetch detailed video information when view appears
-//            detailedVideo = await PipedAPI.shared.fetchVideoDetail(for: video)
-//        }
         #if !os(macOS)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)

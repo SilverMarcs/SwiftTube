@@ -7,18 +7,7 @@
 
 import Foundation
 
-extension PipedAPI {
-//    func fetchVideoDetails(videoId: String) async -> Video? {
-//        guard let data = await makeUnauthenticatedRequest(to: "streams/\(videoId)") else { return nil }
-//        
-//        do {
-//            let videoDetail = try JSONDecoder().decode(VideoDetail.self, from: data)
-//            return videoDetail.toVideo()
-//        } catch {
-//            return nil
-//        }
-//    }
-    
+extension PipedAPI {    
 //    func fetchTrending(region: String = "US") async -> [Video] {
 //        guard let data = await makeUnauthenticatedRequest(to: "trending", parameters: ["region": region]) else { return [] }
 //        
@@ -30,16 +19,26 @@ extension PipedAPI {
 //        }
 //    }
 //    
-//    func search(query: String, filter: String = "all") async -> [Video] {
-//        guard let data = await makeUnauthenticatedRequest(to: "search", parameters: ["q": query, "filter": filter]) else { return [] }
-//        
-//        do {
-//            let searchResponse = try JSONDecoder().decode(SearchResponse.self, from: data)
-//            return searchResponse.items?.compactMap { $0.toVideo() } ?? []
-//        } catch {
-//            return []
-//        }
-//    }
+    func search(query: String, filter: SearchFilter = .videos) async -> [SearchItem] {
+        guard !query.isEmpty else { return [] }
+        
+        let parameters = [
+            "q": query,
+            "filter": filter.rawValue
+        ]
+        
+        guard let data = await makeUnauthenticatedRequest(to: "search", parameters: parameters) else { 
+            return [] 
+        }
+        
+        do {
+            let searchResponse = try JSONDecoder().decode(SearchResponse.self, from: data)
+            return searchResponse.items?.compactMap { $0.toSearchItem() } ?? []
+        } catch {
+            print("Error decoding search results: \(error.localizedDescription)")
+            return []
+        }
+    }
     
     func fetchChannelDetails(channelId: String) async -> Channel? {
         guard let data = await makeUnauthenticatedRequest(to: "channel/\(channelId)") else { return nil }

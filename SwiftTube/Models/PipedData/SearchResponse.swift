@@ -8,7 +8,7 @@
 import Foundation
 
 struct SearchResponse: Codable {
-    let items: [Video]?
+    let items: [SearchItemResponse]?
     let nextpage: String?
     let suggestion: String?
     let corrected: Bool?

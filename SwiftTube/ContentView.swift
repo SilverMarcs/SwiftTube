@@ -9,11 +9,13 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selection: Tabs = .videos
+    @Namespace private var namespace
     
     var body: some View {
         TabView(selection: $selection) {
             Tab("Feed", systemImage: "video", value: .videos) {
                 VideoFeedTab()
+                    .environment(\.videoNameSpace, namespace)
             }
             
             Tab("Subscriptions", systemImage: "person.2", value: .subscriptions) {
@@ -24,10 +26,10 @@ struct ContentView: View {
                 SettingsView()
             }
             
-//            Tab(value: .search, role: .search) {
-//                SearchTab()
-//            }
-                
+            Tab(value: .search, role: .search) {
+                SearchTab()
+                    .environment(\.videoNameSpace, namespace)
+            }
         }
         .tabViewStyle(.sidebarAdaptable)
         #if !os(macOS)
@@ -39,5 +41,6 @@ struct ContentView: View {
         case videos
         case subscriptions
         case settings
+        case search
     }
 }

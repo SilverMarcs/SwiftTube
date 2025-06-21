@@ -3,13 +3,12 @@ import SwiftUI
 struct VideoFeedTab: View {
     @State private var videos: [Video] = []
     @State private var isLoading = false
-    @Namespace private var namespace
     
     var body: some View {
         NavigationStack {
             List {
                 ForEach(videos) { video in
-                    VideoRow(video: video, namespace: namespace)
+                    VideoRow(video: video)
                         .listRowInsets(.vertical, 7)
                         .listRowInsets(.horizontal, 10)
                         .listRowSeparator(.hidden)
@@ -23,12 +22,10 @@ struct VideoFeedTab: View {
                         .listRowSeparator(.hidden)
                 }
             }
+            .navigationDestinations()
             .listStyle(.plain)
             .navigationTitle("Feed")
             .toolbarTitleDisplayMode(.inlineLarge)
-            .navigationDestination(for: Video.self) { video in
-                VideoPlayerView(video: video, namespace: namespace)
-             }
             .task {
                 await loadFeed()
             }
