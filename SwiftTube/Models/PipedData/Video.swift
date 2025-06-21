@@ -3,10 +3,10 @@ import Foundation
 struct Video: Codable, Equatable, Hashable, Identifiable {
     let url: String
     let title: String
-    let duration: Int?
+    var duration: Int = 0
     let type: String?
     let thumbnail: String?
-    var uploaded: Double = 0.0
+    var uploaded: Double = 0
     var uploaderVerified: Bool = false
     var uploaderName: String = "Unknown Channel"
     let uploaderUrl: String?
@@ -18,8 +18,13 @@ struct Video: Codable, Equatable, Hashable, Identifiable {
         return lhs.url == rhs.url
     }
     
-    var id : String {
-        return url
+    var id: String {
+        // strip the URL to get the video ID
+//        /watch?v=eMeJsm56NOM
+        if let videoId = url.split(separator: "=").last {
+            return String(videoId)
+        }
+        return UUID().uuidString // fallback in case URL is malformed
     }
 
     var thumbnailURL: URL {
@@ -27,7 +32,7 @@ struct Video: Codable, Equatable, Hashable, Identifiable {
     }
     
     var durationText: String {
-        guard let duration = duration else { return "0:00" }
+//        guard let duration = duration else { return "0:00" }
         
         let hours = Int(duration) / 3600
         let minutes = Int(duration) % 3600 / 60

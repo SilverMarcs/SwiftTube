@@ -9,7 +9,7 @@ import SwiftUI
 
 struct VideoDetailView: View {
     let video: Video
-    @State private var videoDetail: VideoDetail?
+    @State private var videoDetail: VideoDetailResponse?
     @State private var isLoading = true
     @State private var isDescriptionExpanded = false
     
@@ -55,14 +55,12 @@ struct VideoDetailView: View {
     
     private func loadVideoDetails() async {
         isLoading = true
-//        let detail = await PipedAPI.shared.fetchVideoDetail(for: video)
-//        await MainActor.run {
-//            self.videoDetail = detail
-//            self.isLoading = false
-//        }
+        let detail = await PipedAPI.shared.fetchVideoDetail(videoId: video.id)
+        self.videoDetail = detail
+        self.isLoading = false
     }
     
-    private func videoStatsSection(for videoDetail: VideoDetail) -> some View {
+    private func videoStatsSection(for videoDetail: VideoDetailResponse) -> some View {
         HStack {
             // Views
             Label(videoDetail.viewsText + " views", systemImage: "eye")
@@ -88,29 +86,26 @@ struct VideoDetailView: View {
         }
     }
     
-    private func channelSection(for videoDetail: VideoDetail) -> some View {
+    private func channelSection(for videoDetail: VideoDetailResponse) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(videoDetail.author)
+//                Text(videoDetail.uploaderName)
+                Text("videoDetail.uploaderName")
                     .font(.subheadline)
                     .fontWeight(.medium)
                 
                 HStack {
-                    if let subscriberCount = videoDetail.channelSubscriberCount {
-                        Text("\(subscriberCount.formatted()) subscribers")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text("videoDetail.subscribersText")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                     
-                    if !videoDetail.published.isEmpty {
-                        Text("•")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        
-                        Text(videoDetail.published)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
+                    Text("•")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    
+                    Text(videoDetail.durationText)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
             }
             

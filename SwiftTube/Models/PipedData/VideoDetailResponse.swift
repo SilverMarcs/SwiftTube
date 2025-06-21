@@ -9,33 +9,32 @@ import Foundation
 
 struct VideoDetailResponse: Codable {
     // Basic video info
-    let url: String
     let title: String
     let description: String?
-    let views: Int?
-    let duration: Double?
+    let views: Int
+    let duration: Int
     let likes: Int?
     let dislikes: Int?
     let livestream: Bool?
-    let isShort: Bool?
     
     // Upload info
     let uploaded: Double?
     let uploadDate: String?
-    let uploadedDate: String?
     
     // Thumbnails
-    let thumbnail: String?
     let thumbnailUrl: String?
     
     // Channel/Author info
-    let uploaderName: String?
     let uploader: String?
     let uploaderUrl: String?
     let uploaderAvatar: String?
+    let uploaderVerified: Bool?
     let uploaderSubscriberCount: Int?
-    let avatarUrl: String?
-    let avatar: String?
+    
+    // Categories and tags
+    let category: String?
+    let tags: [String]?
+    let visibility: String?
     
     // Additional content
     let subtitles: [CaptionResponse]?
@@ -46,22 +45,25 @@ struct VideoDetailResponse: Codable {
     let videoStreams: [VideoStreamResponse]?
     let audioStreams: [AudioStreamResponse]?
     let hls: String?
+    let dash: String?
     
-    // Computed properties
-    var videoId: String {
-        extractVideoId(from: url)
-    }
+    // New properties
+     let proxyUrl: String?
+     let lbryId: String?
+     let license: String?
+     let metaInfo: [String]?
+     let previewFrames: [PreviewFrame]?
     
     var channelId: String {
         uploaderUrl?.components(separatedBy: "/").last ?? "unknown"
     }
     
     var authorName: String {
-        uploaderName ?? uploader ?? ""
+        "uploaderName" ?? uploader ?? ""
     }
     
     var thumbnailURL: String? {
-        thumbnail ?? thumbnailUrl
+        "thumbnail" ?? thumbnailUrl
     }
     
     var isLive: Bool {
@@ -69,29 +71,29 @@ struct VideoDetailResponse: Codable {
     }
     
     var isShortVideo: Bool {
-        isShort ?? ((duration ?? 0) <= 61)
+        duration <= 61
     }
-    
-    var publishedDateString: String {
-        if let uploadedTimestamp = uploaded, uploadedTimestamp > 0 {
-            let date = Date(timeIntervalSince1970: uploadedTimestamp / 1000)
-            return date.relativeTime
-        } else if let uploadedString = uploadedDate ?? uploadDate {
-            return uploadedString
-        }
-        return ""
-    }
-    
-    var publishedDate: Date? {
-        if let uploadedTimestamp = uploaded, uploadedTimestamp > 0 {
-            return Date(timeIntervalSince1970: uploadedTimestamp / 1000)
-        } else if let dateString = uploadedDate ?? uploadDate {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime]
-            return formatter.date(from: dateString)
-        }
-        return nil
-    }
+//    
+//    var publishedDateString: String {
+//        if let uploadedTimestamp = uploaded, uploadedTimestamp > 0 {
+//            let date = Date(timeIntervalSince1970: uploadedTimestamp / 1000)
+//            return date.relativeTime
+//        } else if let uploadedString = uploadedDate ?? uploadDate {
+//            return uploadedString
+//        }
+//        return ""
+//    }
+//    
+//    var publishedDate: Date? {
+//        if let uploadedTimestamp = uploaded, uploadedTimestamp > 0 {
+//            return Date(timeIntervalSince1970: uploadedTimestamp / 1000)
+//        } else if let dateString = uploadedDate ?? uploadDate {
+//            let formatter = ISO8601DateFormatter()
+//            formatter.formatOptions = [.withInternetDateTime]
+//            return formatter.date(from: dateString)
+//        }
+//        return nil
+//    }
     
     private func extractVideoId(from url: String) -> String {
         if url.contains("watch?v=") {
@@ -102,6 +104,60 @@ struct VideoDetailResponse: Codable {
         }
         return url
     }
+    
+    var durationText: String {
+        let hours = Int(duration) / 3600
+        let minutes = Int(duration) % 3600 / 60
+        let seconds = Int(duration) % 60
+        
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+    }
+    
+    var viewsText: String {
+        if views >= 1_000_000 {
+            return String(format: "%.1fM", Double(views) / 1_000_000)
+        } else if views >= 1_000 {
+            return String(format: "%.1fK", Double(views) / 1_000)
+        } else {
+            return "\(views)"
+        }
+    }
+    
+    var likesText: String? {
+        guard let likes = likes else { return nil }
+        if likes >= 1_000_000 {
+            return String(format: "%.1fM", Double(likes) / 1_000_000)
+        } else if likes >= 1_000 {
+            return String(format: "%.1fK", Double(likes) / 1_000)
+        } else {
+            return "\(likes)"
+        }
+    }
+    
+    var dislikesText: String? {
+        guard let dislikes = dislikes else { return nil }
+        if dislikes >= 1_000_000 {
+            return String(format: "%.1fM", Double(dislikes) / 1_000_000)
+        } else if dislikes >= 1_000 {
+            return String(format: "%.1fK", Double(dislikes) / 1_000)
+        } else {
+            return "\(dislikes)"
+        }
+    }
+    
+//    var subscribersText: String {
+//        if uploaderSubscriberCount >= 1_000_000 {
+//            return String(format: "%.1fM subscribers", Double(uploaderSubscriberCount) / 1_000_000)
+//        } else if uploaderSubscriberCount >= 1_000 {
+//            return String(format: "%.1fK subscribers", Double(uploaderSubscriberCount) / 1_000)
+//        } else {
+//            return "\(uploaderSubscriberCount) subscribers"
+//        }
+//    }
 }
 
 struct ChapterResponse: Codable {
@@ -145,6 +201,7 @@ struct VideoStreamResponse: Codable {
     let width: Int?
     let height: Int?
     let fps: Int?
+    let contentLength: Int?
 }
 
 struct AudioStreamResponse: Codable {
@@ -165,4 +222,15 @@ struct AudioStreamResponse: Codable {
     let indexStart: Int?
     let indexEnd: Int?
     let loudness: Double?
+    let contentLength: Int?
+}
+
+struct PreviewFrame: Codable {
+    let urls: [String]?
+    let frameHeight: Int?
+    let totalCount: Int?
+    let framesPerPageY: Int?
+    let frameWidth: Int?
+    let durationPerFrame: Int?
+    let framesPerPageX: Int?
 }
