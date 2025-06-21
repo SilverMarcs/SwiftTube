@@ -88,8 +88,21 @@ struct VideoDetailView: View {
     
     private func channelSection(for videoDetail: VideoDetail) -> some View {
         HStack {
+            if let uploaderUrl = video.uploaderAvatar, let url = URL(string: uploaderUrl) {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 35, height: 35)
+                        .clipShape(Circle())
+                } placeholder: {
+                    Circle()
+                        .fill(.gray.opacity(0.3))
+                        .frame(width: 35, height: 35)
+                }
+            }
+            
             VStack(alignment: .leading, spacing: 4) {
-//                Text(videoDetail.uploaderName)
                 Text(videoDetail.uploader)
                     .font(.subheadline)
                     .fontWeight(.medium)
