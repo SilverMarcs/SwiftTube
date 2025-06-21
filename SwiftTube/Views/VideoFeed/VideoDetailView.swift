@@ -14,14 +14,14 @@ struct VideoDetailView: View {
     @State private var isDescriptionExpanded = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading) {
             if isLoading {
                 ProgressView("Loading video details...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let videoDetail = videoDetail {
                 // Video Title
                 Text(videoDetail.title)
-                    .font(.title2)
+                    .font(.title3)
                     .fontWeight(.semibold)
                     .multilineTextAlignment(.leading)
                 
@@ -64,7 +64,7 @@ struct VideoDetailView: View {
         HStack {
             // Views
             Text(videoDetail.viewsText)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.secondary)
             
             Spacer()
@@ -73,13 +73,13 @@ struct VideoDetailView: View {
             HStack(spacing: 12) {
                 if let likesText = videoDetail.likesText {
                     Label(likesText, systemImage: "hand.thumbsup")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
                 
                 if let dislikesText = videoDetail.dislikesText {
                     Label(dislikesText, systemImage: "hand.thumbsdown")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -107,19 +107,9 @@ struct VideoDetailView: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
                 
-                HStack {
-                    Text(videoDetail.subscribersText)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    
-                    Text("•")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    
-                    Text(videoDetail.durationText)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                Text(videoDetail.subscribersText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
             
             Spacer()

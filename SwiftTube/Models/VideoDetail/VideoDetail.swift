@@ -107,8 +107,10 @@ struct VideoDetail: Codable {
             return String(format: "%.1fM", Double(dislikes) / 1_000_000)
         } else if dislikes >= 1_000 {
             return String(format: "%.1fK", Double(dislikes) / 1_000)
-        } else {
+        } else if dislikes != -1 {
             return "\(dislikes)"
+        } else {
+            return nil
         }
     }
     
@@ -120,10 +122,5 @@ struct VideoDetail: Codable {
         } else {
             return "\(uploaderSubscriberCount) subscribers"
         }
-    }
-    
-    // Filter WEBM video streams
-    var webmVideoStreams: [VideoStreamResponse] {
-        videoStreams?.filter { $0.format?.uppercased() == "WEBM" } ?? []
     }
 }
