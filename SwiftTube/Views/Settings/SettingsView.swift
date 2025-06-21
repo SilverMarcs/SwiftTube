@@ -1,12 +1,19 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @StateObject private var accountManager = AccountManager.shared
+    private var accountManager = AccountManager.shared
+    @ObservedObject var config = Config.shared
     @State private var showingAddAccount = false
     
     var body: some View {
         NavigationStack {
             Form {
+                Section("Config") {
+                    Toggle(isOn: $config.printDebug) {
+                        Text("Print Debug Logs")
+                    }
+                }
+                
                 // All Accounts Section
                 if !accountManager.accounts.isEmpty {
                     Section("Accounts") {
@@ -32,18 +39,15 @@ struct SettingsView: View {
                                 }
                             }
                         }
-                    }
-                }
-                
-                // Account Actions Section
-                Section {
-                    Button(action: {showingAddAccount = true }) {
-                        Label {
-                            Text("Add Account")
-                        } icon: {
-                            Image(systemName: "plus.circle.fill")
+                        
+                        Button(action: {showingAddAccount = true }) {
+                            Label {
+                                Text("Add Account")
+                            } icon: {
+                                Image(systemName: "plus.circle.fill")
+                            }
+                            .foregroundStyle(.blue)
                         }
-                        .foregroundStyle(.blue)
                     }
                 }
             }

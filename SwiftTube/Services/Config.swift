@@ -7,8 +7,9 @@
 
 import Foundation
 import SwiftUI
+import Combine
 
-class Config {
+class Config: ObservableObject {
     static let shared = Config()
     
     private init() {}
