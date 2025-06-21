@@ -63,7 +63,7 @@ struct VideoDetailView: View {
     private func videoStatsSection(for videoDetail: VideoDetail) -> some View {
         HStack {
             // Views
-            Label(videoDetail.viewsText + " views", systemImage: "eye")
+            Text(videoDetail.viewsText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             
@@ -90,12 +90,12 @@ struct VideoDetailView: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
 //                Text(videoDetail.uploaderName)
-                Text("videoDetail.uploaderName")
+                Text(videoDetail.uploader)
                     .font(.subheadline)
                     .fontWeight(.medium)
                 
                 HStack {
-                    Text("videoDetail.subscribersText")
+                    Text(videoDetail.subscribersText)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     
@@ -142,90 +142,4 @@ struct VideoDetailView: View {
         .background(.background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
-    
-    
-    
-//    private func relatedVideosSection(for videoDetail: VideoDetail) -> some View {
-//        VStack(alignment: .leading, spacing: 8) {
-//            Text("Related Videos")
-//                .font(.headline)
-//            
-//            LazyVStack(spacing: 12) {
-//                ForEach(videoDetail.relatedVideos.prefix(5)) { relatedVideo in
-//                    HStack(spacing: 12) {
-//                        AsyncImage(url: relatedVideo.thumbnailURL) { image in
-//                            image
-//                                .resizable()
-//                                .aspectRatio(contentMode: .fill)
-//                        } placeholder: {
-//                            Rectangle()
-//                                .fill(.background.tertiary)
-//                        }
-//                        .frame(width: 120, height: 68)
-//                        .clipShape(RoundedRectangle(cornerRadius: 8))
-//                        .overlay(alignment: .bottomTrailing) {
-//                            if relatedVideo.duration > 0 {
-//                                Text(relatedVideo.durationText)
-//                                    .font(.caption2)
-//                                    .fontWeight(.semibold)
-//                                    .padding(.horizontal, 4)
-//                                    .padding(.vertical, 2)
-//                                    .background(.black.opacity(0.8))
-//                                    .foregroundStyle(.white)
-//                                    .clipShape(RoundedRectangle(cornerRadius: 3))
-//                                    .padding(4)
-//                            }
-//                        }
-//                        
-//                        VStack(alignment: .leading, spacing: 4) {
-//                            Text(relatedVideo.title)
-//                                .font(.subheadline)
-//                                .lineLimit(2)
-//                                .multilineTextAlignment(.leading)
-//                            
-//                            Text(relatedVideo.author)
-//                                .font(.caption)
-//                                .foregroundStyle(.secondary)
-//                            
-//                            HStack {
-//                                Text(relatedVideo.viewsText + " views")
-//                                    .font(.caption2)
-//                                    .foregroundStyle(.secondary)
-//                                
-//                                if !relatedVideo.published.isEmpty {
-//                                    Text("•")
-//                                        .font(.caption2)
-//                                        .foregroundStyle(.secondary)
-//                                    
-//                                    Text(relatedVideo.published)
-//                                        .font(.caption2)
-//                                        .foregroundStyle(.secondary)
-//                                }
-//                            }
-//                        }
-//                        
-//                        Spacer()
-//                    }
-//                }
-//            }
-//        }
-//        .padding(.vertical, 12)
-//        .padding(.horizontal, 12)
-//        .background(.background.secondary)
-//        .clipShape(RoundedRectangle(cornerRadius: 12))
-//    }
 }
-//
-//#Preview {
-//    ScrollView {
-//        VideoDetailView(video: Video(
-//            id: "dQw4w9WgXcQ",
-//            title: "Rick Astley - Never Gonna Give You Up (Official Video)",
-//            author: "Rick Astley",
-//            duration: 212,
-//            published: "2 days ago",
-//            views: 1_234_567_890,
-//            channelSubscriberCount: 2_800_000
-//        ))
-//    }
-//}
