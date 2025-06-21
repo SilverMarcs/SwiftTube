@@ -84,25 +84,6 @@ final class PipedAPI {
             
             Logger.logAPIResponse(data, endpoint: endpoint)
             
-            do {
-                let decoder = JSONDecoder()
-                try decoder.decode(SearchItemResponse.self, from: data)
-            } catch DecodingError.keyNotFound(let key, let context) {
-                Logger.logError("Failed to decode key '\(key.stringValue)': \(context.debugDescription)")
-                Logger.logError("coding path: \(context.codingPath)")
-            } catch DecodingError.valueNotFound(let type, let context) {
-                Logger.logError("Failed to decode value of type \(type): \(context.debugDescription)")
-                Logger.logError("coding path: \(context.codingPath)")
-            } catch DecodingError.typeMismatch(let type, let context) {
-                Logger.logError("Type mismatch for type \(type): \(context.debugDescription)")
-                Logger.logError("coding path: \(context.codingPath)")
-            } catch DecodingError.dataCorrupted(let context) {
-                Logger.logError("Data corrupted: \(context.debugDescription)")
-                Logger.logError("coding path: \(context.codingPath)")
-            } catch {
-                Logger.logError("General decoding error: \(error)")
-            }
-            
             return data
         } catch {
             Logger.logError("Unauthenticated request to \(endpoint): \(error.localizedDescription)")

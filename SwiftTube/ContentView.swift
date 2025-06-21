@@ -22,10 +22,6 @@ struct ContentView: View {
                SubscriptionsTab()
             }
             
-            Tab("Settings", systemImage: "gearshape.fill", value: .settings) {
-                SettingsView()
-            }
-            
             Tab(value: .search, role: .search) {
                 SearchTab()
                     .environment(\.videoNameSpace, namespace)

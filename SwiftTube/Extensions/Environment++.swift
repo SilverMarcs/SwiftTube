@@ -8,5 +8,5 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    @Entry var videoNameSpace: Namespace.ID = Namespace().wrappedValue
+    @Entry var videoNameSpace: Namespace.ID?
 }

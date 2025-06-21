@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct VideoRow: View {
-    @Environment(\.videoNameSpace) private var namespace: Namespace.ID
+    @Environment(\.videoNameSpace) private var namespace
     let video: Video
     
     var body: some View {
@@ -65,7 +65,7 @@ struct VideoRow: View {
             .padding(12)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .background(.background.secondary, in: .rect(cornerRadius: 16))
-            .matchedTransitionSource(id: "video-\(video.id)", in: namespace)
+            .matchedTransitionSource(id: "video-\(video.id)", in: namespace ?? Namespace().wrappedValue)
         }
     }
 }

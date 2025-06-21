@@ -3,6 +3,7 @@ import SwiftUI
 struct SubscriptionsTab: View {
     @State private var subscriptions: [Channel] = []
     @State private var isLoading = false
+    @State private var showSettings = false
     
     var body: some View {
         NavigationStack {
@@ -18,6 +19,7 @@ struct SubscriptionsTab: View {
                         .listRowSeparator(.hidden)
                 }
             }
+            .settingsToolbar(showSettings: $showSettings)
             .navigationDestinations()
             .listStyle(.plain)
             .navigationTitle("Subscriptions")

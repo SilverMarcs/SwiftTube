@@ -3,6 +3,7 @@ import SwiftUI
 struct VideoFeedTab: View {
     @State private var videos: [Video] = []
     @State private var isLoading = false
+    @State private var showSettings = false
     
     var body: some View {
         NavigationStack {
@@ -22,6 +23,7 @@ struct VideoFeedTab: View {
                         .listRowSeparator(.hidden)
                 }
             }
+            .settingsToolbar(showSettings: $showSettings)
             .navigationDestinations()
             .listStyle(.plain)
             .navigationTitle("Feed")

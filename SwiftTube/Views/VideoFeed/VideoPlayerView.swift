@@ -50,7 +50,7 @@ struct VideoPlayerView: View {
             }
             .aspectRatio(16/9, contentMode: .fit)
             #if !os(macOS)
-            .navigationTransition(.zoom(sourceID: "video-\(video.id)", in: namespace))
+            .navigationTransition(.zoom(sourceID: "video-\(video.id)", in: namespace ?? Namespace().wrappedValue))
             #endif
                      
             ScrollView {

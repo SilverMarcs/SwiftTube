@@ -53,7 +53,7 @@ struct SettingsView: View {
             }
             .formStyle(.grouped)
             .navigationTitle("Settings")
-            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbarTitleDisplayMode(.inline)
         }
         .sheet(isPresented: $showingAddAccount) {
             LoginView()
