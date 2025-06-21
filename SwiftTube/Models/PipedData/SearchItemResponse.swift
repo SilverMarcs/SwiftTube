@@ -18,9 +18,9 @@ struct SearchItemResponse: Codable {
     let uploaderName: String?
     let uploaderUrl: String?
     let uploaderAvatar: String?
-    var uploaderVerified: Bool = false
+    let uploaderVerified: Bool?
     let duration: Int?
-    var isShort: Bool = false
+    let isShort: Bool?
     let views: Int?
     let uploaded: Int?
     let uploadedDate: String?
@@ -32,7 +32,7 @@ struct SearchItemResponse: Codable {
     let description: String?
     let verified: Bool?
     let avatar: String?
-
+    
     // Playlist fields
     let playlistType: String?
     let videos: Int?
@@ -89,11 +89,11 @@ struct SearchItemResponse: Codable {
             type: type,
             thumbnail: thumbnail,
             uploaded: uploaded.flatMap { Double($0) } ?? 0,
-            uploaderVerified: uploaderVerified,
+            uploaderVerified: uploaderVerified ?? false,
             uploaderName: uploaderName,
             uploaderUrl: uploaderUrl,
             uploaderAvatar: uploaderAvatar,
-            isShort: isShort,
+            isShort: isShort ?? (duration < 61),
             views: views
         )
     }

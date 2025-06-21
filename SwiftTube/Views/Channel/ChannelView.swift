@@ -11,6 +11,9 @@ struct ChannelView: View {
     let channel: Channel
     @State private var channelDetails: Channel?
     @State private var isLoading = true
+    @State private var isSubscribed = false
+    @State private var isCheckingSubscription = true
+    @State private var isSubscriptionLoading = false
     
     var body: some View {
         ScrollView {
@@ -50,6 +53,34 @@ struct ChannelView: View {
                             Text(subscribersText)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                        }
+                        
+                        // Subscribe/Unsubscribe Button
+                        if isCheckingSubscription {
+                            ProgressView("Checking subscription...")
+                                .font(.caption)
+                        } else {
+                            Button(action: {
+                                Task {
+                                    await toggleSubscription()
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: isSubscribed ? "person.badge.minus" : "person.badge.plus")
+                                    Text(isSubscribed ? "Unsubscribe" : "Subscribe")
+                                }
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(isSubscribed ? .red : .blue)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(isSubscribed ? .red : .blue, lineWidth: 1)
+                                )
+                            }
+                            .disabled(isSubscriptionLoading)
+                            .opacity(isSubscriptionLoading ? 0.6 : 1.0)
                         }
                     }
                 }
@@ -100,6 +131,7 @@ struct ChannelView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await loadChannelDetails()
+            await checkSubscriptionStatus()
         }
     }
     
@@ -108,5 +140,30 @@ struct ChannelView: View {
         let details = await PipedAPI.shared.fetchChannelDetails(channelId: channel.id)
         self.channelDetails = details
         self.isLoading = false
+    }
+    
+    private func checkSubscriptionStatus() async {
+        isCheckingSubscription = true
+        // TODO: Cache subscriptions to avoid repeated API calls
+        let subscriptions = await PipedAPI.shared.fetchSubscriptions()
+        isSubscribed = subscriptions.contains { $0.id == channel.id }
+        isCheckingSubscription = false
+    }
+    
+    private func toggleSubscription() async {
+        isSubscriptionLoading = true
+        
+        let success: Bool
+        if isSubscribed {
+            success = await PipedAPI.shared.unsubscribe(from: channel.id)
+        } else {
+            success = await PipedAPI.shared.subscribe(to: channel.id)
+        }
+        
+        if success {
+            isSubscribed.toggle()
+        }
+        
+        isSubscriptionLoading = false
     }
 }
