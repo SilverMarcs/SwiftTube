@@ -9,7 +9,7 @@ import SwiftUI
 import YouTubePlayerKit
 
 struct VideoPlayerView: View {
-    let video: VideoResponse
+    let video: Video
     let namespace: Namespace.ID
 
     var youTubePlayer: YouTubePlayer { YouTubePlayer(

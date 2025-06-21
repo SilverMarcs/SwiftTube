@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct VideoFeedTab: View {
-    @State private var videos: [VideoResponse] = []
+    @State private var videos: [Video] = []
     @State private var isLoading = false
     @Namespace private var namespace
     
@@ -26,7 +26,7 @@ struct VideoFeedTab: View {
             .listStyle(.plain)
             .navigationTitle("Feed")
             .toolbarTitleDisplayMode(.inlineLarge)
-            .navigationDestination(for: VideoResponse.self) { video in
+            .navigationDestination(for: Video.self) { video in
                 VideoPlayerView(video: video, namespace: namespace)
              }
             .task {

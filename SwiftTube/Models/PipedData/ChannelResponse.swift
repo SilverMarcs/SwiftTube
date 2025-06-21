@@ -13,7 +13,7 @@ struct ChannelResponse: Codable {
     // Additional fields from Piped API
     let description: String?
     let verified: Bool?
-    let relatedStreams: [VideoResponse]?
+    let relatedStreams: [Video]?
     
     // Computed properties to handle multiple field names
     var channelSubscriberCount: Int? {

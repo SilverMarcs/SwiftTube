@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct VideoRow: View {
-    let video: VideoResponse
+    let video: Video
     let namespace: Namespace.ID
     
     var body: some View {
@@ -32,12 +32,10 @@ struct VideoRow: View {
                 .matchedTransitionSource(id: "video-\(video.id)", in: namespace)
                 .padding(.horizontal, -12)
                 .padding(.top, -12)
-                // Title
                 Text(video.title)
                     .font(.headline)
                     .lineLimit(2)
                 
-                // Author and view count
                 HStack {
                     if let uploaderUrl = video.uploaderAvatar, let url = URL(string: uploaderUrl) {
                         AsyncImage(url: url) { image in
@@ -54,13 +52,13 @@ struct VideoRow: View {
                         }
                     }
                     
-                    Text(video.uploaderName ?? "Unknown")
+                    Text(video.channelName)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     
                     Spacer()
 
-                    Text("\(video.viewsText) views")
+                    Text(video.viewsText)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

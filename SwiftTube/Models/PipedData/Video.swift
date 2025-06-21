@@ -1,0 +1,60 @@
+import Foundation
+
+struct Video: Codable, Equatable, Hashable, Identifiable {
+    let url: String
+    let title: String
+    let duration: Int?
+    let type: String?
+    let thumbnail: String?
+    let uploaded: Double?
+    let uploaderVerified: Bool?
+    let uploaderName: String?
+    let uploaderUrl: String?
+    let uploaderAvatar: String?
+    let isShort: Bool?
+    let views: Int?
+    
+    static func == (lhs: Video, rhs: Video) -> Bool {
+        return lhs.url == rhs.url
+    }
+    
+    var id : String {
+        return url
+    }
+    
+    var channelName: String {
+        return uploaderName ?? "Unknown Channel"
+    }
+    
+    var thumbnailURL: URL {
+        return URL(string: thumbnail ?? "https://picsum.photos/seed/picsum/200/300")!
+    }
+    
+    var durationText: String {
+        guard let duration = duration else { return "0:00" }
+        
+        let hours = Int(duration) / 3600
+        let minutes = Int(duration) % 3600 / 60
+        let seconds = Int(duration) % 60
+        
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+    }
+    
+    var viewsText: String {
+        guard let views = views else { return "0 views" }
+        
+        let suffix = views == 1 ? " view" : " views"
+        
+        if views >= 1_000_000 {
+            return String(format: "%.1fM", Double(views) / 1_000_000) + suffix
+        } else if views >= 1_000 {
+            return String(format: "%.1fK", Double(views) / 1_000) + suffix
+        } else {
+            return "\(views)" + suffix
+        }
+    }
+}

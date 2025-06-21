@@ -40,7 +40,7 @@ struct VideoDetailResponse: Codable {
     // Additional content
     let subtitles: [CaptionResponse]?
     let chapters: [ChapterResponse]?
-    let relatedStreams: [VideoResponse]?
+    let relatedStreams: [Video]?
     
     // Video streams
     let videoStreams: [VideoStreamResponse]?

@@ -23,8 +23,8 @@ extension PipedAPI {
 //        guard let data = await makeUnauthenticatedRequest(to: "trending", parameters: ["region": region]) else { return [] }
 //        
 //        do {
-//            let videoResponses = try JSONDecoder().decode([VideoResponse].self, from: data)
-//            return videoResponses.compactMap { $0.toVideo() }
+//            let videos = try JSONDecoder().decode([Video].self, from: data)
+//            return videos.compactMap { $0.toVideo() }
 //        } catch {
 //            return []
 //        }

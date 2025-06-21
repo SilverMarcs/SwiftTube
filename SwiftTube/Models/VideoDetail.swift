@@ -21,7 +21,7 @@ struct VideoDetail: Identifiable, Hashable {
     let dislikes: Int?
     let chapters: [Chapter]
     let captions: [Caption]
-    let relatedVideos: [VideoResponse]
+    let relatedVideos: [Video]
     
 //    init(from video: Video, details: VideoDetailResponse? = nil) {
 //        // Copy basic video properties

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct VideoDetailView: View {
-    let video: VideoResponse
+    let video: Video
     @State private var videoDetail: VideoDetail?
     @State private var isLoading = true
     @State private var isDescriptionExpanded = false
