@@ -12,7 +12,7 @@ extension PipedAPI {
 //        guard let data = await makeUnauthenticatedRequest(to: "streams/\(videoId)") else { return nil }
 //        
 //        do {
-//            let videoDetail = try JSONDecoder().decode(VideoDetailResponse.self, from: data)
+//            let videoDetail = try JSONDecoder().decode(VideoDetail.self, from: data)
 //            return videoDetail.toVideo()
 //        } catch {
 //            return nil
@@ -52,13 +52,13 @@ extension PipedAPI {
         }
     }
     
-    func fetchVideoDetail(videoId: String) async -> VideoDetailResponse? {
+    func fetchVideoDetail(videoId: String) async -> VideoDetail? {
         guard let data = await makeUnauthenticatedRequest(to: "streams/\(videoId)") else {
             return nil
         }
         
         do {
-            let video = try JSONDecoder().decode(VideoDetailResponse.self, from: data)
+            let video = try JSONDecoder().decode(VideoDetail.self, from: data)
             return video
         } catch {
             print("Error decoding video detail: \(error.localizedDescription)")

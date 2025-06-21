@@ -9,7 +9,7 @@ import SwiftUI
 
 struct VideoDetailView: View {
     let video: Video
-    @State private var videoDetail: VideoDetailResponse?
+    @State private var videoDetail: VideoDetail?
     @State private var isLoading = true
     @State private var isDescriptionExpanded = false
     
@@ -60,7 +60,7 @@ struct VideoDetailView: View {
         self.isLoading = false
     }
     
-    private func videoStatsSection(for videoDetail: VideoDetailResponse) -> some View {
+    private func videoStatsSection(for videoDetail: VideoDetail) -> some View {
         HStack {
             // Views
             Label(videoDetail.viewsText + " views", systemImage: "eye")
@@ -86,7 +86,7 @@ struct VideoDetailView: View {
         }
     }
     
-    private func channelSection(for videoDetail: VideoDetailResponse) -> some View {
+    private func channelSection(for videoDetail: VideoDetail) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
 //                Text(videoDetail.uploaderName)
