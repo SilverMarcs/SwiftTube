@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct ChannelRowContent: View {
     let channel: Channel
@@ -13,22 +14,14 @@ struct ChannelRowContent: View {
     var body: some View {
         NavigationLink(value: channel) {
             HStack(spacing: 12) {
-                AsyncImage(url: channel.thumbnailURL) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 60, height: 60)
-                        .clipShape(Circle())
-                } placeholder: {
-                    Circle()
-                        .fill(.background.secondary)
-                        .frame(width: 60, height: 60)
-                        .overlay {
-                            Image(systemName: "person")
-                                .foregroundStyle(.secondary)
-                                .font(.largeTitle)
-                        }
-                }
+                KFImage(channel.thumbnailURL)
+                    .downsampling(size: CGSize(width: 120, height: 120))
+                    .serialize(as: .JPEG)
+                    .fade(duration: 0.2)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 60, height: 60)
+                    .clipShape(Circle())
                 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {

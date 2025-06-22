@@ -6,27 +6,21 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct PlaylistRowContent: View {
     let playlist: Playlist
     
     var body: some View {
         HStack(spacing: 12) {
-            AsyncImage(url: playlist.thumbnailURL) { image in
-                image
-                    .resizable()
-                    .aspectRatio(16/9, contentMode: .fit)
-                    .frame(width: 80, height: 45)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            } placeholder: {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.background.secondary)
-                    .frame(width: 80, height: 45)
-                    .overlay {
-                        Image(systemName: "list.bullet.rectangle")
-                            .foregroundStyle(.secondary)
-                    }
-            }
+            KFImage(playlist.thumbnailURL)
+                .downsampling(size: CGSize(width: 160, height: 90))
+                .serialize(as: .JPEG)
+                .fade(duration: 0.2)
+                .resizable()
+                .aspectRatio(16/9, contentMode: .fit)
+                .frame(width: 80, height: 45)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(playlist.name)

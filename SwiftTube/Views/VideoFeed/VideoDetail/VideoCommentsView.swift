@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct VideoCommentsView: View {
     let videoId: String
@@ -59,16 +60,14 @@ struct CommentRowView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            AsyncImage(url: URL(string: comment.thumbnailUrl)) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Circle()
-                    .fill(.background.secondary)
-            }
-            .frame(width: 25, height: 25)
-            .clipShape(Circle())
+            KFImage(URL(string: comment.thumbnailUrl))
+                .downsampling(size: CGSize(width: 50, height: 50))
+                .serialize(as: .JPEG)
+                .fade(duration: 0.2)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 25, height: 25)
+                .clipShape(Circle())
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct VideoDetailView: View {
     let video: Video
@@ -101,17 +102,14 @@ struct VideoDetailView: View {
     private func channelSection(for videoDetail: VideoDetail) -> some View {
         HStack {
             if let uploaderUrl = video.uploaderAvatar, let url = URL(string: uploaderUrl) {
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 35, height: 35)
-                        .clipShape(Circle())
-                } placeholder: {
-                    Circle()
-                        .fill(.gray.opacity(0.3))
-                        .frame(width: 35, height: 35)
-                }
+                KFImage(url)
+                    .downsampling(size: CGSize(width: 70, height: 70))
+                    .serialize(as: .JPEG)
+                    .fade(duration: 0.2)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 35, height: 35)
+                    .clipShape(Circle())
             }
             
             VStack(alignment: .leading, spacing: 4) {
