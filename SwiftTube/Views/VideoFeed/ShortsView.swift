@@ -21,6 +21,8 @@ struct ShortsView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .ignoresSafeArea()
+//        .tabViewStyle(PageTabViewStyle())
+//        .rotationEffect(.degrees(90))
     }
 }
 

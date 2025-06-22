@@ -19,6 +19,8 @@ struct VideoDetailView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let videoDetail = videoDetail {
+//                CustomVideoPlayerView(webmStreams: videoStreams)
+
                 // Video Title
                 Text(videoDetail.title)
                     .font(.title3)
@@ -56,6 +58,11 @@ struct VideoDetailView: View {
             await loadVideoDetails()
         }
     }
+    
+    
+//    var videoStreams: [VideoStreamResponse] {
+//        videoDetail?.videoStreams ?? []
+//    }
     
     private func loadVideoDetails() async {
         isLoading = true
