@@ -9,18 +9,26 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selection: Tabs = .videos
+    @State private var videos: [Video] = []
     @Namespace private var namespace
     
     var body: some View {
         TabView(selection: $selection) {
-            Tab("Feed", systemImage: "video", value: .videos) {
-                VideoFeedTab()
+            Tab("Videos", systemImage: "video", value: .videos) {
+                VideosTab(videos: regularVideos)
                     .environment(\.videoNameSpace, namespace)
+                    .refreshable {
+                        await loadFeed()
+                    }
             }
             
-            Tab("Subs", systemImage: "person.2", value: .subscriptions) {
-               SubscriptionsTab()
+            Tab("Shorts", systemImage: "play.rectangle.fill", value: .shorts) {
+                ShortsTab(videos: shortsVideos)
             }
+            
+//            Tab("Subs", systemImage: "person.2", value: .subscriptions) {
+//               SubscriptionsTab()
+//            }
             
             Tab(value: .search, role: .search) {
                 SearchTab()
@@ -31,12 +39,28 @@ struct ContentView: View {
         #if !os(macOS)
         .tabBarMinimizeBehavior(.onScrollDown)
         #endif
+        .task {
+            await loadFeed()
+        }
     }
     
-    enum Tabs {
-        case videos
-        case subscriptions
-        case settings
-        case search
+    private var regularVideos: [Video] {
+        videos.filter { !$0.isShort }
     }
+    
+    private var shortsVideos: [Video] {
+        videos.filter { $0.isShort }
+    }
+    
+    private func loadFeed() async {
+        let feedVideos = await PipedAPI.shared.fetchSubscribedFeed()
+        videos = feedVideos
+    }
+}
+
+enum Tabs {
+    case videos
+    case shorts
+    case subscriptions
+    case search
 }

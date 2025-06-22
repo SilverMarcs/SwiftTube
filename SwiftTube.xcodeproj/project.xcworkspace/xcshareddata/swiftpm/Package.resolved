@@ -1,6 +1,15 @@
 {
-  "originHash" : "7b053422b020dce7a9be2c7ef325d71eb584450711cd5f7fb96891e9a6f1c298",
+  "originHash" : "eaca182ac497fb81cb9d5035dad454990b3c88a591ff91f7fc0c01244c368a10",
   "pins" : [
+    {
+      "identity" : "kingfisher",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/onevcat/Kingfisher",
+      "state" : {
+        "revision" : "010a06c4387cea2d13606222b6c08e0454e6dd2d",
+        "version" : "8.3.3"
+      }
+    },
     {
       "identity" : "youtubeplayerkit",
       "kind" : "remoteSourceControl",

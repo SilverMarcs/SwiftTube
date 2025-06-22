@@ -17,6 +17,7 @@ struct VideoDetailView: View {
         VStack(alignment: .leading) {
             if isLoading {
                 ProgressView()
+                    .padding(20)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let videoDetail = videoDetail {
 //                CustomVideoPlayerView(webmStreams: videoStreams)

@@ -24,6 +24,7 @@ struct VideoPlayerView: View {
         configuration: .init(
             fullscreenMode: .system,
             allowsInlineMediaPlayback: true,
+            allowsPictureInPictureMediaPlayback: true,
         ))
     }
     

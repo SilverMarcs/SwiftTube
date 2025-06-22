@@ -65,9 +65,9 @@ struct CommentRowView: View {
                     .aspectRatio(contentMode: .fill)
             } placeholder: {
                 Circle()
-                    .fill(.gray.opacity(0.3))
+                    .fill(.background.secondary)
             }
-            .frame(width: 32, height: 32)
+            .frame(width: 25, height: 25)
             .clipShape(Circle())
             
             VStack(alignment: .leading, spacing: 4) {
@@ -96,7 +96,8 @@ struct CommentRowView: View {
                 }
                 
                 Text(comment.text)
-                    .font(.body)
+                    .font(.callout)
+                    .opacity(0.85)
                     .fixedSize(horizontal: false, vertical: true)
                 
                 HStack(spacing: 16) {

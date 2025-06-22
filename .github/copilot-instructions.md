@@ -1,4 +1,5 @@
-No need to run xcode build or check compilation errors
+Never run xcodebuild
+Never check compilation errors
 Use latest swift and swiftui
 for exampel prefer navigationstack insted of navigationview.
 .foregroundStyle instead of foregroundColor
