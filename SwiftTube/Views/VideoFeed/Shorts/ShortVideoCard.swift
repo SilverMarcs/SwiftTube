@@ -9,7 +9,7 @@ import SwiftUI
 import Kingfisher
 
 struct ShortVideoCard: View {
-    // TODO: track watch time but dont start at that position
+    // Watch time is tracked but playback doesn't resume to last position for shorts
     let video: Video
     @State private var videoDetail: VideoDetail?
     @State private var isLoading = true
@@ -17,7 +17,11 @@ struct ShortVideoCard: View {
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             if let streams = videoDetail?.videoStreams {
-                CustomVideoPlayerView(videoStream: streams.first { $0.videoOnly == false } ?? streams.last!, isShort: true)
+                CustomVideoPlayerView(
+                    videoStream: streams.first { $0.videoOnly == false } ?? streams.last!,
+                    video: video,
+                    isShort: true
+                )
                     .aspectRatio(9/16, contentMode: .fit)
             } else {
                 ProgressView()

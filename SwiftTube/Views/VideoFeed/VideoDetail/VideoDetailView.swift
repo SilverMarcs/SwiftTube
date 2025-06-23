@@ -27,7 +27,10 @@ struct VideoDetailView: View {
             } else if let videoDetail = videoDetail {
                 // Custom Video Player View
                 if let streams = videoDetail.videoStreams {
-                    CustomVideoPlayerView(videoStream: streams.first { $0.videoOnly == false } ?? streams.last!)
+                    CustomVideoPlayerView(
+                        videoStream: streams.first { $0.videoOnly == false } ?? streams.last!,
+                        video: video
+                    )
 //                        .navigationTransition(.zoom(sourceID: "video-\(video.id)", in: namespace ?? Namespace().wrappedValue))
                         .aspectRatio(16/9, contentMode: .fit)
 

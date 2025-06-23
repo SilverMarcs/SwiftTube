@@ -10,14 +10,28 @@ import AVKit
 
 struct CustomVideoPlayerView: View {
     let videoStream: VideoStreamResponse
+    let video: Video
     var isShort: Bool = false
     
     @State private var player = AVPlayer()
     @State private var isLoading = true
+    @StateObject private var viewModel: VideoPlayerViewModel
+    
+    init(videoStream: VideoStreamResponse, video: Video, isShort: Bool = false) {
+        self.videoStream = videoStream
+        self.video = video
+        self.isShort = isShort
+        
+        let tempPlayer = AVPlayer()
+        // For shorts, we track watch time but don't resume
+        self._viewModel = StateObject(wrappedValue: VideoPlayerViewModel(video: video, player: tempPlayer, shouldResume: !isShort))
+    }
     
     var body: some View {
-        VideoPlayerView(player: player, isShort: isShort)
+        VideoPlayerView(player: viewModel.player, isShort: isShort)
             .onAppear {
+                // Assign the view model's player to our local player reference
+                player = viewModel.player
                 loadStream(videoStream)
             }
             .onDisappear {
@@ -39,11 +53,11 @@ struct CustomVideoPlayerView: View {
         playerItem.preferredForwardBufferDuration = 5
         playerItem.preferredPeakBitRate = Double(stream.bitrate ?? 1000000)
         
-        player.replaceCurrentItem(with: playerItem)
-        player.actionAtItemEnd = .none
-        player.automaticallyWaitsToMinimizeStalling = true
+        viewModel.player.replaceCurrentItem(with: playerItem)
+        viewModel.player.actionAtItemEnd = .none
+        viewModel.player.automaticallyWaitsToMinimizeStalling = true
         
-        player.play()
+        viewModel.player.play()
         
         isLoading = false
     }
@@ -64,8 +78,8 @@ struct CustomVideoPlayerView: View {
     }
     
     private func cleanup() {
-        player.pause()
-        player.replaceCurrentItem(with: nil)
+        viewModel.player.pause()
+        viewModel.player.replaceCurrentItem(with: nil)
     }
 }
 

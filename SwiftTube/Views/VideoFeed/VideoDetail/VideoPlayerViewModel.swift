@@ -7,38 +7,47 @@
 
 import Foundation
 import Combine
-import YouTubePlayerKit
+import AVFoundation
 
-/// ViewModel to handle YouTube player watch time tracking and resuming
-// @MainActor
+/// ViewModel to handle AVPlayer watch time tracking and resuming
+@MainActor
 final class VideoPlayerViewModel: ObservableObject {
     @Published var hasResumed = false
     
-    let youTubePlayer: YouTubePlayer
+    let player: AVPlayer
     
     private let watchTimeService = WatchTimeService.shared
     private var cancellables = Set<AnyCancellable>()
     private var saveTimer: Timer?
+    private var timeObserver: Any?
     
     private let video: Video
+    private let shouldResume: Bool
     
     // Throttle save operations to every 3 seconds to avoid excessive writes
     private let saveInterval: TimeInterval = 3.0
     
-    init(video: Video, youTubePlayer: YouTubePlayer) {
+    init(video: Video, player: AVPlayer, shouldResume: Bool = true) {
         self.video = video
-        self.youTubePlayer = youTubePlayer
+        self.player = player
+        self.shouldResume = shouldResume
         setupObservers()
     }
     
     deinit {
         saveTimer?.invalidate()
         cancellables.removeAll()
+        if let observer = timeObserver {
+            player.removeTimeObserver(observer)
+        }
     }
     
     /// Resume video from last watched position if available
     func resumeIfNeeded() {
-        guard !hasResumed else { return }
+        guard !hasResumed && shouldResume else { 
+            hasResumed = true
+            return 
+        }
         
         let lastWatchTime = watchTimeService.getWatchTime(for: video.id)
         
@@ -49,19 +58,10 @@ final class VideoPlayerViewModel: ObservableObject {
             return
         }
         
-        Task {
-            do {
-                // Wait a bit for the player to be ready
-                try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                
-                let measurement = Measurement(value: lastWatchTime, unit: UnitDuration.seconds)
-                try await youTubePlayer.seek(to: measurement, allowSeekAhead: true)
-                
-                hasResumed = true
-            } catch {
-                print("Failed to resume video at \(lastWatchTime): \(error)")
-                hasResumed = true
-            }
+        // Seek to the last watched position
+        let seekTime = CMTime(seconds: lastWatchTime, preferredTimescale: 600)
+        player.seek(to: seekTime) { [weak self] _ in
+            self?.hasResumed = true
         }
     }
     
@@ -69,26 +69,26 @@ final class VideoPlayerViewModel: ObservableObject {
     
     private func setupObservers() {
         // Observe current time changes (throttled to avoid excessive calls)
-        youTubePlayer.currentTimePublisher
-            .throttle(for: .seconds(1), scheduler: RunLoop.main, latest: true)
-            .sink { [weak self] currentTime in
-                self?.scheduleWatchTimeSave(currentTime.value)
-            }
-            .store(in: &cancellables)
+        let interval = CMTime(seconds: 1.0, preferredTimescale: 600)
+        timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            let currentTime = time.seconds
+            guard !currentTime.isNaN && !currentTime.isInfinite else { return }
+            self?.scheduleWatchTimeSave(currentTime)
+        }
         
-        // Observe playback state to handle completion
-        youTubePlayer.playbackStatePublisher
-            .sink { [weak self] state in
-                self?.handlePlaybackStateChange(state)
-            }
-            .store(in: &cancellables)
-        
-        // Save immediately when the player becomes ready and try to resume
-        youTubePlayer.statePublisher
-            .sink { [weak self] state in
-                if state == .ready {
+        // Observe player item status changes
+        player.publisher(for: \.currentItem?.status)
+            .sink { [weak self] status in
+                if status == .readyToPlay {
                     self?.resumeIfNeeded()
                 }
+            }
+            .store(in: &cancellables)
+        
+        // Observe playback end
+        NotificationCenter.default.publisher(for: .AVPlayerItemDidPlayToEndTime)
+            .sink { [weak self] _ in
+                self?.handlePlaybackEnd()
             }
             .store(in: &cancellables)
     }
@@ -113,13 +113,10 @@ final class VideoPlayerViewModel: ObservableObject {
         watchTimeService.setWatchTime(for: video.id, time: currentTime)
     }
     
-    private func handlePlaybackStateChange(_ state: YouTubePlayer.PlaybackState) {
-        switch state {
-        case .ended:
-            // Video completed - remove watch time since it's finished
-            watchTimeService.removeWatchTime(for: video.id)
-        default:
-            break
-        }
+    private func handlePlaybackEnd() {
+        // Video completed - remove watch time since it's finished
+//        watchTimeService.removeWatchTime(for: video.id)
+        
+        // dont rmeove watchtime. instead TODO: start from beginning next time
     }
 }
