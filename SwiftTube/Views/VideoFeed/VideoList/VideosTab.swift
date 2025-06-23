@@ -14,6 +14,14 @@ struct VideosTab: View {
     var body: some View {
         NavigationStack {
             List {
+                if videos.isEmpty {
+                    ProgressView()
+                        .controlSize(.large)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(.all, 20)
+                }
+                
                 ForEach(videos) { video in
                     VideoRow(video: video)
                         .listRowInsets(.vertical, 7)

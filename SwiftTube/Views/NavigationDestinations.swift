@@ -11,7 +11,7 @@ extension View {
     func navigationDestinations() -> some View {
         self
             .navigationDestination(for: Video.self) { video in
-                VideoPlayerView(video: video)
+                VideoDetailView(video: video)
             }
             .navigationDestination(for: Channel.self) { channel in
                 ChannelView(channel: channel)
