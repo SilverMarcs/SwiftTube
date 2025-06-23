@@ -33,6 +33,9 @@ struct VideoRow: View {
                             .background(RoundedRectangle(cornerRadius: 4).fill(.black.secondary))
                             .padding(10)
                     }
+                    .overlay(alignment: .bottom) {
+                        watchProgressBar
+                    }
                     .padding(.horizontal, -12)
                     .padding(.top, -12)
                 
@@ -67,6 +70,26 @@ struct VideoRow: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .background(.background.secondary, in: .rect(cornerRadius: 16))
             .matchedTransitionSource(id: "video-\(video.id)", in: namespace ?? Namespace().wrappedValue)
+        }
+    }
+    
+    @ViewBuilder
+    private var watchProgressBar: some View {
+        let progress = video.watchProgress
+        
+        if progress > 0.01 && progress < 0.95 { // Show progress bar only if meaningfully started but not completed
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(.clear)
+                        .frame(height: 3)
+                    
+                    Rectangle()
+                        .fill(.red)
+                        .frame(width: geometry.size.width * progress, height: 3)
+                }
+            }
+            .frame(height: 3)
         }
     }
 }

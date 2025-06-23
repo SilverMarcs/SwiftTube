@@ -11,21 +11,29 @@ import YouTubePlayerKit
 struct VideoPlayerView: View {
     let video: Video
     @Environment(\.videoNameSpace) private var namespace
+    @StateObject private var viewModel: VideoPlayerViewModel
 
-    var youTubePlayer: YouTubePlayer { YouTubePlayer(
-        // Possible values: .video, .videos, .playlist, .channel
-        source: .video(id: video.id),
-        // The parameters of the player
-        parameters: .init(
-            autoPlay: true,
-            showControls: true,
-        ),
-        // The configuration of the underlying web view
-        configuration: .init(
-            fullscreenMode: .system,
-            allowsInlineMediaPlayback: true,
-            allowsPictureInPictureMediaPlayback: true,
-        ))
+    init(video: Video) {
+        self.video = video
+        let player = YouTubePlayer(
+            // Possible values: .video, .videos, .playlist, .channel
+            source: .video(id: video.id),
+            // The parameters of the player
+            parameters: .init(
+                autoPlay: true,
+                showControls: true,
+            ),
+            // The configuration of the underlying web view
+            configuration: .init(
+                fullscreenMode: .system,
+                allowsInlineMediaPlayback: true,
+                allowsPictureInPictureMediaPlayback: true,
+            ))
+        self._viewModel = StateObject(wrappedValue: VideoPlayerViewModel(video: video, youTubePlayer: player))
+    }
+    
+    var youTubePlayer: YouTubePlayer {
+        viewModel.youTubePlayer
     }
     
     
