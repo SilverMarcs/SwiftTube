@@ -81,6 +81,7 @@ struct SettingsView: View {
                     }
                 }
             }
+//            .scrollDisabled(true))
             .formStyle(.grouped)
             .navigationTitle("Settings")
             .toolbarTitleDisplayMode(.inline)
