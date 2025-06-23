@@ -33,6 +33,8 @@ struct ChannelInfoRow: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+            
+            Spacer()
         }
     }
 }

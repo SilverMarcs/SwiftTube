@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0811C85E2E059778005EE604 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0811C85D2E059778005EE604 /* YouTubePlayerKit */; };
 		085613D52E087C4100C41C05 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 085613D42E087C4100C41C05 /* Kingfisher */; };
 /* End PBXBuildFile section */
 
@@ -29,7 +28,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				085613D52E087C4100C41C05 /* Kingfisher in Frameworks */,
-				0811C85E2E059778005EE604 /* YouTubePlayerKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,7 +70,6 @@
 			);
 			name = SwiftTube;
 			packageProductDependencies = (
-				0811C85D2E059778005EE604 /* YouTubePlayerKit */,
 				085613D42E087C4100C41C05 /* Kingfisher */,
 			);
 			productName = SwiftTube;
@@ -104,7 +101,6 @@
 			mainGroup = 0811C7D02E05782C005EE604;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				0811C85C2E059778005EE604 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */,
 				085613D32E087C4100C41C05 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -384,14 +380,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		0811C85C2E059778005EE604 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/SvenTiigi/YouTubePlayerKit";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.0;
-			};
-		};
 		085613D32E087C4100C41C05 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/onevcat/Kingfisher";
@@ -403,11 +391,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		0811C85D2E059778005EE604 /* YouTubePlayerKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0811C85C2E059778005EE604 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */;
-			productName = YouTubePlayerKit;
-		};
 		085613D42E087C4100C41C05 /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 085613D32E087C4100C41C05 /* XCRemoteSwiftPackageReference "Kingfisher" */;

@@ -7,16 +7,22 @@
 
 import SwiftUI
 import Kingfisher
+import AVKit 
 
 struct VideoDetailView: View {
     let video: Video
     
     @Environment(\.videoNameSpace) private var namespace
-//    @StateObject private var viewModel: VideoPlayerViewModel
+    @StateObject private var playerViewModel: VideoPlayerViewModel
     
     @State private var videoDetail: VideoDetail?
     @State private var isLoading = true
     @State private var isDescriptionExpanded = false
+    
+    init(video: Video) {
+        self.video = video
+        self._playerViewModel = StateObject(wrappedValue: VideoPlayerViewModel(video: video, player: AVPlayer(), shouldResume: true))
+    }
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -29,9 +35,9 @@ struct VideoDetailView: View {
                 if let streams = videoDetail.videoStreams {
                     CustomVideoPlayerView(
                         videoStream: streams.first { $0.videoOnly == false } ?? streams.last!,
-                        video: video
+                        video: video,
+                        playerViewModel: playerViewModel
                     )
-//                        .navigationTransition(.zoom(sourceID: "video-\(video.id)", in: namespace ?? Namespace().wrappedValue))
                         .aspectRatio(16/9, contentMode: .fit)
 
                 } else {
@@ -60,8 +66,11 @@ struct VideoDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
         #endif
-        .task {
-            await loadVideoDetails()
+        .task(id: video.id) {
+            // Only load video details if we haven't loaded them yet or if video changed
+            if videoDetail == nil {
+                await loadVideoDetails()
+            }
         }
     }
     

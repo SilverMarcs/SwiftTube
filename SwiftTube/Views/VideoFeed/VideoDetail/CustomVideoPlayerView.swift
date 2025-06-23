@@ -11,31 +11,26 @@ import AVKit
 struct CustomVideoPlayerView: View {
     let videoStream: VideoStreamResponse
     let video: Video
+    let playerViewModel: VideoPlayerViewModel
     var isShort: Bool = false
     
-    @State private var player = AVPlayer()
     @State private var isLoading = true
-    @StateObject private var viewModel: VideoPlayerViewModel
+    @State private var hasLoaded = false
     
-    init(videoStream: VideoStreamResponse, video: Video, isShort: Bool = false) {
+    init(videoStream: VideoStreamResponse, video: Video, playerViewModel: VideoPlayerViewModel, isShort: Bool = false) {
         self.videoStream = videoStream
         self.video = video
+        self.playerViewModel = playerViewModel
         self.isShort = isShort
-        
-        let tempPlayer = AVPlayer()
-        // For shorts, we track watch time but don't resume
-        self._viewModel = StateObject(wrappedValue: VideoPlayerViewModel(video: video, player: tempPlayer, shouldResume: !isShort))
     }
     
     var body: some View {
-        VideoPlayerView(player: viewModel.player, isShort: isShort)
+        VideoPlayerView(player: playerViewModel.player, isShort: isShort)
             .onAppear {
-                // Assign the view model's player to our local player reference
-                player = viewModel.player
-                loadStream(videoStream)
-            }
-            .onDisappear {
-                cleanup()
+                if !hasLoaded {
+                    loadStream(videoStream)
+                    hasLoaded = true
+                }
             }
     }
     
@@ -53,11 +48,11 @@ struct CustomVideoPlayerView: View {
         playerItem.preferredForwardBufferDuration = 5
         playerItem.preferredPeakBitRate = Double(stream.bitrate ?? 1000000)
         
-        viewModel.player.replaceCurrentItem(with: playerItem)
-        viewModel.player.actionAtItemEnd = .none
-        viewModel.player.automaticallyWaitsToMinimizeStalling = true
+        playerViewModel.player.replaceCurrentItem(with: playerItem)
+        playerViewModel.player.actionAtItemEnd = .none
+        playerViewModel.player.automaticallyWaitsToMinimizeStalling = true
         
-        viewModel.player.play()
+        playerViewModel.player.play()
         
         isLoading = false
     }
@@ -76,11 +71,6 @@ struct CustomVideoPlayerView: View {
         }
         return AVURLAsset(url: url)
     }
-    
-    private func cleanup() {
-        viewModel.player.pause()
-        viewModel.player.replaceCurrentItem(with: nil)
-    }
 }
 
 // MARK: - VideoPlayerView
@@ -95,10 +85,17 @@ struct VideoPlayerView: UIViewControllerRepresentable {
         controller.showsPlaybackControls = !isShort
         controller.videoGravity = .resizeAspect
         controller.allowsPictureInPicturePlayback = !isShort
+        
+        // Ensure player stays connected during fullscreen transitions
+        controller.updatesNowPlayingInfoCenter = true
+        
         return controller
     }
 
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
-        uiViewController.player = player
+        // Only update player if it's different to avoid unnecessary player replacements
+        if uiViewController.player !== player {
+            uiViewController.player = player
+        }
     }
 }

@@ -7,12 +7,20 @@
 
 import SwiftUI
 import Kingfisher
+import AVKit
 
 struct ShortVideoCard: View {
     // Watch time is tracked but playback doesn't resume to last position for shorts
     let video: Video
     @State private var videoDetail: VideoDetail?
     @State private var isLoading = true
+    @StateObject private var playerViewModel: VideoPlayerViewModel
+    
+    init(video: Video) {
+        self.video = video
+        // For shorts, we track watch time but don't resume playback
+        self._playerViewModel = StateObject(wrappedValue: VideoPlayerViewModel(video: video, player: AVPlayer(), shouldResume: false))
+    }
     
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -20,6 +28,7 @@ struct ShortVideoCard: View {
                 CustomVideoPlayerView(
                     videoStream: streams.first { $0.videoOnly == false } ?? streams.last!,
                     video: video,
+                    playerViewModel: playerViewModel,
                     isShort: true
                 )
                     .aspectRatio(9/16, contentMode: .fit)
