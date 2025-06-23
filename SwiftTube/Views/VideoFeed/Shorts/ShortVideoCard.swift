@@ -31,7 +31,12 @@ struct ShortVideoCard: View {
                     playerViewModel: playerViewModel,
                     isShort: true
                 )
-                    .aspectRatio(9/16, contentMode: .fit)
+                .aspectRatio(9/16, contentMode: .fit)
+                .onDisappear {
+                    playerViewModel.player.pause()
+                    // cleanup fully
+                    playerViewModel.player.replaceCurrentItem(with: nil)
+                }
             } else {
                 ProgressView()
                     .controlSize(.large)
