@@ -77,7 +77,7 @@ struct VideoDetailView: View {
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            YTPlayerView()
+            YTPlayerView(namespace: namespace)
         }
         // .task {
         //     await loadVideoDetail()
