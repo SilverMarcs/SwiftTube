@@ -56,7 +56,7 @@ struct VideoDetailView: View {
                         
                         Spacer()
                         
-                        Text(video.duration ?? "")
+                        Text(formatDurationFromSeconds(video.duration))
                             .font(.caption.monospaced())
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
@@ -119,7 +119,7 @@ struct VideoDetailView: View {
         let item = try await YouTubeAPIService.fetchVideoDetailItem(for: video.id)
         
         // Update the video with details
-        video.duration = formatDuration(item.contentDetails.duration)
+        video.duration = parseDurationToSeconds(item.contentDetails.duration)
         video.viewCount = Int(item.statistics.viewCount)
         video.likeCount = item.statistics.likeCount.flatMap(Int.init)
         video.commentCount = item.statistics.commentCount.flatMap(Int.init)
@@ -128,8 +128,8 @@ struct VideoDetailView: View {
         video.updatedAt = Date()
     }
     
-    private func formatDuration(_ isoDuration: String) -> String {
-        // Convert PT4M13S to "4:13"
+    private func parseDurationToSeconds(_ isoDuration: String) -> Int {
+        // Convert PT4M13S to total seconds
         let pattern = "PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?"
         let regex = try! NSRegularExpression(pattern: pattern)
         let matches = regex.firstMatch(in: isoDuration, range: NSRange(isoDuration.startIndex..., in: isoDuration))
@@ -140,6 +140,15 @@ struct VideoDetailView: View {
             Int(String(isoDuration[Range(matches!.range(at: 2), in: isoDuration)!])) ?? 0 : 0
         let seconds = matches?.range(at: 3).location != NSNotFound ? 
             Int(String(isoDuration[Range(matches!.range(at: 3), in: isoDuration)!])) ?? 0 : 0
+        
+        return hours * 3600 + minutes * 60 + seconds
+    }
+    
+    private func formatDurationFromSeconds(_ totalSeconds: Int?) -> String {
+        guard let totalSeconds = totalSeconds else { return "" }
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
         
         if hours > 0 {
             return String(format: "%d:%02d:%02d", hours, minutes, seconds)

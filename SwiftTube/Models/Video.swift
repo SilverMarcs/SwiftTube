@@ -14,7 +14,7 @@ final class Video {
     var likeCount: Int?          // optional; filled on detail fetch
     var viewCount: Int?          // optional
     var commentCount: Int?       // optional
-    var duration: String?
+    var duration: Int?           // total seconds
     var definition: String?
     var caption: Bool?
     var updatedAt: Date?   // to throttle detail refetch
