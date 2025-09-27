@@ -9,12 +9,10 @@ struct MiniPlayerAccessoryView: View {
         if let video = manager.currentVideo {
             if placement == .inline {
                 HStack {
-//                    CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
-//                        .aspectRatio(16/9, contentMode: .fill)
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(.blue.gradient)
-                        .frame(maxWidth: 40, maxHeight: 40)
-                        .clipShape(.rect(cornerRadius: 4))
+                   CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
+                       .aspectRatio(16/9, contentMode: .fill)
+                        .frame(maxWidth: 60, maxHeight: 34)
+                        .clipShape(.rect(cornerRadius: 10))
                     
                     Text(video.title)
                         .font(.caption)
@@ -29,15 +27,11 @@ struct MiniPlayerAccessoryView: View {
                 }
             } else {
                 HStack {
-//                    CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
-////                        .aspectRatio(16/9, contentMode: .fill)
-//                        .frame(maxWidth: 15, maxHeight: 15)
-//                        .clipShape(.rect(cornerRadius: 4))
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(.blue.gradient)
-                        .frame(maxWidth: 80, maxHeight: 80)
-                        .clipShape(.rect(cornerRadius: 4))
-                    
+                    CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
+                        .aspectRatio(16/9, contentMode: .fill)
+                        .frame(maxWidth: 60, maxHeight: 34)
+                        .clipShape(.rect(cornerRadius: 10))
+
                     VStack(alignment: .leading) {
                         Text(video.title)
                             .font(.headline)
@@ -45,7 +39,6 @@ struct MiniPlayerAccessoryView: View {
                         
                         Text(video.channelTitle)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
                     }
                     
                     Spacer()
