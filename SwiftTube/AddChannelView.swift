@@ -3,7 +3,7 @@ import SwiftUI
 
 struct AddChannelView: View {
     @Environment(\.dismiss) private var dismiss
-    let channelStore: ChannelStore
+    @Environment(\.channelStore) var channelStore
     
     @State private var channelInput = ""
     @State private var isLoading = false

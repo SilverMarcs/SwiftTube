@@ -3,8 +3,8 @@ import SwiftUI
 
 struct VideoDetailView: View {
     @Environment(\.openURL) var openURL
+    @Environment(\.channelStore) var channelStore
     let videoId: String
-    let channelStore: ChannelStore
     
     @State private var videoDetail: VideoDetail?
     @State private var isLoading = true

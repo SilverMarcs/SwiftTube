@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct ChannelListView: View {
-    let channelStore: ChannelStore
+    @Environment(\.channelStore) var channelStore
     
     var body: some View {
         List {

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var channelStore = ChannelStore()
+    @Environment(\.channelStore) var channelStore
     @State private var showingAddChannel = false
     
     var body: some View {
@@ -21,7 +21,7 @@ struct ContentView: View {
                         description: Text("Add some YouTube channels to get started")
                     )
                 } else {
-                    VideoListView(channelStore: channelStore)
+                    VideoListView()
                 }
             }
             .navigationTitle("YouTube Feed")
@@ -34,12 +34,12 @@ struct ContentView: View {
                 
                 ToolbarItem(placement: .cancellationAction) {
                     NavigationLink("Channels") {
-                        ChannelListView(channelStore: channelStore)
+                        ChannelListView()
                     }
                 }
             }
             .sheet(isPresented: $showingAddChannel) {
-                AddChannelView(channelStore: channelStore)
+                AddChannelView()
             }
             .task {
                 if !channelStore.channels.isEmpty {

@@ -2,11 +2,11 @@
 import SwiftUI
 
 struct VideoListView: View {
-    let channelStore: ChannelStore
+    @Environment(\.channelStore) var channelStore
     
     var body: some View {
         List(channelStore.videos) { video in
-            VideoRowView(video: video, channelStore: channelStore) // Pass channelStore
+            VideoRowView(video: video)
         }
         .refreshable {
             await channelStore.fetchAllVideos()
