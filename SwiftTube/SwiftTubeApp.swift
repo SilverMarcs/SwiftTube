@@ -10,9 +10,12 @@ import SwiftData
 
 @main
 struct SwiftTubeApp: App {
+    @State var videoManager = VideoManager()
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(videoManager)
         }
         .modelContainer(for: [Channel.self, Video.self])
     }

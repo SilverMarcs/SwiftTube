@@ -2,10 +2,14 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct VideoRowView: View {
+    @Environment(VideoManager.self) var manager
     let video: Video
     
     var body: some View {
-        NavigationLink(destination: VideoDetailView(video: video)) {
+        Button {
+            manager.currentVideo = video
+            manager.isExpanded = true
+        } label: {
             HStack {
                 CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 250)
                     .aspectRatio(16/9, contentMode: .fill)

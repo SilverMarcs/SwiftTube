@@ -13,9 +13,6 @@ struct FeedView: View {
             List(videos) { video in
                 VideoRowView(video: video)
             }
-            .refreshable {
-                await fetchAllVideos()
-            }
             .overlay {
                 if isLoading {
                     UniversalProgressView()
@@ -23,6 +20,16 @@ struct FeedView: View {
             }
             .navigationTitle("Feed")
             .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        Task { await fetchAllVideos() }
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(isLoading)
+                }
+            }
             .task {
                 if !channels.isEmpty && videos.isEmpty {
                     await fetchAllVideos()

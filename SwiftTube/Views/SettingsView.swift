@@ -16,14 +16,18 @@ struct SettingsView: View {
                 Section {
                     TextField("API Key", text: $apiKey)
                         .autocorrectionDisabled()
-//                        .textInputAutocapitalization(.never)
+                    #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                    #endif
+                } header: {
+                    Text("API Key")
                 } footer: {
                     Text("Enter your YouTube Data API v3 key. Get one from [Google Cloud Console](https://console.cloud.google.com/).")
                 }
             }
             .formStyle(.grouped)
             .navigationTitle("Settings")
-            .toolbarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inlineLarge)
         }
     }
 }

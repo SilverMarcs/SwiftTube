@@ -24,11 +24,11 @@ struct AddChannelView: View {
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel", role: .cancel) { dismiss() }
                 }
                 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
+                    Button("Add", role: .confirm) {
                         addChannel()
                     }
                     .disabled(channelInput.isEmpty || isLoading)

@@ -11,9 +11,6 @@ struct VideoDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-
-                // video player her
-
                 VStack(alignment: .leading, spacing: 12) {
                     // Title
                     Text(video.title)
@@ -80,7 +77,6 @@ struct VideoDetailView: View {
                     Text(video.videoDescription)
                         .font(.body)
                 }
-                    .scenePadding()
             }
             .overlay {
                 if isLoading {
