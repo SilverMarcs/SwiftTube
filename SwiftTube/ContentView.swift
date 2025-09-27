@@ -1,35 +1,51 @@
-//////
-
+//
 //  ContentView.swift
-
-//  SwiftTube//  ContentView.swift//  MainView.swift
-
+//  SwiftTube
 //
-
-//  Created by Zabir Raihan on 27/09/2025.//  SwiftTube//  SwiftTube
-
+//  Created by Zabir Raihan on 27/09/2025.
 //
-
-////
 
 import SwiftUI
 
-//  Created by Zabir Raihan on 27/09/2025.//  Created by Zabir Raihan on 27/09/2025.
-
 struct ContentView: View {
-    @State private var rssLinks: [String] = ["https://www.youtube.com/feeds/videos.xml?channel_id=UCNvzD7Z-g64bPXxGzaQaa4g"]////
-
+    @State private var channelStore = ChannelStore()
+    @State private var showingAddChannel = false
+    
     var body: some View {
-        TabView {
-            VideosList(rssLinks: rssLinks)
-                .tabItem {
-                    Label("Videos", systemImage: "video")
+        NavigationStack {
+            VStack {
+                if channelStore.channels.isEmpty {
+                    ContentUnavailableView(
+                        "No Channels",
+                        systemImage: "tv",
+                        description: Text("Add some YouTube channels to get started")
+                    )
+                } else {
+                    VideoListView(channelStore: channelStore)
                 }
-            
-            RSSView(rssLinks: $rssLinks)
-                .tabItem {
-                    Label("RSS", systemImage: "link")
+            }
+            .navigationTitle("YouTube Feed")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Add Channel") {
+                        showingAddChannel = true
+                    }
                 }
+                
+                ToolbarItem(placement: .cancellationAction) {
+                    NavigationLink("Channels") {
+                        ChannelListView(channelStore: channelStore)
+                    }
+                }
+            }
+            .sheet(isPresented: $showingAddChannel) {
+                AddChannelView(channelStore: channelStore)
+            }
+            .task {
+                if !channelStore.channels.isEmpty {
+                    await channelStore.fetchAllVideos()
+                }
+            }
         }
     }
 }

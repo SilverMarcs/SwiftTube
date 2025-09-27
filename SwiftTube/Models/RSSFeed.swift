@@ -1,11 +1,44 @@
 //
-//  FeedParser.swift
+//  Feed.swift
 //  SwiftTube
 //
 //  Created by Zabir Raihan on 27/09/2025.
 //
 
 import Foundation
+
+// MARK: - RSS Feed Models
+struct Feed {
+    let title: String
+    let entries: [Entry]
+}
+
+struct Entry: Identifiable {
+    let id = UUID()
+    let title: String
+    let link: String
+    let published: Date
+    let updated: Date
+    let author: Author
+    let mediaGroup: MediaGroup
+}
+
+struct Author {
+    let name: String
+}
+
+struct MediaGroup {
+    let title: String
+    let description: String
+    let thumbnail: FeedThumbnail
+    let videoId: String
+}
+
+struct FeedThumbnail: Codable {
+    let url: String
+    let width: Int
+    let height: Int
+}
 
 class FeedParser: NSObject, XMLParserDelegate {
     var feed: Feed?
@@ -97,7 +130,7 @@ class FeedParser: NSObject, XMLParserDelegate {
                let width = Int(currentThumbnailWidth),
                let height = Int(currentThumbnailHeight) {
                 let author = Author(name: currentAuthorName)
-                let thumbnail = Thumbnail(url: currentThumbnailUrl, width: width, height: height)
+                let thumbnail = FeedThumbnail(url: currentThumbnailUrl, width: width, height: height)
                 let mediaGroup = MediaGroup(title: currentMediaTitle, description: currentDescription, thumbnail: thumbnail, videoId: currentVideoId)
                 let entry = Entry(title: currentTitle, link: currentLink, published: publishedDate, updated: updatedDate, author: author, mediaGroup: mediaGroup)
                 entries.append(entry)
