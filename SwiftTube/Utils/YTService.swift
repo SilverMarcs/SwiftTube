@@ -40,7 +40,7 @@ enum YTService {
         }
         
         let encoded = handle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? handle
-        let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails&forHandle=\(encoded)&key=\(apiKey)")!
+        let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails,statistics&forHandle=\(encoded)&key=\(apiKey)")!
         
         let response: ChannelResponse = try await fetchResponse(from: url)
         
@@ -53,7 +53,9 @@ enum YTService {
             title: item.snippet.title,
             channelDescription: item.snippet.description,
             thumbnailURL: item.snippet.thumbnails.medium.url,
-            uploadsPlaylistId: item.contentDetails.relatedPlaylists.uploads
+            uploadsPlaylistId: item.contentDetails.relatedPlaylists.uploads,
+            viewCount: UInt64(item.statistics.viewCount) ?? 0,
+            subscriberCount: UInt64(item.statistics.subscriberCount) ?? 0
         )
     }
     
@@ -62,7 +64,7 @@ enum YTService {
             throw APIError.invalidAPIKey
         }
         
-        let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails&id=\(channelId)&key=\(apiKey)")!
+        let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails,statistics&id=\(channelId)&key=\(apiKey)")!
         
         let response: ChannelResponse = try await fetchResponse(from: url)
         
@@ -75,7 +77,9 @@ enum YTService {
             title: item.snippet.title,
             channelDescription: item.snippet.description,
             thumbnailURL: item.snippet.thumbnails.medium.url,
-            uploadsPlaylistId: item.contentDetails.relatedPlaylists.uploads
+            uploadsPlaylistId: item.contentDetails.relatedPlaylists.uploads,
+            viewCount: UInt64(item.statistics.viewCount) ?? 0,
+            subscriberCount: UInt64(item.statistics.subscriberCount) ?? 0
         )
     }
     
@@ -99,5 +103,34 @@ enum YTService {
         video.definition = item.contentDetails.definition.uppercased()
         video.caption = item.contentDetails.caption == "true"
         video.updatedAt = Date()
+    }
+    
+    static func fetchVideoDetails(for videos: [Video]) async throws {
+        guard let apiKey = apiKey else {
+            throw APIError.invalidAPIKey
+        }
+        
+        // Split into chunks of 50 (YouTube API limit)
+        let chunks = videos.chunked(into: 50)
+        
+        for chunk in chunks {
+            let videoIds = chunk.map { $0.id }.joined(separator: ",")
+            let url = URL(string: "\(baseURL)/videos?part=snippet,contentDetails,statistics&id=\(videoIds)&key=\(apiKey)")!
+            
+            let response: VideoDetailResponse = try await fetchResponse(from: url)
+            
+            // Update each video with the fetched details
+            for item in response.items {
+                if let video = chunk.first(where: { $0.id == item.id }) {
+                    video.duration = parseDurationToSeconds(item.contentDetails.duration)
+                    video.viewCount = item.statistics.viewCount
+                    video.likeCount = item.statistics.likeCount
+                    video.commentCount = item.statistics.commentCount
+                    video.definition = item.contentDetails.definition.uppercased()
+                    video.caption = item.contentDetails.caption == "true"
+                    video.updatedAt = Date()
+                }
+            }
+        }
     }
 }

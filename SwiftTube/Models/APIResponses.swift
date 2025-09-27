@@ -10,6 +10,7 @@ struct ChannelItem: Codable {
     let id: String
     let snippet: ChannelSnippet
     let contentDetails: ChannelContentDetails
+    let statistics: ChannelStatistics
 }
 
 struct ChannelSnippet: Codable {
@@ -24,6 +25,11 @@ struct ChannelContentDetails: Codable {
 
 struct RelatedPlaylists: Codable {
     let uploads: String
+}
+
+struct ChannelStatistics: Codable {
+    let viewCount: String
+    let subscriberCount: String
 }
 
 struct PlaylistResponse: Codable {
@@ -107,7 +113,6 @@ struct VideoDetailItem: Codable {
     let snippet: VideoDetailSnippet
     let contentDetails: VideoDetailContentDetails
     let statistics: VideoStatistics
-    let status: VideoStatus
 }
 
 struct VideoDetailSnippet: Codable {
@@ -117,7 +122,6 @@ struct VideoDetailSnippet: Codable {
     let channelTitle: String
     let publishedAt: String
     let thumbnails: Thumbnails
-    let categoryId: String
     let tags: [String]?
 }
 
@@ -131,9 +135,4 @@ struct VideoStatistics: Codable {
     let viewCount: String
     let likeCount: String?
     let commentCount: String?
-}
-
-struct VideoStatus: Codable {
-    let privacyStatus: String
-    let embeddable: Bool
 }

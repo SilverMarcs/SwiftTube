@@ -26,10 +26,15 @@ struct FeedView: View {
             .toolbarTitleDisplayMode(.inlineLarge)
             .refreshable {
                 await fetchAllVideos()
+                // On refresh, force fetch rich data for recent 50 videos without it
+                await fetchRichDataForced()
             }
             .task {
-                if !channels.isEmpty && videos.isEmpty {
+                if videos.isEmpty {
                     await fetchAllVideos()
+                } else {
+                    // If videos exist, still check if we need to fetch rich data
+                    await fetchRichDataIfNeeded()
                 }
             }
         }
@@ -39,6 +44,7 @@ struct FeedView: View {
         isLoading = true
         defer { isLoading = false }
         
+        // First, fetch basic video data from RSS
         for channel in channels {
             do {
                 let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
@@ -48,6 +54,43 @@ struct FeedView: View {
             } catch {
                 print("Error fetching videos for \(channel.title): \(error)")
             }
+        }
+        
+        // Then check if we should fetch rich data
+        await fetchRichDataIfNeeded()
+    }
+    
+    private func fetchRichDataIfNeeded() async {
+        // Get the 50 most recent videos
+        let recent50Videos = videos.prefix(50)
+        
+        // Check how many don't have rich metadata (likeCount is our indicator)
+        let videosWithoutRichData = recent50Videos.filter { $0.likeCount == nil }
+        
+        // Only fetch if at least 5 recent videos don't have rich data
+        if videosWithoutRichData.count >= 5 {
+            await fetchRichVideoData(for: Array(videosWithoutRichData))
+        }
+    }
+    
+    private func fetchRichDataForced() async {
+        // Get the 50 most recent videos without rich data
+        let recent50Videos = videos.prefix(50)
+        let videosWithoutRichData = recent50Videos.filter { $0.likeCount == nil }
+        
+        if !videosWithoutRichData.isEmpty {
+            await fetchRichVideoData(for: Array(videosWithoutRichData))
+        }
+    }
+    
+    private func fetchRichVideoData(for videos: [Video]) async {
+        guard !videos.isEmpty else { return }
+        
+        do {
+            try await YTService.fetchVideoDetails(for: videos)
+            print("Successfully fetched rich data for \(videos.count) videos")
+        } catch {
+            print("Error fetching video details: \(error)")
         }
     }
 }
