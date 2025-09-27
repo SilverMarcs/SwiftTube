@@ -11,9 +11,9 @@ final class Video {
     var publishedAt: Date
     var channelTitle: String
     var url: String
-    var likeCount: Int?          // optional; filled on detail fetch
-    var viewCount: Int?          // optional
-    var commentCount: Int?       // optional
+    var likeCount: String?          // optional; filled on detail fetch
+    var viewCount: String?          // optional
+    var commentCount: String?       // optional
     var duration: Int?           // total seconds
     var definition: String?
     var caption: Bool?

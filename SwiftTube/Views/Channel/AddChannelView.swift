@@ -49,20 +49,15 @@ struct AddChannelView: View {
         let channelId = extractChannelId(from: cleanInput) ?? cleanInput
         
         isLoading = true
+        defer {  isLoading = false }
         
         Task {
             do {
                 let channel = try await fetchChannel(channelId: channelId)
                 modelContext.upsertChannel(channel)
-                await MainActor.run {
-                    isLoading = false
-                    dismiss()
-                }
+                dismiss()
             } catch {
                 print("Error adding channel: \(error)")
-                await MainActor.run {
-                    isLoading = false
-                }
             }
         }
     }
@@ -71,11 +66,6 @@ struct AddChannelView: View {
         // Handle full YouTube URLs
         if input.contains("youtube.com/channel/") {
             return input.components(separatedBy: "youtube.com/channel/").last?.components(separatedBy: "/").first
-        }
-        
-        // Handle @handles - return as-is, API will handle it
-        if input.hasPrefix("@") {
-            return input
         }
         
         return nil
@@ -92,25 +82,10 @@ struct AddChannelView: View {
     private func fetchChannelFromHandle(from handle: String) async throws -> Channel {
         let trimmed = handle.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalized = trimmed.hasPrefix("@") ? trimmed : "@\(trimmed)"
-        let item = try await YouTubeAPIService.fetchChannelItem(forHandle: normalized)
-        return Channel(
-            id: item.id,
-            title: item.snippet.title,
-            channelDescription: item.snippet.description,
-            thumbnailURL: item.snippet.thumbnails.medium.url,
-            uploadsPlaylistId: item.contentDetails.relatedPlaylists.uploads
-        )
+        return try await YTService.fetchChannel(forHandle: normalized)
     }
     
     private func fetchChannelInfo(channelId: String) async throws -> Channel {
-        let item = try await YouTubeAPIService.fetchChannelItem(byId: channelId)
-        
-        return Channel(
-            id: item.id,
-            title: item.snippet.title,
-            channelDescription: item.snippet.description,
-            thumbnailURL: item.snippet.thumbnails.medium.url,
-            uploadsPlaylistId: item.contentDetails.relatedPlaylists.uploads
-        )
+        return try await YTService.fetchChannel(byId: channelId)
     }
 }

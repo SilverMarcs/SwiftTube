@@ -16,6 +16,7 @@ struct ChannelListView: View {
                 .onDelete(perform: deleteChannels)
             }
             .navigationTitle("Channels")
+            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {

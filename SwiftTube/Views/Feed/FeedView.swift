@@ -1,10 +1,4 @@
-//
-//  FeedView.swift
-//  SwiftTube
-//
-//  Created by Zabir Raihan on 27/09/2025.
-//
-
+// VideoListView.swift
 import SwiftUI
 import SwiftData
 
@@ -13,21 +7,22 @@ struct FeedView: View {
     @Query(sort: \Channel.createdAt) private var channels: [Channel]
     @Query(sort: \Video.publishedAt, order: .reverse) private var videos: [Video]
     @State private var isLoading = false
-
+    
     var body: some View {
         NavigationStack {
-            VStack {
-                if channels.isEmpty {
-                    ContentUnavailableView(
-                        "No Channels",
-                        systemImage: "tv",
-                        description: Text("Add some YouTube channels to get started")
-                    )
-                } else {
-                    VideoListView()
+            List(videos) { video in
+                VideoRowView(video: video)
+            }
+            .refreshable {
+                await fetchAllVideos()
+            }
+            .overlay {
+                if isLoading {
+                    UniversalProgressView()
                 }
             }
-            .navigationTitle("YouTube Feed")
+            .navigationTitle("Feed")
+            .toolbarTitleDisplayMode(.inlineLarge)
             .task {
                 if !channels.isEmpty && videos.isEmpty {
                     await fetchAllVideos()

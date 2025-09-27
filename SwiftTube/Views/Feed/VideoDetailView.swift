@@ -44,14 +44,14 @@ struct VideoDetailView: View {
                     
                     // Stats Row
                     HStack {
-                        Label(formatNumber(String(video.viewCount ?? 0)) + " views", systemImage: "eye")
+                        Label(formatNumber(video.viewCount ?? "0") + " views", systemImage: "eye")
                         
                         if let likes = video.likeCount {
-                            Label(formatNumber(String(likes)), systemImage: "hand.thumbsup")
+                            Label(formatNumber(likes), systemImage: "hand.thumbsup")
                         }
                         
                         if let comments = video.commentCount {
-                            Label(formatNumber(String(comments)), systemImage: "bubble.left")
+                            Label(formatNumber(comments), systemImage: "bubble.left")
                         }
                         
                         Spacer()
@@ -116,32 +116,7 @@ struct VideoDetailView: View {
     }
     
     private func fetchVideoDetail(for video: Video) async throws {
-        let item = try await YouTubeAPIService.fetchVideoDetailItem(for: video.id)
-        
-        // Update the video with details
-        video.duration = parseDurationToSeconds(item.contentDetails.duration)
-        video.viewCount = Int(item.statistics.viewCount)
-        video.likeCount = item.statistics.likeCount.flatMap(Int.init)
-        video.commentCount = item.statistics.commentCount.flatMap(Int.init)
-        video.definition = item.contentDetails.definition.uppercased()
-        video.caption = item.contentDetails.caption == "true"
-        video.updatedAt = Date()
-    }
-    
-    private func parseDurationToSeconds(_ isoDuration: String) -> Int {
-        // Convert PT4M13S to total seconds
-        let pattern = "PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?"
-        let regex = try! NSRegularExpression(pattern: pattern)
-        let matches = regex.firstMatch(in: isoDuration, range: NSRange(isoDuration.startIndex..., in: isoDuration))
-        
-        let hours = matches?.range(at: 1).location != NSNotFound ? 
-            Int(String(isoDuration[Range(matches!.range(at: 1), in: isoDuration)!])) ?? 0 : 0
-        let minutes = matches?.range(at: 2).location != NSNotFound ? 
-            Int(String(isoDuration[Range(matches!.range(at: 2), in: isoDuration)!])) ?? 0 : 0
-        let seconds = matches?.range(at: 3).location != NSNotFound ? 
-            Int(String(isoDuration[Range(matches!.range(at: 3), in: isoDuration)!])) ?? 0 : 0
-        
-        return hours * 3600 + minutes * 60 + seconds
+        try await YTService.fetchVideoDetails(for: video)
     }
     
     private func formatDurationFromSeconds(_ totalSeconds: Int?) -> String {

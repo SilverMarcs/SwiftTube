@@ -10,20 +10,18 @@ import SwiftUI
 struct ContentView: View {
     var body: some View {
         TabView {
-            FeedView()
-                .tabItem {
-                    Label("Feed", systemImage: "tv")
-                }
+            Tab("Feed", systemImage: "tv") {
+                FeedView()
+            }
             
-            ChannelListView()
-                .tabItem {
-                    Label("Channels", systemImage: "list.bullet")
-                }
-            
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gear")
-                }
+            Tab("Channels", systemImage: "list.bullet") {
+                ChannelListView()
+            }
+
+            Tab("Settings", systemImage: "gear") {
+                SettingsView()
+            }
         }
+        .tabViewStyle(.sidebarAdaptable)
     }
 }
