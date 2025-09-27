@@ -1,0 +1,67 @@
+//
+//  Extensions.swift
+//  SwiftTube
+//
+//  Created by Zabir Raihan on 27/09/2025.
+//
+
+import Foundation
+
+extension Date {
+    func customRelativeFormat() -> String {
+        let now = Date()
+        let timeInterval = now.timeIntervalSince(self)
+        
+        let hours = Int(timeInterval / 3600)
+        let days = Int(timeInterval / 86400)
+        let weeks = Int(timeInterval / 604800)
+        let months = Int(timeInterval / 2629746) // Average month in seconds
+        let years = Int(timeInterval / 31556952) // Average year in seconds
+        
+        if hours < 24 {
+            return hours <= 1 ? "1 hour ago" : "\(hours) hours ago"
+        } else if days < 7 {
+            return days == 1 ? "1 day ago" : "\(days) days ago"
+        } else if weeks < 4 {
+            return weeks == 1 ? "1 week ago" : "\(weeks) weeks ago"
+        } else if months < 12 {
+            return months == 1 ? "1 month ago" : "\(months) months ago"
+        } else {
+            return years == 1 ? "1 year ago" : "\(years) years ago"
+        }
+    }
+}
+
+extension Int {
+    func formatDuration() -> String {
+        let hours = self / 3600
+        let minutes = (self % 3600) / 60
+        let seconds = self % 60
+        
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+    }
+    
+    func formatNumber() -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        
+        if self >= 1_000_000 {
+            return String(format: "%.1fM", Double(self) / 1_000_000)
+        } else if self >= 1_000 {
+            return String(format: "%.1fK", Double(self) / 1_000)
+        } else {
+            return formatter.string(from: NSNumber(value: self)) ?? String(self)
+        }
+    }
+}
+
+extension String {
+    func formatNumber() -> String {
+        guard let number = Int(self) else { return self }
+        return number.formatNumber()
+    }
+}

@@ -10,7 +10,7 @@ import YouTubePlayerKit
 
 struct ContentView: View {
     @Environment(VideoManager.self) var manager
-    @Namespace private var animation    
+    @Namespace private var animation
     @State var selection: AppTab = .feed
     
     var body: some View {
@@ -42,14 +42,7 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $manager.isExpanded) {
             if let video = manager.currentVideo {
-                VideoDetailView(video: video)
-                    .safeAreaInset(edge: .top, spacing: 0) {
-                        if let player = manager.youTubePlayer {
-                            YouTubePlayerView(player)
-                                .aspectRatio(16/9, contentMode: .fit)
-                                .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
-                        }
-                    }
+                VideoDetailView(video: video, namespace: animation)
             }
         }
         #endif

@@ -10,28 +10,52 @@ struct VideoRowView: View {
             manager.currentVideo = video
             manager.isExpanded = true
         } label: {
-            HStack {
+            VStack(alignment: .leading) {
                 CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 250)
-                    .aspectRatio(16/9, contentMode: .fill)
-                    .frame(width: 120, height: 68)
-                    .clipShape(.rect(cornerRadius: 8))
+                    .aspectRatio(16/9, contentMode: .fit)
+                    .overlay(alignment: .bottomTrailing) {
+                        if let duration = video.duration {
+                            Text(duration.formatDuration())
+                                .font(.caption)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .foregroundStyle(.white)
+                                .background(RoundedRectangle(cornerRadius: 4).fill(.black.secondary))
+                                .padding(10)
+                        }
+                     }
+//                    .overlay(alignment: .bottom) {
+//                       watchProgressBar
+//                   }
                 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading) {
                     Text(video.title)
                         .font(.headline)
                         .lineLimit(2)
                     
-                    Text(video.channelTitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    
-                    Text(video.publishedAt, style: .relative)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    HStack(alignment: .center, spacing: 4) {
+                        if let channel = video.channel, let url = URL(string: channel.thumbnailURL) {
+                            CachedAsyncImage(url: url, targetSize: 50)
+                                .frame(width: 20, height: 20)
+                                .clipShape(.circle)
+                        }
+                        
+                        Text(video.channelTitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        Spacer()
+                        
+                        Text(video.publishedAt.customRelativeFormat())
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                
-                Spacer()
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(.background.secondary, in: .rect(cornerRadius: 12))
         }
         .buttonStyle(.plain)
     }
