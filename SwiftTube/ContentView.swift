@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import YouTubePlayerKit
 
 struct ContentView: View {
     @Environment(VideoManager.self) var manager
@@ -17,15 +16,15 @@ struct ContentView: View {
         @Bindable var manager = manager
         
         TabView(selection: $selection) {
-            Tab("Videos", systemImage: "tv", value: .feed) {
+            Tab("Videos", systemImage: "video", value: .feed) {
                 FeedView()
             }
             
-            Tab("Channels", systemImage: "list.bullet", value: .channels) {
+            Tab("Channels", systemImage: "play.rectangle", value: .channels) {
                 ChannelListView()
             }
 
-            Tab("Settings", systemImage: "gear", value: .settings) {
+            Tab("Settings", systemImage: "gear", value: .settings, role: .search) {
                 SettingsView()
             }
         }

@@ -77,12 +77,7 @@ struct VideoDetailView: View {
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if let player = manager.youTubePlayer {
-                YouTubePlayerView(player)
-                    .aspectRatio(16/9, contentMode: .fit)
-                    .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: namespace))
-                    .background(.background)
-            }
+            YTPlayerView()
         }
         // .task {
         //     await loadVideoDetail()

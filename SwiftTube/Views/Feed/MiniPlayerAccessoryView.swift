@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftMediaViewer
-import YouTubePlayerKit
 
 struct MiniPlayerAccessoryView: View {
     @Environment(VideoManager.self) var manager
@@ -71,7 +70,7 @@ struct MiniPlayerAccessoryView: View {
                 }
             }
         } else {
-            EmptyView()
+            Text("No video playing")
         }
     }
 }
