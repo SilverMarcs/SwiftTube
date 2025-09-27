@@ -1,21 +1,15 @@
-// ChannelRowView.swift
+
 import SwiftUI
+import SwiftMediaViewer
 
 struct ChannelRowView: View {
     let channel: Channel
     
     var body: some View {
         HStack {
-            AsyncImage(url: URL(string: channel.thumbnailURL)) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Circle()
-                    .fill(.secondary.opacity(0.3))
-            }
-            .frame(width: 40, height: 40)
-            .clipShape(Circle())
+            CachedAsyncImage(url:  URL(string: channel.thumbnailURL), targetSize: 50)
+                .frame(width: 40, height: 40)
+                .clipShape(.circle)
             
             VStack(alignment: .leading) {
                 Text(channel.title)

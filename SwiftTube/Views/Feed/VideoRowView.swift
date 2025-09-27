@@ -1,5 +1,5 @@
-// VideoRowView.swift
 import SwiftUI
+import SwiftMediaViewer
 
 struct VideoRowView: View {
     let video: Video
@@ -7,16 +7,10 @@ struct VideoRowView: View {
     var body: some View {
         NavigationLink(destination: VideoDetailView(video: video)) {
             HStack {
-                AsyncImage(url: URL(string: video.thumbnailURL)) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Rectangle()
-                        .fill(.secondary.opacity(0.3))
-                }
-                .frame(width: 120, height: 68)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 250)
+                    .aspectRatio(16/9, contentMode: .fill)
+                    .frame(width: 120, height: 68)
+                    .clipShape(.rect(cornerRadius: 8))
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(video.title)

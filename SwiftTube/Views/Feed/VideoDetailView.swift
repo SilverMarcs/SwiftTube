@@ -11,18 +11,9 @@ struct VideoDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // Thumbnail
-                AsyncImage(url: URL(string: video.thumbnailURL)) { image in
-                    image
-                        .resizable()
-                        .aspectRatio(16/9, contentMode: .fit)
-                } placeholder: {
-                    Rectangle()
-                        .fill(.secondary.opacity(0.3))
-                        .aspectRatio(16/9, contentMode: .fit)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                
+
+                // video player her
+
                 VStack(alignment: .leading, spacing: 12) {
                     // Title
                     Text(video.title)
@@ -60,8 +51,8 @@ struct VideoDetailView: View {
                             .font(.caption.monospaced())
                             .padding(.horizontal, 8)
                             .padding(.vertical, 2)
-                            .background(.secondary.opacity(0.2))
-                            .clipShape(Capsule())
+                            .background(.background.secondary)
+                            .clipShape(.capsule)
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -83,13 +74,13 @@ struct VideoDetailView: View {
                     Divider()
                     
                     // Description
-                    Text("Description")
+                    Text(LocalizedStringKey("Description"))
                         .font(.headline)
                     
                     Text(video.videoDescription)
                         .font(.body)
                 }
-                .padding(.horizontal)
+                    .scenePadding()
             }
             .overlay {
                 if isLoading {
