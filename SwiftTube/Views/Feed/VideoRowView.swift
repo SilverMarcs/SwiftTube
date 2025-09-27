@@ -11,7 +11,7 @@ struct VideoRowView: View {
             manager.isExpanded = true
         } label: {
             VStack(alignment: .leading) {
-                CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 250)
+                CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 500)
                     .aspectRatio(16/9, contentMode: .fit)
                     .overlay(alignment: .bottomTrailing) {
                         if let duration = video.duration {
