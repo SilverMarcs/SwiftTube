@@ -12,7 +12,7 @@ struct VideoRowView: View {
         } label: {
             VStack(alignment: .leading) {
                 CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 500)
-                    .aspectRatio(16/9, contentMode: .fit)
+                    .aspectRatio(16/9, contentMode: .fill)
                     .overlay(alignment: .bottomTrailing) {
                         if let duration = video.duration {
                             Text(duration.formatDuration())
@@ -33,7 +33,7 @@ struct VideoRowView: View {
                         .font(.headline)
                         .lineLimit(2)
                     
-                    HStack(alignment: .center, spacing: 4) {
+                    HStack(alignment: .center, spacing: 6) {
                         if let channel = video.channel, let url = URL(string: channel.thumbnailURL) {
                             CachedAsyncImage(url: url, targetSize: 50)
                                 .frame(width: 20, height: 20)

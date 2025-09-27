@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftMediaViewer
+import YouTubePlayerKit
 
 struct MiniPlayerAccessoryView: View {
     @Environment(VideoManager.self) var manager
@@ -9,7 +10,7 @@ struct MiniPlayerAccessoryView: View {
         if let video = manager.currentVideo {
             if placement == .inline {
                 HStack {
-                   CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
+                   CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
                        .aspectRatio(16/9, contentMode: .fill)
                         .frame(maxWidth: 60, maxHeight: 34)
                         .clipShape(.rect(cornerRadius: 10))
@@ -19,6 +20,16 @@ struct MiniPlayerAccessoryView: View {
                         .lineLimit(1)
                     
                     Spacer()
+                    
+                    Button {
+                        Task {
+                            await manager.togglePlayPause()
+                        }
+                    } label: {
+                        Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.caption)
+                            .foregroundColor(.primary)
+                    }
                 }
                 .padding(.horizontal)
                 .contentShape(.rect)
@@ -27,7 +38,7 @@ struct MiniPlayerAccessoryView: View {
                 }
             } else {
                 HStack {
-                    CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
+                    CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
                         .aspectRatio(16/9, contentMode: .fill)
                         .frame(maxWidth: 60, maxHeight: 34)
                         .clipShape(.rect(cornerRadius: 10))
@@ -42,6 +53,16 @@ struct MiniPlayerAccessoryView: View {
                     }
                     
                     Spacer()
+                    
+                    Button(action: {
+                        Task {
+                            await manager.togglePlayPause()
+                        }
+                    }) {
+                        Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                    }
                 }
                 .padding()
                 .contentShape(.rect)

@@ -54,9 +54,6 @@ class FeedParser: NSObject, XMLParserDelegate {
     private var currentAuthorName = ""
     private var currentMediaTitle = ""
     private var currentDescription = ""
-    private var currentThumbnailUrl = ""
-    private var currentThumbnailWidth = ""
-    private var currentThumbnailHeight = ""
     private var currentVideoId = ""
 
     func parse(data: Data) {
@@ -77,19 +74,10 @@ class FeedParser: NSObject, XMLParserDelegate {
             currentAuthorName = ""
             currentMediaTitle = ""
             currentDescription = ""
-            currentThumbnailUrl = ""
-            currentThumbnailWidth = ""
-            currentThumbnailHeight = ""
             currentVideoId = ""
         } else if elementName == "link" && inEntry {
             if let href = attributeDict["href"] {
                 currentLink = href
-            }
-        } else if elementName == "media:thumbnail" && inEntry {
-            if let url = attributeDict["url"], let width = attributeDict["width"], let height = attributeDict["height"] {
-                currentThumbnailUrl = url
-                currentThumbnailWidth = width
-                currentThumbnailHeight = height
             }
         }
     }
@@ -126,11 +114,10 @@ class FeedParser: NSObject, XMLParserDelegate {
         if elementName == "entry" {
             inEntry = false
             if let publishedDate = ISO8601DateFormatter().date(from: currentPublished),
-               let updatedDate = ISO8601DateFormatter().date(from: currentUpdated),
-               let width = Int(currentThumbnailWidth),
-               let height = Int(currentThumbnailHeight) {
+               let updatedDate = ISO8601DateFormatter().date(from: currentUpdated) {
                 let author = Author(name: currentAuthorName)
-                let thumbnail = FeedThumbnail(url: currentThumbnailUrl, width: width, height: height)
+                let videoThumbnail = YouTubeVideoThumbnail(videoID: currentVideoId)
+                let thumbnail = FeedThumbnail(url: videoThumbnail.url?.absoluteString ?? "", width: 120, height: 90)
                 let mediaGroup = MediaGroup(title: currentMediaTitle, description: currentDescription, thumbnail: thumbnail, videoId: currentVideoId)
                 let entry = Entry(title: currentTitle, link: currentLink, published: publishedDate, updated: updatedDate, author: author, mediaGroup: mediaGroup)
                 entries.append(entry)
