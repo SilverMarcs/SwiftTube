@@ -1,22 +1,40 @@
 // ChannelListView.swift
 import SwiftUI
+import SwiftData
 
 struct ChannelListView: View {
-    @Environment(\.channelStore) var channelStore
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Channel.createdAt) private var channels: [Channel]
+    @State private var showingAddChannel = false
     
     var body: some View {
-        List {
-            ForEach(channelStore.channels) { channel in
-                ChannelRowView(channel: channel)
+        NavigationStack {
+            List {
+                ForEach(channels) { channel in
+                    ChannelRowView(channel: channel)
+                }
+                .onDelete(perform: deleteChannels)
             }
-            .onDelete(perform: deleteChannels)
+            .navigationTitle("Channels")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingAddChannel = true
+                    } label: {
+                        Label("Add Channel", systemImage: "plus")
+                    }
+                }
+            }
         }
-        .navigationTitle("Channels")
+        .sheet(isPresented: $showingAddChannel) {
+            AddChannelView()
+        }
     }
     
     private func deleteChannels(offsets: IndexSet) {
         for index in offsets {
-            channelStore.removeChannel(channelStore.channels[index])
+            modelContext.delete(channels[index])
         }
+        try? modelContext.save()
     }
 }

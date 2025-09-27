@@ -77,6 +77,7 @@ struct SearchSnippet: Codable {
 
 // MARK: - Video Detail Models
 // API Response Models
+
 struct VideoDetailResponse: Codable {
     let items: [VideoDetailItem]
 }

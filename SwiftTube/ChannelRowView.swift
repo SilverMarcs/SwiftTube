@@ -21,7 +21,7 @@ struct ChannelRowView: View {
                 Text(channel.title)
                     .font(.headline)
                 
-                Text(channel.description)
+                Text(channel.channelDescription)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)

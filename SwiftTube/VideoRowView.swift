@@ -3,10 +3,9 @@ import SwiftUI
 
 struct VideoRowView: View {
     let video: Video
-    @Environment(\.channelStore) var channelStore
     
     var body: some View {
-        NavigationLink(destination: VideoDetailView(videoId: video.id)) {
+        NavigationLink(destination: VideoDetailView(video: video)) {
             HStack {
                 AsyncImage(url: URL(string: video.thumbnailURL)) { image in
                     image

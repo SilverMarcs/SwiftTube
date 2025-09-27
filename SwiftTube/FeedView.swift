@@ -1,22 +1,37 @@
-// VideoListView.swift
+//
+//  FeedView.swift
+//  SwiftTube
+//
+//  Created by Zabir Raihan on 27/09/2025.
+//
+
 import SwiftUI
 import SwiftData
 
-struct VideoListView: View {
+struct FeedView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Channel.createdAt) private var channels: [Channel]
     @Query(sort: \Video.publishedAt, order: .reverse) private var videos: [Video]
     @State private var isLoading = false
-    
+
     var body: some View {
-        List(videos) { video in
-            VideoRowView(video: video)
-        }
-        .refreshable {
-            await fetchAllVideos()
-        }
-        .overlay {
-            if isLoading {
-                UniversalProgressView()
+        NavigationStack {
+            VStack {
+                if channels.isEmpty {
+                    ContentUnavailableView(
+                        "No Channels",
+                        systemImage: "tv",
+                        description: Text("Add some YouTube channels to get started")
+                    )
+                } else {
+                    VideoListView()
+                }
+            }
+            .navigationTitle("YouTube Feed")
+            .task {
+                if !channels.isEmpty && videos.isEmpty {
+                    await fetchAllVideos()
+                }
             }
         }
     }
@@ -25,9 +40,7 @@ struct VideoListView: View {
         isLoading = true
         defer { isLoading = false }
         
-        let channels = try? modelContext.fetch(FetchDescriptor<Channel>())
-        
-        for channel in channels ?? [] {
+        for channel in channels {
             do {
                 let channelVideos = try await fetchChannelVideosFromRSS(channel: channel)
                 for video in channelVideos {

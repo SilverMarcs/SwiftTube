@@ -8,44 +8,22 @@
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(\.channelStore) var channelStore
-    @State private var showingAddChannel = false
-    
     var body: some View {
-        NavigationStack {
-            VStack {
-                if channelStore.channels.isEmpty {
-                    ContentUnavailableView(
-                        "No Channels",
-                        systemImage: "tv",
-                        description: Text("Add some YouTube channels to get started")
-                    )
-                } else {
-                    VideoListView()
+        TabView {
+            FeedView()
+                .tabItem {
+                    Label("Feed", systemImage: "tv")
                 }
-            }
-            .navigationTitle("YouTube Feed")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Add Channel") {
-                        showingAddChannel = true
-                    }
+            
+            ChannelListView()
+                .tabItem {
+                    Label("Channels", systemImage: "list.bullet")
                 }
-                
-                ToolbarItem(placement: .cancellationAction) {
-                    NavigationLink("Channels") {
-                        ChannelListView()
-                    }
+            
+            Text("Settings")
+                .tabItem {
+                    Label("Settings", systemImage: "gear")
                 }
-            }
-            .sheet(isPresented: $showingAddChannel) {
-                AddChannelView()
-            }
-            .task {
-                if !channelStore.channels.isEmpty {
-                    await channelStore.fetchAllVideos()
-                }
-            }
         }
     }
 }
