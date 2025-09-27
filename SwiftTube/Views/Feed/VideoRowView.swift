@@ -21,7 +21,7 @@ struct VideoRowView: View {
                                 .padding(.vertical, 2)
                                 .foregroundStyle(.white)
                                 .background(RoundedRectangle(cornerRadius: 4).fill(.black.secondary))
-                                .padding(10)
+                                .padding(8)
                         }
                      }
 //                    .overlay(alignment: .bottom) {

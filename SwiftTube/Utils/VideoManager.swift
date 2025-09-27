@@ -22,7 +22,8 @@ class VideoManager {
                 ),
                 configuration: .init(
                     fullscreenMode: .system,
-                    allowsInlineMediaPlayback: true
+                    allowsInlineMediaPlayback: true,
+                    allowsPictureInPictureMediaPlayback: true
                 )
             )
         } else {
