@@ -20,7 +20,7 @@ struct ContentView: View {
                     Label("Channels", systemImage: "list.bullet")
                 }
             
-            Text("Settings")
+            SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gear")
                 }

@@ -8,9 +8,6 @@ struct VideoDetailView: View {
     
     @State private var isLoading = false
     
-    private let apiKey = "AIzaSyCrI9toXHrVQXmx1ZwKc9hkhTBZM94k-do" // Replace with your API key
-    private let baseURL = "https://www.googleapis.com/youtube/v3"
-    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -119,14 +116,7 @@ struct VideoDetailView: View {
     }
     
     private func fetchVideoDetail(for video: Video) async throws {
-        let url = URL(string: "\(baseURL)/videos?part=snippet,contentDetails,statistics&id=\(video.id)&key=\(apiKey)")!
-        
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let response = try JSONDecoder().decode(VideoDetailResponse.self, from: data)
-        
-        guard let item = response.items.first else {
-            throw APIError.invalidResponse
-        }
+        let item = try await YouTubeAPIService.fetchVideoDetailItem(for: video.id)
         
         // Update the video with details
         video.duration = formatDuration(item.contentDetails.duration)

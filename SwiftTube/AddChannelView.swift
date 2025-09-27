@@ -9,9 +9,6 @@ struct AddChannelView: View {
     @State private var channelInput = ""
     @State private var isLoading = false
     
-    private let apiKey = "AIzaSyCrI9toXHrVQXmx1ZwKc9hkhTBZM94k-do" // Replace with your API key
-    private let baseURL = "https://www.googleapis.com/youtube/v3"
-    
     var body: some View {
         NavigationStack {
             Form {
@@ -95,15 +92,7 @@ struct AddChannelView: View {
     private func fetchChannelFromHandle(from handle: String) async throws -> Channel {
         let trimmed = handle.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalized = trimmed.hasPrefix("@") ? trimmed : "@\(trimmed)"
-        guard let encoded = normalized.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            throw APIError.invalidResponse
-        }
-        let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails&forHandle=\(encoded)&key=\(apiKey)")!
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let res = try JSONDecoder().decode(ChannelResponse.self, from: data)
-        guard let item = res.items.first else {
-            throw APIError.channelNotFound
-        }
+        let item = try await YouTubeAPIService.fetchChannelItem(forHandle: normalized)
         return Channel(
             id: item.id,
             title: item.snippet.title,
@@ -114,14 +103,7 @@ struct AddChannelView: View {
     }
     
     private func fetchChannelInfo(channelId: String) async throws -> Channel {
-        let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails&id=\(channelId)&key=\(apiKey)")!
-        
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let response = try JSONDecoder().decode(ChannelResponse.self, from: data)
-        
-        guard let item = response.items.first else {
-            throw APIError.channelNotFound
-        }
+        let item = try await YouTubeAPIService.fetchChannelItem(byId: channelId)
         
         return Channel(
             id: item.id,
