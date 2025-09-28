@@ -52,16 +52,16 @@ struct ContentView: View {
             }
         }
         #endif
-        // .task {
-        //     // Initialize video loader and load videos on launch
-        //     if videoLoader == nil {
-        //         videoLoader = VideoLoader(modelContainer: modelContext.container)
-        //         await videoLoader?.loadAllChannelVideos()
-        //     }
-        // }
-        .refreshable {
-            await videoLoader?.refreshAllVideos()
-        }
+//         .task {
+//             // Initialize video loader and load videos on launch
+//             if videoLoader == nil {
+//                 videoLoader = VideoLoader(modelContainer: modelContext.container)
+//                 await videoLoader?.loadAllChannelVideos()
+//             }
+//         }
+//        .refreshable {
+//            await videoLoader?.refreshAllVideos()
+//        }
     }
 }
 

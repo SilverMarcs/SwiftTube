@@ -9,7 +9,6 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct SettingsView: View {
-    @AppStorage("youtubeAPIKey") private var apiKey = ""
     @State private var deleteAlertPresented = false
     private var googleAuthManager = GoogleAuthManager.shared
     
@@ -18,18 +17,6 @@ struct SettingsView: View {
             Form {
                 Section("Authentication") {
                     SignInView()
-                }
-                
-                Section {
-                    TextField("API Key", text: $apiKey)
-                        .autocorrectionDisabled()
-                    #if os(iOS)
-                        .textInputAutocapitalization(.never)
-                    #endif
-                } header: {
-                    Text("API Key")
-                } footer: {
-                    Text("Enter your YouTube Data API v3 key. Get one from [Google Cloud Console](https://console.cloud.google.com/).")
                 }
                 
                 // TODO: put this view in swiftemdi viewer pakcage
