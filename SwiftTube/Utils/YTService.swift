@@ -96,7 +96,9 @@ enum YTService {
             throw APIError.videoNotFound
         }
         
-        video.duration = parseDurationToSeconds(item.contentDetails.duration)
+        let duration = parseDurationToSeconds(item.contentDetails.duration)
+        video.duration = duration
+        video.isShort = duration <= 120 // Videos 60 seconds or less are considered shorts
         video.viewCount = item.statistics.viewCount
         video.likeCount = item.statistics.likeCount
         video.commentCount = item.statistics.commentCount
@@ -122,7 +124,9 @@ enum YTService {
             // Update each video with the fetched details
             for item in response.items {
                 if let video = chunk.first(where: { $0.id == item.id }) {
-                    video.duration = parseDurationToSeconds(item.contentDetails.duration)
+                    let duration = parseDurationToSeconds(item.contentDetails.duration)
+                    video.duration = duration
+                    video.isShort = duration <= 120 // Videos 60 seconds or less are considered shorts
                     video.viewCount = item.statistics.viewCount
                     video.likeCount = item.statistics.likeCount
                     video.commentCount = item.statistics.commentCount

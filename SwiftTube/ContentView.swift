@@ -6,11 +6,14 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
     @Environment(VideoManager.self) var manager
+    @Environment(\.modelContext) private var modelContext
     @Namespace private var animation
     @State var selection: AppTab = .feed
+    @State private var videoLoader: VideoLoader?
     
     var body: some View {
         @Bindable var manager = manager
@@ -18,6 +21,10 @@ struct ContentView: View {
         TabView(selection: $selection) {
             Tab("Videos", systemImage: "video", value: .feed) {
                 FeedView()
+            }
+            
+            Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
+                ShortsView()
             }
             
             Tab("Channels", systemImage: "play.rectangle", value: .channels) {
@@ -45,11 +52,23 @@ struct ContentView: View {
             }
         }
         #endif
+        .task {
+            // Initialize video loader and load videos on launch
+            if videoLoader == nil {
+                videoLoader = VideoLoader(modelContainer: modelContext.container)
+                await videoLoader?.loadAllChannelVideos()
+            }
+        }
+        .refreshable {
+            // Refresh all videos
+            await videoLoader?.refreshAllVideos()
+        }
     }
 }
 
 enum AppTab: String, CaseIterable {
     case feed
+    case shorts
     case channels
     case settings
 }

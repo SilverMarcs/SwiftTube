@@ -4,6 +4,7 @@ import SwiftMediaViewer
 
 struct ChannelRowView: View {
     let channel: Channel
+    var showSubs: Bool = true
     
     var body: some View {
         HStack {
@@ -15,9 +16,11 @@ struct ChannelRowView: View {
                 Text(channel.title)
                     .font(.headline)
                 
-                Text("\(Int(channel.subscriberCount).formatNumber()) subscribers")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                if showSubs {
+                    Text("\(Int(channel.subscriberCount).formatNumber()) subscribers")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
             
             Spacer()

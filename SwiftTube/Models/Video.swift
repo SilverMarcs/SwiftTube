@@ -18,6 +18,7 @@ final class Video {
     var definition: String?
     var caption: Bool?
     var updatedAt: Date?   // to throttle detail refetch
+    var isShort: Bool = false   // determined by duration <= 60 seconds
 
     @Relationship var channel: Channel?
     @Relationship(inverse: \Comment.video) var comments: [Comment] = []
@@ -31,5 +32,6 @@ final class Video {
         self.channelTitle = channelTitle
         self.url = url
         self.channel = channel
+        self.isShort = false // Will be determined after duration is fetched
     }
 }

@@ -60,7 +60,6 @@ struct MiniPlayerAccessoryView: View {
                     }) {
                         Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
                             .font(.subheadline)
-                            .foregroundColor(.primary)
                     }
                 }
                 .padding()
