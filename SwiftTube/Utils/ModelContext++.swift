@@ -31,16 +31,7 @@ extension ModelContext {
         }
     }
     
-    func upsertVideo(_ v: Video) {
-        upsert(v) { existing, new in
-            existing.title = new.title
-            existing.videoDescription = new.videoDescription
-            existing.thumbnailURL = new.thumbnailURL
-            existing.publishedAt = new.publishedAt
-            existing.channelTitle = new.channelTitle
-            existing.url = new.url
-        }
-    }
+
 }
 
 extension ModelContext {

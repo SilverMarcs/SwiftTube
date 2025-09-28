@@ -59,14 +59,15 @@ actor VideoLoader {
         
         guard let videos = try? modelExecutor.modelContext.fetch(videoFetchDescriptor) else { return }
         
-        // Get the 50 most recent videos
-        let recent50Videos = Array(videos.prefix(50))
+        // Get the 100 most recent videos (increased from 50)
+        let recent100Videos = Array(videos.prefix(100))
         
         // Check how many don't have rich metadata (likeCount is our indicator)
-        let videosWithoutRichData = recent50Videos.filter { $0.likeCount == nil }
+        let videosWithoutRichData = recent100Videos.filter { $0.likeCount == nil }
         
-        // Only fetch if at least 5 recent videos don't have rich data
-        if videosWithoutRichData.count >= 5 {
+        // Fetch if there are any recent videos without rich data (more aggressive)
+        if !videosWithoutRichData.isEmpty {
+            print("Fetching rich data for \(videosWithoutRichData.count) videos without metadata")
             await fetchRichVideoData(for: videosWithoutRichData)
         }
     }
@@ -78,12 +79,15 @@ actor VideoLoader {
         
         guard let videos = try? modelExecutor.modelContext.fetch(videoFetchDescriptor) else { return }
         
-        // Get the 50 most recent videos without rich data
-        let recent50Videos = Array(videos.prefix(50))
-        let videosWithoutRichData = recent50Videos.filter { $0.likeCount == nil }
+        // Get the 100 most recent videos without rich data (increased from 50)
+        let recent100Videos = Array(videos.prefix(100))
+        let videosWithoutRichData = recent100Videos.filter { $0.likeCount == nil }
         
         if !videosWithoutRichData.isEmpty {
+            print("Force fetching rich data for \(videosWithoutRichData.count) videos")
             await fetchRichVideoData(for: videosWithoutRichData)
+        } else {
+            print("All recent videos already have rich data")
         }
     }
     
@@ -103,6 +107,8 @@ actor VideoLoader {
         let videoId = video.id
         
         if let existing = try? modelExecutor.modelContext.fetch(FetchDescriptor<Video>(predicate: #Predicate { $0.id == videoId })).first {
+            // Only update basic fields from RSS feed, preserve rich data
+            let hadRichData = existing.likeCount != nil
             existing.title = video.title
             existing.videoDescription = video.videoDescription
             existing.thumbnailURL = video.thumbnailURL
@@ -110,8 +116,13 @@ actor VideoLoader {
             existing.channelTitle = video.channelTitle
             existing.url = video.url
             existing.channel = video.channel
+            // Preserve rich data fields: likeCount, viewCount, commentCount, duration, definition, caption, updatedAt, isShort
+            if hadRichData {
+                print("Updated video '\(video.title)' while preserving rich data")
+            }
         } else {
             modelExecutor.modelContext.insert(video)
+            print("Inserted new video: '\(video.title)'")
         }
     }
 }
