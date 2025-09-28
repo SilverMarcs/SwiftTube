@@ -23,7 +23,7 @@ final class Video {
     @Relationship var channel: Channel?
     @Relationship(inverse: \Comment.video) var comments: [Comment] = []
 
-    init(id: String, title: String, videoDescription: String, thumbnailURL: String, publishedAt: Date, channelTitle: String, url: String, channel: Channel?) {
+    init(id: String, title: String, videoDescription: String, thumbnailURL: String, publishedAt: Date, channelTitle: String, url: String, channel: Channel?, viewCount: String? = nil, isShort: Bool = false) {
         self.id = id
         self.title = title
         self.videoDescription = videoDescription
@@ -32,6 +32,7 @@ final class Video {
         self.channelTitle = channelTitle
         self.url = url
         self.channel = channel
-        self.isShort = false // Will be determined after duration is fetched
+        self.viewCount = viewCount
+        self.isShort = isShort
     }
 }

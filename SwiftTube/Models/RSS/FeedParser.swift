@@ -22,6 +22,7 @@ class FeedParser: NSObject, XMLParserDelegate {
     private var currentMediaTitle = ""
     private var currentDescription = ""
     private var currentVideoId = ""
+    private var currentViews: String?
 
     func parse(data: Data) {
         let parser = XMLParser(data: data)
@@ -42,10 +43,13 @@ class FeedParser: NSObject, XMLParserDelegate {
             currentMediaTitle = ""
             currentDescription = ""
             currentVideoId = ""
+            currentViews = nil
         } else if elementName == "link" && inEntry {
             if let href = attributeDict["href"] {
                 currentLink = href
             }
+        } else if elementName == "media:statistics" && inEntry {
+            currentViews = attributeDict["views"]
         }
     }
 
@@ -85,7 +89,7 @@ class FeedParser: NSObject, XMLParserDelegate {
                 let author = Author(name: currentAuthorName)
                 let videoThumbnail = YouTubeVideoThumbnail(videoID: currentVideoId)
                 let thumbnail = FeedThumbnail(url: videoThumbnail.url?.absoluteString ?? "", width: 120, height: 90)
-                let mediaGroup = MediaGroup(title: currentMediaTitle, description: currentDescription, thumbnail: thumbnail, videoId: currentVideoId)
+                let mediaGroup = MediaGroup(title: currentMediaTitle, description: currentDescription, thumbnail: thumbnail, videoId: currentVideoId, views: currentViews)
                 let entry = Entry(title: currentTitle, link: currentLink, published: publishedDate, updated: updatedDate, author: author, mediaGroup: mediaGroup)
                 entries.append(entry)
             }
@@ -117,7 +121,9 @@ class FeedParser: NSObject, XMLParserDelegate {
                 publishedAt: entry.published,
                 channelTitle: entry.author.name,
                 url: entry.link,
-                channel: channel
+                channel: channel,
+                viewCount: entry.mediaGroup.views,
+                isShort: entry.link.contains("/shorts/")
             )
         }
     }

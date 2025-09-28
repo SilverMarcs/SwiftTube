@@ -7,16 +7,22 @@
 
 import SwiftUI
 import SwiftMediaViewer
+import SwiftData
 
 struct SettingsView: View {
     @State private var deleteAlertPresented = false
     private var googleAuthManager = GoogleAuthManager.shared
+    @Environment(\.modelContext) var modelContext
     
     var body: some View {
         NavigationStack {
             Form {
                 Section("Authentication") {
                     SignInView()
+                }
+                
+                Button("Delete vids") {
+                    try? modelContext.delete(model: Video.self)
                 }
                 
                 // TODO: put this view in swiftemdi viewer pakcage

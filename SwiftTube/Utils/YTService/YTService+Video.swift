@@ -19,7 +19,6 @@ extension YTService {
         
         let duration = item.contentDetails.duration.parseDurationToSeconds()
         video.duration = duration
-        video.isShort = duration <= 120 // Videos 120 seconds or less are considered shorts
         video.viewCount = item.statistics.viewCount
         video.likeCount = item.statistics.likeCount
         video.commentCount = item.statistics.commentCount
@@ -43,7 +42,6 @@ extension YTService {
                 if let video = chunk.first(where: { $0.id == item.id }) {
                     let duration = item.contentDetails.duration.parseDurationToSeconds()
                     video.duration = duration
-                    video.isShort = duration <= 120 // Videos 120 seconds or less are considered shorts
                     video.viewCount = item.statistics.viewCount
                     video.likeCount = item.statistics.likeCount
                     video.commentCount = item.statistics.commentCount
