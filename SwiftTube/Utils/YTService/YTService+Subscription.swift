@@ -9,22 +9,32 @@ import Foundation
 
 extension YTService {
     static func fetchMySubscriptions() async throws -> [Subscription] {
-        let url = URL(string: "\(baseURL)/subscriptions?part=snippet&mine=true&maxResults=50")!
+        var allSubscriptions: [Subscription] = []
+        var nextPageToken: String? = nil
         
-        let response: SubscriptionListResponse = try await fetchOAuthResponse(from: url)
+        repeat {
+            var urlString = "\(baseURL)/subscriptions?part=snippet&mine=true&maxResults=50"
+            if let token = nextPageToken {
+                urlString += "&pageToken=\(token)"
+            }
+            
+            let url = URL(string: urlString)!
+            let response: SubscriptionListResponse = try await fetchOAuthResponse(from: url)
+            
+            for item in response.items {
+                let subscription = Subscription(
+                    id: item.id,
+                    title: item.snippet.title,
+                    description: item.snippet.description,
+                    thumbnailURL: item.snippet.thumbnails.medium.url,
+                    channelId: item.snippet.resourceId.channelId
+                )
+                allSubscriptions.append(subscription)
+            }
+            
+            nextPageToken = response.nextPageToken
+        } while nextPageToken != nil
         
-        var subscriptions: [Subscription] = []
-        for item in response.items {
-            let subscription = Subscription(
-                id: item.id,
-                title: item.snippet.title,
-                description: item.snippet.description,
-                thumbnailURL: item.snippet.thumbnails.medium.url,
-                channelId: item.snippet.resourceId.channelId
-            )
-            subscriptions.append(subscription)
-        }
-        
-        return subscriptions
+        return allSubscriptions
     }
 }

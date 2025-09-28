@@ -3,26 +3,24 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct ChannelRowView: View {
-    let channel: Channel
-    var showSubs: Bool = true
+    let item: ChannelDisplayable
+    var action: (() -> Void)? = nil
     
     var body: some View {
         HStack {
-            CachedAsyncImage(url:  URL(string: channel.thumbnailURL), targetSize: 50)
+            CachedAsyncImage(url:  URL(string: item.thumbnailURL), targetSize: 50)
                 .frame(width: 40, height: 40)
                 .clipShape(.circle)
             
             VStack(alignment: .leading) {
-                Text(channel.title)
+                Text(item.title)
                     .font(.headline)
                 
-                if showSubs {
-                    Text("\(Int(channel.subscriberCount).formatNumber()) subscribers")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                Text(item.subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            
             Spacer()
         }
     }

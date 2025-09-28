@@ -36,7 +36,7 @@ struct ShortVideoCard: View {
             }
             
             if let channel = video.channel {
-                ChannelRowView(channel: channel, showSubs: false)
+                ChannelRowView(item: channel)
                     .padding()
             }
         }
