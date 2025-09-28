@@ -28,3 +28,13 @@ final class Channel {
         self.updatedAt = Date()
     }
 }
+
+
+// Local subscription struct for display only
+struct Subscription: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let description: String
+    let thumbnailURL: String
+    let channelId: String
+}

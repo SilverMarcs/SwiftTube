@@ -201,4 +201,37 @@ enum YTService {
         
         return comments
     }
+    
+    // MARK: - OAuth 2.0 Methods
+    
+    private static func fetchOAuthResponse<T: Decodable>(from url: URL, accessToken: String) async throws -> T {
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        return try JSONDecoder().decode(T.self, from: data)
+    }
+    
+    static func fetchMySubscriptions() async throws -> [Subscription] {
+        let accessToken = try await GoogleAuthManager.shared.getValidAccessToken()
+        
+        let url = URL(string: "\(baseURL)/subscriptions?part=snippet&mine=true&maxResults=50")!
+        
+        let response: SubscriptionListResponse = try await fetchOAuthResponse(from: url, accessToken: accessToken)
+        
+        var subscriptions: [Subscription] = []
+        for item in response.items {
+            let subscription = Subscription(
+                id: item.id,
+                title: item.snippet.title,
+                description: item.snippet.description,
+                thumbnailURL: item.snippet.thumbnails.medium.url,
+                channelId: item.snippet.resourceId.channelId
+            )
+            subscriptions.append(subscription)
+        }
+        
+        return subscriptions
+    }
 }
