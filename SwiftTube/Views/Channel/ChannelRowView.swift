@@ -15,8 +15,8 @@ struct ChannelRowView: View {
                 Text(channel.title)
                     .font(.headline)
                 
-                Text("\(channel.subscriberCount.formatted()) subscribers")
-                    .font(.caption)
+                Text("\(Int(channel.subscriberCount).formatNumber()) subscribers")
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             

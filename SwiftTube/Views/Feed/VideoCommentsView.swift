@@ -10,15 +10,14 @@ struct VideoCommentsView: View {
     @State private var isLoading = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Comments")
-                .font(.headline)
-            
-            if !video.comments.isEmpty {
-                ForEach(video.comments.filter { $0.isTopLevel }.sorted { $0.publishedAt > $1.publishedAt }) { comment in
-                    CommentRowView(comment: comment)
-                }
-            } else if isLoading {
+        LazyVStack(alignment: .leading, spacing: 8) {
+            ForEach(video.comments.filter { $0.isTopLevel }.sorted { $0.publishedAt > $1.publishedAt }) { comment in
+                CommentRowView(comment: comment)
+            }
+        }
+        .padding(.top, 5)
+        .overlay {
+            if isLoading {
                 UniversalProgressView()
             }
         }

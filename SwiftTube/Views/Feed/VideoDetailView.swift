@@ -13,73 +13,66 @@ struct VideoDetailView: View {
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                VStack(alignment: .leading, spacing: 12) {
-                    // Title
-                    Text(video.title)
-                        .font(.title2)
-                        .fontWeight(.semibold)
+            VStack(alignment: .leading) {
+                // Video Title
+                Text(video.title)
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .multilineTextAlignment(.leading)
+                
+                // Video Stats (Views, Likes, Published)
+                HStack {
+                    Text((video.viewCount ?? "0").formatNumber())
+                    Text("•")
+                    Text(video.publishedAt, style: .date)
                     
-                    // Channel & Date
-                    HStack {
-                        Text(video.channelTitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        
-                        Spacer()
-                        
-                        Text(video.publishedAt, style: .date)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    Spacer()
+                    
+                    if let likesText = video.likeCount?.formatNumber() {
+                        Label(likesText, systemImage: "hand.thumbsup.fill")
                     }
-                    
-                    // Stats Row
-                    HStack {
-                        Label((video.viewCount ?? "0").formatNumber() + " views", systemImage: "eye")
-                        
-                        if let likes = video.likeCount {
-                            Label(likes.formatNumber(), systemImage: "hand.thumbsup")
-                        }
-                        
-                        if let comments = video.commentCount {
-                            Label(comments.formatNumber(), systemImage: "bubble.left")
-                        }
-                        
-                        Spacer()
-                        
-//                        Text(formatDurationFromSeconds(video.duration))
-//                            .font(.caption.monospaced())
-//                            .padding(.horizontal, 8)
-//                            .padding(.vertical, 2)
-//                            .background(.background.secondary)
-//                            .clipShape(.capsule)
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    
-                    // Technical Info
-                    
-                    Divider()
-                    
-                    // Description
+                }
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .padding(.top, 1)
+                
+                // Channel Info
+                if let channel = video.channel {
+                    ChannelRowView(channel: channel)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(.background.secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                // Description
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Description")
                         .font(.headline)
                     
-                    Text(LocalizedStringKey(video.videoDescription))
-                        .font(.body)
-                    
-                    Divider()
-                    
-                    VideoCommentsView(video: video)
+                    ExpandableText(text: video.videoDescription, maxCharacters: 200)
+                        .font(.subheadline)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading) // Add this line
+                .padding(.vertical, 12)
+                .padding(.horizontal, 12)
+                .background(RoundedRectangle(cornerRadius: 12).fill(.background.secondary))
+                
+                // Comments Section
+                VideoCommentsView(video: video)
+                
+                // Related Videos
+    //            if !videoDetail.relatedVideos.isEmpty {
+    //                relatedVideosSection(for: videoDetail)
+    //            }
             }
-            .padding(10)
             .overlay {
                 if isLoading {
                    UniversalProgressView()
                 }
             }
         }
+        .contentMargins(10)
         .safeAreaInset(edge: .top, spacing: 0) {
             YTPlayerView(namespace: namespace)
         }
@@ -87,7 +80,7 @@ struct VideoDetailView: View {
             await loadVideoDetail()
         }
     }
-    
+
     private func loadVideoDetail() async {
         isLoading = true
         defer { isLoading = false }
