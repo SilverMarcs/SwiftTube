@@ -60,7 +60,6 @@ struct ContentView: View {
             }
         }
         .refreshable {
-            // Refresh all videos
             await videoLoader?.refreshAllVideos()
         }
     }

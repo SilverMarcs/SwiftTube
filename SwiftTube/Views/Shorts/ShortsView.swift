@@ -15,28 +15,23 @@ struct ShortsView: View {
         order: .reverse
     ) private var shortVideos: [Video]
     
+    @Environment(VideoManager.self) var manager
     @State private var currentIndex = 0
     
     var body: some View {
-        NavigationStack {
-            if shortVideos.isEmpty {
-                ContentUnavailableView(
-                    "No Shorts Available",
-                    systemImage: "play.rectangle.on.rectangle",
-                    description: Text("Shorts will appear here once video details are loaded")
-                )
-            } else {
-                TabView(selection: $currentIndex) {
-                    ForEach(Array(shortVideos.enumerated()), id: \.element.id) { index, video in
-                        ShortVideoCard(video: video)
-                            .tag(index)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-//                .ignoresSafeArea()
+        TabView(selection: $currentIndex) {
+            ForEach(Array(shortVideos.enumerated()), id: \.element.id) { index, video in
+                ShortVideoCard(video: video, isActive: currentIndex == index)
+                    .tag(index)
             }
         }
-        .navigationTitle("Shorts")
-        .toolbarTitleDisplayMode(.inline)
+        .tabViewStyle(.page(indexDisplayMode: .never))
+//        .ignoresSafeArea()
+        .task {
+            manager.temporarilyStoreCurrentVideo()
+        }
+        .onDisappear {
+            manager.restoreStoredVideo()
+        }
     }
 }

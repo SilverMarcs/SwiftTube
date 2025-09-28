@@ -12,6 +12,9 @@ class VideoManager {
     var youTubePlayer: YouTubePlayer?
     var isPlaying: Bool = true // Assume playing since autoplay is true
     
+    // Temporarily store current video when entering Shorts view
+    private var temporaryStoredVideo: Video?
+    
     private func updatePlayer() {
         if let video = currentVideo {
             youTubePlayer = YouTubePlayer(
@@ -54,6 +57,20 @@ class VideoManager {
             await pause()
         } else {
             await play()
+        }
+    }
+    
+    /// Temporarily stores the current video and sets currentVideo to nil
+    func temporarilyStoreCurrentVideo() {
+        temporaryStoredVideo = currentVideo
+        currentVideo = nil
+    }
+    
+    /// Restores the temporarily stored video if there was one
+    func restoreStoredVideo() {
+        if let stored = temporaryStoredVideo {
+            currentVideo = stored
+            temporaryStoredVideo = nil
         }
     }
 }

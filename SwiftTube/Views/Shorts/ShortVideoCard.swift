@@ -10,6 +10,7 @@ import YouTubePlayerKit
 
 struct ShortVideoCard: View {
     let video: Video
+    let isActive: Bool
     
     @State private var youTubePlayer: YouTubePlayer?
     
@@ -31,17 +32,20 @@ struct ShortVideoCard: View {
                         )
                     }
                 }
-                .aspectRatio(9/16, contentMode: .fit) // Vertical aspect ratio for shorts
-//                .frame(maxWidth: .infinity, maxHeight: .infinity)
-//                .clipped()
+                .aspectRatio(9/16, contentMode: .fit)
             }
             
             if let channel = video.channel {
                 ChannelRowView(channel: channel, showSubs: false)
+                    .padding()
             }
         }
-        .onAppear {
-            setupPlayer()
+        .task(id: isActive) {
+            if isActive {
+                setupPlayer()
+            } else {
+                youTubePlayer = nil
+            }
         }
     }
     
