@@ -33,7 +33,7 @@ struct VideoRowView: View {
                         .font(.headline)
                         .lineLimit(2)
                     
-                    HStack(alignment: .center, spacing: 6) {
+                    HStack(alignment: .center, spacing: 5) {
                         if let channel = video.channel, let url = URL(string: channel.thumbnailURL) {
                             CachedAsyncImage(url: url, targetSize: 50)
                                 .frame(width: 20, height: 20)
@@ -41,15 +41,26 @@ struct VideoRowView: View {
                         }
                         
                         Text(video.channelTitle)
+                            .lineLimit(1)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        
+                            .fontWeight(.medium)
+
                         Spacer()
                         
-                        Text(video.publishedAt.customRelativeFormat())
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Group {
+                            if let count = video.viewCount {
+                                Text(count.formatNumber() + " views")
+                            }
+                            
+                            Text("•")
+                                .fontWeight(.light)
+                            
+                            Text(video.publishedAt.customRelativeFormat())
+                        }
+                        .padding(.bottom, -1)
+                        .font(.caption)
                     }
+                    .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)

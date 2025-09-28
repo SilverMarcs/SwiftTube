@@ -21,10 +21,6 @@ struct SettingsView: View {
                     SignInView()
                 }
                 
-                Button("Delete vids") {
-                    try? modelContext.delete(model: Video.self)
-                }
-                
                 // TODO: put this view in swiftemdi viewer pakcage
                 Section("Cache") {
                     Button {
@@ -53,6 +49,41 @@ struct SettingsView: View {
                         Text("This will clear all cached images, freeing up storage space.")
                     }
                 }
+                
+                
+                #if DEBUG
+                Section("Data Management") {
+                    Button("Delete All Videos") {
+                        if let videos = try? modelContext.fetch(FetchDescriptor<Video>()) {
+                            videos.forEach { modelContext.delete($0) }
+                        }
+                    }
+                    
+                    Button("Delete All Channels") {
+                        if let channels = try? modelContext.fetch(FetchDescriptor<Channel>()) {
+                            channels.forEach { modelContext.delete($0) }
+                        }
+                    }
+                    
+                    Button("Delete All Comments") {
+                        if let comments = try? modelContext.fetch(FetchDescriptor<Comment>()) {
+                            comments.forEach { modelContext.delete($0) }
+                        }
+                    }
+                    
+                    Button("Delete All Data") {
+                        if let comments = try? modelContext.fetch(FetchDescriptor<Comment>()) {
+                            comments.forEach { modelContext.delete($0) }
+                        }
+                        if let videos = try? modelContext.fetch(FetchDescriptor<Video>()) {
+                            videos.forEach { modelContext.delete($0) }
+                        }
+                        if let channels = try? modelContext.fetch(FetchDescriptor<Channel>()) {
+                            channels.forEach { modelContext.delete($0) }
+                        }
+                    }
+                }
+                #endif
             }
             .formStyle(.grouped)
             .navigationTitle("Settings")

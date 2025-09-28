@@ -14,14 +14,18 @@ actor VideoLoader {
         let channels = try! modelExecutor.modelContext.fetch(FetchDescriptor<Channel>())
         
         // First, fetch basic video data from RSS
-        for channel in channels {
-            do {
-                let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
-                for video in channelVideos {
-                    upsertVideo(video)
+        await withTaskGroup(of: Void.self) { group in
+            for channel in channels {
+                group.addTask {
+                    do {
+                        let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
+                        for video in channelVideos {
+                            await self.upsertVideo(video)
+                        }
+                    } catch {
+                        print("Error fetching videos for \(channel.title): \(error)")
+                    }
                 }
-            } catch {
-                print("Error fetching videos for \(channel.title): \(error)")
             }
         }
         
@@ -32,14 +36,18 @@ actor VideoLoader {
         let channels = try! modelExecutor.modelContext.fetch(FetchDescriptor<Channel>())
         
         // Fetch fresh video data from RSS
-        for channel in channels {
-            do {
-                let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
-                for video in channelVideos {
-                    upsertVideo(video)
+        await withTaskGroup(of: Void.self) { group in
+            for channel in channels {
+                group.addTask {
+                    do {
+                        let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
+                        for video in channelVideos {
+                            await self.upsertVideo(video)
+                        }
+                    } catch {
+                        print("Error fetching videos for \(channel.title): \(error)")
+                    }
                 }
-            } catch {
-                print("Error fetching videos for \(channel.title): \(error)")
             }
         }
         
@@ -61,9 +69,13 @@ actor VideoLoader {
             existing.channelTitle = video.channelTitle
             existing.url = video.url
             existing.channel = video.channel
-            // Preserve rich data fields: likeCount, viewCount, commentCount, duration, isShort
+            // Preserve rich data fields: likeCount, viewCount, commentCount, duration, definition, caption, updatedAt, isShort
+            if hadRichData {
+                print("Updated video '\(video.title)' while preserving rich data")
+            }
         } else {
             modelExecutor.modelContext.insert(video)
+            print("Inserted new video: '\(video.title)'")
         }
     }
 }
