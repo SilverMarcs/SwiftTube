@@ -54,11 +54,12 @@ struct ShortVideoCard: View {
             source: .video(id: video.id),
             parameters: .init(
                 autoPlay: true,
+                loopEnabled: true,
                 showControls: false
             ),
             configuration: .init(
                 allowsInlineMediaPlayback: true,
-                allowsPictureInPictureMediaPlayback: false
+                allowsPictureInPictureMediaPlayback: false,
             )
         )
     }

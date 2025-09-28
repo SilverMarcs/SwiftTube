@@ -3,40 +3,36 @@ import YouTubePlayerKit
 
 @Observable
 class VideoManager {
-    var currentVideo: Video? {
-        didSet {
-            updatePlayer()
-        }
-    }
+    var currentVideo: Video?
     var isExpanded: Bool = false
-    var youTubePlayer: YouTubePlayer?
     var isPlaying: Bool = true // Assume playing since autoplay is true
+    
+    // Computed property that automatically creates player when video is available
+    var youTubePlayer: YouTubePlayer? {
+        guard let video = currentVideo else { return nil }
+        
+        return YouTubePlayer(
+            source: .video(id: video.id),
+            parameters: .init(
+                autoPlay: true,
+                showControls: true
+            ),
+            configuration: .init(
+                fullscreenMode: .system,
+                allowsInlineMediaPlayback: true,
+                allowsPictureInPictureMediaPlayback: true
+            )
+        )
+    }
     
     // Temporarily store current video when entering Shorts view
     private var temporaryStoredVideo: Video?
     
-    private func updatePlayer() {
-        if let video = currentVideo {
-            youTubePlayer = YouTubePlayer(
-                source: .video(id: video.id),
-                parameters: .init(
-                    autoPlay: true,
-                    showControls: true
-                ),
-                configuration: .init(
-                    fullscreenMode: .system,
-                    allowsInlineMediaPlayback: true,
-                    allowsPictureInPictureMediaPlayback: true
-                )
-            )
-        } else {
-            youTubePlayer = nil
-        }
-    }
-    
     func play() async {
+        guard let player = youTubePlayer else { return }
+        
         do {
-            try await youTubePlayer?.play()
+            try await player.play()
             isPlaying = true
         } catch {
             print("Failed to play: \(error)")
@@ -44,8 +40,10 @@ class VideoManager {
     }
     
     func pause() async {
+        guard let player = youTubePlayer else { return }
+        
         do {
-            try await youTubePlayer?.pause()
+            try await player.pause()
             isPlaying = false
         } catch {
             print("Failed to pause: \(error)")
@@ -53,6 +51,8 @@ class VideoManager {
     }
     
     func togglePlayPause() async {
+        guard currentVideo != nil else { return }
+        
         if isPlaying {
             await pause()
         } else {

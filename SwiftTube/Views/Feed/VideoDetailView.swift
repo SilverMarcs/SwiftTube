@@ -3,7 +3,6 @@ import SwiftData
 import YouTubePlayerKit
 
 struct VideoDetailView: View {
-    @Environment(VideoManager.self) var manager
     @Environment(\.modelContext) private var modelContext
     
     let video: Video

@@ -26,7 +26,6 @@ struct ShortsView: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-//        .ignoresSafeArea()
         .task {
             manager.temporarilyStoreCurrentVideo()
         }
