@@ -11,10 +11,15 @@ import SwiftMediaViewer
 struct SettingsView: View {
     @AppStorage("youtubeAPIKey") private var apiKey = ""
     @State private var deleteAlertPresented = false
+    private var googleAuthManager = GoogleAuthManager.shared
     
     var body: some View {
         NavigationStack {
             Form {
+                Section("Authentication") {
+                    SignInView()
+                }
+                
                 Section {
                     TextField("API Key", text: $apiKey)
                         .autocorrectionDisabled()
