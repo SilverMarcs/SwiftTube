@@ -23,7 +23,6 @@ extension YTService {
             title: item.snippet.title,
             channelDescription: item.snippet.description,
             thumbnailURL: item.snippet.thumbnails.medium.url,
-            uploadsPlaylistId: item.contentDetails.relatedPlaylists.uploads,
             viewCount: UInt64(item.statistics.viewCount) ?? 0,
             subscriberCount: UInt64(item.statistics.subscriberCount) ?? 0
         )
@@ -43,7 +42,6 @@ extension YTService {
             title: item.snippet.title,
             channelDescription: item.snippet.description,
             thumbnailURL: item.snippet.thumbnails.medium.url,
-            uploadsPlaylistId: item.contentDetails.relatedPlaylists.uploads,
             viewCount: UInt64(item.statistics.viewCount) ?? 0,
             subscriberCount: UInt64(item.statistics.subscriberCount) ?? 0
         )

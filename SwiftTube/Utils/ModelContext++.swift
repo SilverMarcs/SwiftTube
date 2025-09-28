@@ -26,8 +26,6 @@ extension ModelContext {
             existing.title = new.title
             existing.channelDescription = new.channelDescription
             existing.thumbnailURL = new.thumbnailURL
-            existing.uploadsPlaylistId = new.uploadsPlaylistId
-            existing.updatedAt = Date()
         }
     }
 }

@@ -4,7 +4,7 @@ import SwiftData
 
 struct ChannelListView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Channel.createdAt) private var channels: [Channel]
+    @Query private var channels: [Channel]
     @State private var showingAddChannel = false
     
     var body: some View {
