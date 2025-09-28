@@ -25,9 +25,6 @@ struct YTPlayerView: View {
             .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: namespace))
             .aspectRatio(16/9, contentMode: .fit)
             .background(.background)
-            // .task {
-            //     manager.currentVideo?.duration = try? await Int(player.getDuration().converted(to: .seconds).value)
-            // }
         } else {
             UniversalProgressView()
         }

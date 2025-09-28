@@ -17,6 +17,6 @@ struct SwiftTubeApp: App {
             ContentView()
                 .environment(videoManager)
         }
-        .modelContainer(for: [Channel.self, Video.self])
+        .modelContainer(for: [Channel.self, Video.self, Comment.self])
     }
 }

@@ -6,4 +6,5 @@ enum APIError: Error {
     case invalidResponse
     case invalidAPIKey
     case videoNotFound
+    case commentsDisabled
 }

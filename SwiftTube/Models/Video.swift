@@ -20,6 +20,7 @@ final class Video {
     var updatedAt: Date?   // to throttle detail refetch
 
     @Relationship var channel: Channel?
+    @Relationship(inverse: \Comment.video) var comments: [Comment] = []
 
     init(id: String, title: String, videoDescription: String, thumbnailURL: String, publishedAt: Date, channelTitle: String, url: String, channel: Channel?) {
         self.id = id

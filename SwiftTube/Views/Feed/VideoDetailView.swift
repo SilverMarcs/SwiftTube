@@ -67,6 +67,10 @@ struct VideoDetailView: View {
                     
                     Text(LocalizedStringKey(video.videoDescription))
                         .font(.body)
+                    
+                    Divider()
+                    
+                    VideoCommentsView(video: video)
                 }
             }
             .padding(10)
@@ -79,9 +83,9 @@ struct VideoDetailView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             YTPlayerView(namespace: namespace)
         }
-        // .task {
-        //     await loadVideoDetail()
-        // }
+        .refreshable {
+            await loadVideoDetail()
+        }
     }
     
     private func loadVideoDetail() async {
@@ -89,14 +93,10 @@ struct VideoDetailView: View {
         defer { isLoading = false }
         
         do {
-            try await fetchVideoDetail(for: video)
+            try await YTService.fetchVideoDetails(for: video)
             try? modelContext.save()
         } catch {
             print(error.localizedDescription)
         }
-    }
-    
-    private func fetchVideoDetail(for video: Video) async throws {
-        try await YTService.fetchVideoDetails(for: video)
     }
 }
