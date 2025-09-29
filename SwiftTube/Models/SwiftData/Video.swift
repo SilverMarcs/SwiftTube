@@ -16,6 +16,7 @@ final class Video {
     var isShort: Bool   // determined by duration <= 60 seconds
     var isWatchLater: Bool = false  // user's watch later list
     var watchProgressSeconds: Double = 0
+    var lastWatchedAt: Date? = nil  // for history tracking
 
     @Relationship var channel: Channel?
     @Relationship(inverse: \Comment.video) var comments: [Comment] = []
@@ -32,6 +33,7 @@ final class Video {
         self.isShort = isShort
         self.isWatchLater = isWatchLater
         self.watchProgressSeconds = 0
+        self.lastWatchedAt = nil
     }
 }
 

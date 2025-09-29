@@ -21,8 +21,10 @@ struct ProfileView: View {
             
                 Section {
                     WatchLaterView()
-                } footer: {
-                    Button("View All") {}
+                }
+                
+                Section {
+                    HistoryView()
                 }
             }
             .contentMargins(.top, 5)

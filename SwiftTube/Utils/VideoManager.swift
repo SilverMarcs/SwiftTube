@@ -89,6 +89,10 @@ class VideoManager {
         restoredVideoID = nil
         
         guard let newVideo else { return }
+        
+        // Update history tracking
+        newVideo.lastWatchedAt = Date()
+        
         let newPlayer = makePlayer(for: newVideo)
         player = newPlayer
         playbackState = newPlayer.playbackState

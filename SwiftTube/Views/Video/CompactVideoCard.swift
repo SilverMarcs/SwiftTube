@@ -57,12 +57,5 @@ struct CompactVideoCard: View {
             }
         }
         .buttonStyle(.plain)
-        .swipeActions {
-            Button {
-                video.isWatchLater = false
-            } label: {
-                Label("Remove from Watch Later", systemImage: "bookmark.slash")
-            }
-        }
     }
 }

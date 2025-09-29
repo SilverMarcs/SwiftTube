@@ -1,6 +1,5 @@
 //
-//  WatchLaterView.swift
-//  SwiftTube
+//  HistoryView.swift
 //
 //  Created by Zabir Raihan on 29/09/2025.
 //
@@ -8,37 +7,33 @@
 import SwiftUI
 import SwiftData
 
-struct WatchLaterView: View {
+struct HistoryView: View {
     @Query(
-        filter: #Predicate<Video> { $0.isWatchLater == true },
-        sort: \Video.publishedAt,
+        filter: #Predicate<Video> { $0.lastWatchedAt != nil },
+        sort: \Video.lastWatchedAt,
         order: .reverse
-    ) private var watchLaterVideos: [Video]
-    
-    @State private var showingAllVideos = false
+    ) private var historyVideos: [Video]
     
     var body: some View {
-        ForEach(Array(watchLaterVideos.prefix(3))) { video in
+        ForEach(Array(historyVideos.prefix(3))) { video in
             CompactVideoCard(video: video)
-//                .alignmentGuide(.listRowSeparatorLeading) { _ in
-//                    return 0
-//                }
         }
         
         NavigationLink {
             List {
-                ForEach(watchLaterVideos) { video in
+                ForEach(historyVideos) { video in
                     CompactVideoCard(video: video)
                         .swipeActions {
                             Button {
-                                video.isWatchLater = false
+                                video.lastWatchedAt = nil
                             } label: {
-                                Label("Remove from Watch Later", systemImage: "bookmark.slash")
+                                Label("Remove from History", systemImage: "trash")
                             }
+                            .tint(.red)
                         }
                 }
             }
-            .navigationTitle("Watch Later")
+            .navigationTitle("History")
             .toolbarTitleDisplayMode(.inline)
             .contentMargins(.top, 5)
         } label: {
@@ -50,5 +45,5 @@ struct WatchLaterView: View {
 }
 
 #Preview {
-    WatchLaterView()
+    HistoryView()
 }
