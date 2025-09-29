@@ -94,9 +94,9 @@ struct VideoDetailView: View {
                 }
             }
         }
-        .refreshable {
-            await loadVideoDetail()
-        }
+//        .refreshable {
+//            await loadVideoDetail()
+//        }
     }
 
     private func loadVideoDetail() async {
