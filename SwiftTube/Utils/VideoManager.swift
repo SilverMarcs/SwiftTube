@@ -26,11 +26,7 @@ class VideoManager {
     @ObservationIgnored
     private var playbackState: YouTubePlayer.PlaybackState? {
         didSet {
-            let newIsPlaying = playbackState == .playing
-            // Only update isPlaying if it's actually different, to avoid overriding optimistic updates
-            if isPlaying != newIsPlaying {
-                isPlaying = newIsPlaying
-            }
+            isPlaying = (playbackState == .playing)
         }
     }
     @ObservationIgnored
@@ -42,11 +38,8 @@ class VideoManager {
         guard let player else { return }
         do {
             try await player.play()
-            // Optimistically set isPlaying to true
-            isPlaying = true
         } catch {
             print("Failed to play: \(error)")
-            isPlaying = false
         }
     }
     
@@ -54,15 +47,13 @@ class VideoManager {
         guard let player else { return }
         do {
             try await player.pause()
-            // Optimistically set isPlaying to false
-            isPlaying = false
         } catch {
             print("Failed to pause: \(error)")
         }
     }
     
     func togglePlayPause() async {
-        if isPlaying {
+        if playbackState == .playing {
             await pause()
         } else {
             await play()
@@ -93,8 +84,6 @@ class VideoManager {
         player = newPlayer
         youTubePlayer = newPlayer
         playbackState = newPlayer.playbackState
-        // Set isPlaying to true since we're about to play
-        isPlaying = true
         observePlayer(newPlayer)
         Task { [weak self] in
             guard let self else { return }
@@ -124,7 +113,6 @@ class VideoManager {
                 guard let self else { return }
                 self.playbackState = state
                 if state == .ended {
-                    self.isPlaying = false
                     self.markVideoAsCompleted()
                 }
             }
