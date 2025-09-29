@@ -81,7 +81,14 @@ struct MiniPlayerAccessoryView: View {
         .onChange(of: placement) { oldValue, newValue in
             // Handle placement change which might cause auto-pause
             if let oldValue, oldValue != newValue, manager.currentVideo != nil {
-                manager.handlePlacementChange()
+                manager.prepareForViewTransition()
+                // Delay the placement change handling to allow UI to settle
+                Task {
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 second delay
+                    await MainActor.run {
+                        manager.handlePlacementChange()
+                    }
+                }
             }
             previousPlacement = newValue
         }

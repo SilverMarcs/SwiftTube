@@ -48,6 +48,16 @@ struct ContentView: View {
                         YTPlayerView()
                             .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
                     }
+                    .onAppear {
+                        // Handle expansion transition
+                        manager.handleViewTransitionComplete()
+                    }
+            }
+        }
+        .onChange(of: manager.isExpanded) { _, isExpanded in
+            if !isExpanded {
+                // Prepare for minimizing transition
+                manager.prepareForViewTransition()
             }
         }
         #endif

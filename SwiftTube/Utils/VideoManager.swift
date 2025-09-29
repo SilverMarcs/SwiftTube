@@ -22,6 +22,10 @@ class VideoManager {
     // Temporarily store current video when entering Shorts view
     private var temporaryStoredVideo: Video?
     
+    // Track if we should auto-resume after view transitions
+    private var shouldAutoResume: Bool = false
+    private var wasPlayingBeforeTransition: Bool = false
+    
     @ObservationIgnored
     private var player: YouTubePlayer?
     @ObservationIgnored
@@ -78,6 +82,33 @@ class VideoManager {
         }
     }
     
+    /// Call this before view transitions that might cause pausing
+    func prepareForViewTransition() {
+        wasPlayingBeforeTransition = isPlaying
+        shouldAutoResume = isPlaying
+    }
+    
+    /// Call this after view transitions to resume if needed
+    func handleViewTransitionComplete() {
+        if shouldAutoResume {
+            Task {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+                await self.play()
+            }
+            shouldAutoResume = false
+        }
+    }
+    
+    /// Handle placement changes that might cause auto-pause
+    func handlePlacementChange() {
+        if wasPlayingBeforeTransition {
+            Task {
+                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 second delay
+                await self.play()
+            }
+        }
+    }
+    
     private func handleCurrentVideoChange(from oldVideo: Video?, to newVideo: Video?) {
         if let oldVideo, let player {
             captureSnapshot(for: oldVideo, player: player)
@@ -125,6 +156,12 @@ class VideoManager {
                 self.playbackState = state
                 if state == .ended {
                     self.markVideoAsCompleted()
+                } else if state == .paused && shouldAutoResume {
+                    // If we were expecting to auto-resume but got paused, try again
+                    Task {
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second delay
+                        await self.play()
+                    }
                 }
             }
             .store(in: &cancellables)

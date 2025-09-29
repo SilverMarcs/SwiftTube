@@ -7,6 +7,7 @@ struct YTPlayerView: View {
     @Environment(\.colorScheme) var colorScheme
     
     @State private var showPlayer = false
+    @State private var hasAppeared = false
     
     var body: some View {
         if let player = manager.youTubePlayer {
@@ -40,6 +41,17 @@ struct YTPlayerView: View {
                         .clipped()
                         .ignoresSafeArea()
                 }
+            }
+            .onAppear {
+                if hasAppeared {
+                    // View reappeared after being hidden, handle potential auto-resume
+                    manager.handleViewTransitionComplete()
+                }
+                hasAppeared = true
+            }
+            .onDisappear {
+                // Prepare for potential view transition
+                manager.prepareForViewTransition()
             }
         } else {
             UniversalProgressView()
