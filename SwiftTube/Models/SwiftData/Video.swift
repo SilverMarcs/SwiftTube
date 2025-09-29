@@ -39,9 +39,13 @@ final class Video {
 
 extension Video {
     var watchProgressRatio: Double? {
-        guard let duration = duration, duration > 0 else { return nil }
-        let ratio = watchProgressSeconds / Double(duration)
-        let clamped = min(max(ratio, 0), 1)
-        return clamped > 0 ? clamped : nil
+        guard let duration = duration, duration > 0, watchProgressSeconds > 0 else { return nil }
+        return min(watchProgressSeconds / Double(duration), 1.0)
+    }
+    
+    func updateWatchProgress(_ seconds: Double) {
+        let sanitized = max(0, min(seconds, Double(duration ?? Int.max)))
+        guard abs(watchProgressSeconds - sanitized) > 1 else { return }
+        watchProgressSeconds = sanitized
     }
 }

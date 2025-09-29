@@ -49,7 +49,6 @@ struct ShortsView: View {
             }
             .ignoresSafeArea()
             .tabViewStyle(.page(indexDisplayMode: .never))
-
             .onAppear {
                 randomizeVideos()
             }

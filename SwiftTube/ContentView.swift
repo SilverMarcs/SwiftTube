@@ -43,7 +43,7 @@ struct ContentView: View {
                     .matchedTransitionSource(id: "MINIPLAYER", in: animation)
             }
             .sheet(isPresented: $manager.isExpanded) {
-                if let video = manager.playingVideo?.video {
+                if let video = manager.currentVideo {
                     VideoDetailView(video: video)
                         .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
                         .presentationBackground(.background)
@@ -55,7 +55,7 @@ struct ContentView: View {
             #endif
             
             // Persistent Video Player Overlay
-            if manager.playingVideo != nil {
+            if manager.currentVideo != nil {
                 PersistentVideoPlayerOverlay()
                     .zIndex(manager.isExpanded ? 1000 : -1)
                     .allowsHitTesting(manager.isExpanded)

@@ -8,7 +8,7 @@ struct MiniPlayerAccessoryView: View {
     
     var body: some View {
         Group {
-            if let video = manager.playingVideo?.video {
+            if let video = manager.currentVideo {
                 if placement == .inline {
                     HStack {
                        CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)

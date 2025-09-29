@@ -7,8 +7,8 @@ struct PersistentVideoPlayerOverlay: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        if let playingVideo = manager.playingVideo {
-            YouTubePlayerView(playingVideo.player) { state in
+        if let video = manager.currentVideo {
+            YouTubePlayerView(manager.player) { state in
                 // An optional overlay view for the current state of the player
                 switch state {
                 case .idle:
@@ -23,10 +23,9 @@ struct PersistentVideoPlayerOverlay: View {
                     )
                 }
             }
-            .id(playingVideo.video.id) // Force recreation when video changes
             .aspectRatio(16/9, contentMode: .fit)
             .background {
-                CachedAsyncImage(url: URL(string: playingVideo.video.thumbnailURL), targetSize: 500)
+                CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
                     .blur(radius: 10)
                     .overlay {
                         if colorScheme == .dark {
