@@ -13,12 +13,13 @@ final class Video {
     var viewCount: String
     var likeCount: String?          // optional; filled on detail fetch
     var duration: Int?           // total seconds
-    var isShort: Bool = false   // determined by duration <= 60 seconds
+    var isShort: Bool   // determined by duration <= 60 seconds
+    var isWatchLater: Bool = false  // user's watch later list
 
     @Relationship var channel: Channel?
     @Relationship(inverse: \Comment.video) var comments: [Comment] = []
 
-    init(id: String, title: String, videoDescription: String, thumbnailURL: String, publishedAt: Date, url: String, channel: Channel?, viewCount: String = "0", isShort: Bool = false) {
+    init(id: String, title: String, videoDescription: String, thumbnailURL: String, publishedAt: Date, url: String, channel: Channel?, viewCount: String = "0", isShort: Bool, isWatchLater: Bool = false) {
         self.id = id
         self.title = title
         self.videoDescription = videoDescription
@@ -28,5 +29,6 @@ final class Video {
         self.channel = channel
         self.viewCount = viewCount
         self.isShort = isShort
+        self.isWatchLater = isWatchLater
     }
 }

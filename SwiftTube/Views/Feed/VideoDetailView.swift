@@ -30,6 +30,18 @@ struct VideoDetailView: View {
                     if let likesText = video.likeCount?.formatNumber() {
                         Label(likesText, systemImage: "hand.thumbsup.fill")
                     }
+                    
+                    Button {
+                        video.isWatchLater.toggle()
+                        try? modelContext.save()
+                    } label: {
+                        Label(
+                            video.isWatchLater ? "Remove from Watch Later" : "Add to Watch Later",
+                            systemImage: video.isWatchLater ? "bookmark.fill" : "bookmark"
+                        )
+                        .labelStyle(.iconOnly)
+                    }
+                    .buttonStyle(.glass)
                 }
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)

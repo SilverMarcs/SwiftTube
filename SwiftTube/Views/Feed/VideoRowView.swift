@@ -3,6 +3,7 @@ import SwiftMediaViewer
 
 struct VideoRowView: View {
     @Environment(VideoManager.self) var manager
+    @Environment(\.modelContext) private var modelContext
     let video: Video
     
     var body: some View {
@@ -67,5 +68,15 @@ struct VideoRowView: View {
             .background(.background.secondary, in: .rect(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                video.isWatchLater.toggle()
+            } label: {
+                Label(
+                    video.isWatchLater ? "Remove from Watch Later" : "Add to Watch Later",
+                    systemImage: video.isWatchLater ? "bookmark.fill" : "bookmark"
+                )
+            }
+        }
     }
 }

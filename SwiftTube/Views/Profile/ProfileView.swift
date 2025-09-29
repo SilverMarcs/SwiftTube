@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftMediaViewer
+import SwiftData
 
 struct ProfileView: View {
     @State private var authManager = GoogleAuthManager.shared
@@ -14,17 +15,12 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             Form {
-                if authManager.isSignedIn {
-                    HStack {
-                        CachedAsyncImage(url: URL(string: authManager.avatarUrl), targetSize: 100)
-                            .frame(width: 50, height: 50)
-                        
-                        Text(authManager.fullName)
-                        
-                        Spacer()
-                    }
-                } else {
+                Section {
                     SignInView()
+                }
+            
+                Section("Watch Later") {
+                    WatchLaterView()
                 }
             }
             .task {

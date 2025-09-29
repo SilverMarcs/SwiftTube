@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftMediaViewer
 
 struct SignInView: View {
     private var tokenManager = GoogleAuthManager.shared
@@ -17,10 +18,17 @@ struct SignInView: View {
         VStack {
             if tokenManager.isSignedIn {
                 HStack {
-                    Text("Signed In with Google")
+                    CachedAsyncImage(url: URL(string: tokenManager.avatarUrl), targetSize: 100)
+                        .frame(width: 50, height: 50)
+                    
+                    Text(tokenManager.fullName)
+
                     Spacer()
-                    Button("Sign Out") {
+                    
+                    Button(role: .destructive) {
                         tokenManager.clearTokens()
+                    } label: {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
                     }
                     .foregroundStyle(.red)
                 }

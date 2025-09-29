@@ -65,18 +65,6 @@ struct SettingsView: View {
                             comments.forEach { modelContext.delete($0) }
                         }
                     }
-                    
-                    Button("Delete All Data") {
-                        if let comments = try? modelContext.fetch(FetchDescriptor<Comment>()) {
-                            comments.forEach { modelContext.delete($0) }
-                        }
-                        if let videos = try? modelContext.fetch(FetchDescriptor<Video>()) {
-                            videos.forEach { modelContext.delete($0) }
-                        }
-                        if let channels = try? modelContext.fetch(FetchDescriptor<Channel>()) {
-                            channels.forEach { modelContext.delete($0) }
-                        }
-                    }
                 }
                 #endif
             }
