@@ -16,30 +16,25 @@ struct ShortsView: View {
     @Environment(\.colorScheme) var colorScheme
 
     @State private var currentIndex = 0
+    @State private var randomizedVideos: [Video] = []
     
     init() {
         let predicate = #Predicate<Video> { $0.isShort == true }
-        let sortDescriptors = [
-            SortDescriptor(\Video.watchProgressSeconds, order: .forward),
-            SortDescriptor(\Video.publishedAt, order: .reverse)
-        ]
-        
-        _shortVideos = Query(
-            filter: predicate,
-            sort: sortDescriptors
-        )
+        // Remove sort descriptors since we'll randomize manually
+        _shortVideos = Query(filter: predicate)
     }
     
     var body: some View {
         NavigationStack {
             TabView(selection: $currentIndex) {
-                ForEach(Array(shortVideos.enumerated()), id: \.element.id) { index, video in
+                ForEach(Array(randomizedVideos.enumerated()), id: \.element.id) { index, video in
                     ShortVideoCard(video: video, isActive: currentIndex == index)
                         .tag(index)
                 }
             }
             .background {
-                    CachedAsyncImage(url:  URL(string: shortVideos[currentIndex].thumbnailURL), targetSize: 500)
+                if !randomizedVideos.isEmpty {
+                    CachedAsyncImage(url: URL(string: randomizedVideos[currentIndex].thumbnailURL), targetSize: 500)
                         .blur(radius: 10)
                         .overlay {
                             if colorScheme == .dark {
@@ -51,6 +46,7 @@ struct ShortsView: View {
                         .clipped()
                         .ignoresSafeArea()
                 }
+            }
             .ignoresSafeArea()
             .tabViewStyle(.page(indexDisplayMode: .never))
             .task {
@@ -59,6 +55,17 @@ struct ShortsView: View {
             .onDisappear {
                 manager.restoreStoredVideo()
             }
+            .onAppear {
+                randomizeVideos()
+            }
+//            .onChange(of: shortVideos) { _, _ in
+//                randomizeVideos()
+//            }
         }
+    }
+    
+    private func randomizeVideos() {
+        randomizedVideos = shortVideos.shuffled()
+        currentIndex = 0
     }
 }
