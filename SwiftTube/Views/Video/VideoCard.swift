@@ -37,7 +37,7 @@ struct VideoCard: View {
                         .font(.headline)
                         .lineLimit(2)
                     
-                    HStack(alignment: .center, spacing: 5) {
+                    HStack(alignment: .center, spacing: 2) {
                         if let channel = video.channel, let url = URL(string: channel.thumbnailURL) {
                             CachedAsyncImage(url: url, targetSize: 50)
                                 .frame(width: 20, height: 20)
@@ -50,17 +50,24 @@ struct VideoCard: View {
                             .fontWeight(.medium)
 
                         Spacer()
-                        
+
                         Group {
-                            Text(video.viewCount.formatNumber() + " views")
+                            // Views
+                            Label(video.viewCount.formatNumber(), systemImage: "eye")
+                                .labelIconToTitleSpacing(2)
+                                .font(.caption2)
                             
+                            // Separator dot
                             Text("•")
                                 .fontWeight(.light)
-                            
-                            Text(video.publishedAt.customRelativeFormat())
+                                .font(.caption)
+
+                            // Time
+                            Label(video.publishedAt.customRelativeFormat(), systemImage: "clock")
+                                .labelIconToTitleSpacing(1)
+                                .font(.caption2)
                         }
                         .padding(.bottom, -1)
-                        .font(.caption)
                     }
                     .foregroundStyle(.secondary)
                 }

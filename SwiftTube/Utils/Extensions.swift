@@ -15,19 +15,19 @@ extension Date {
         let hours = Int(timeInterval / 3600)
         let days = Int(timeInterval / 86400)
         let weeks = Int(timeInterval / 604800)
-        let months = Int(timeInterval / 2629746) // Average month in seconds
-        let years = Int(timeInterval / 31556952) // Average year in seconds
+        let months = Int(timeInterval / 2629746)
+        let years = Int(timeInterval / 31556952)
         
         if hours < 24 {
-            return hours <= 1 ? "1 hour ago" : "\(hours) hours ago"
+            return hours <= 1 ? "1 hour" : "\(hours) hours"
         } else if days < 7 {
-            return days == 1 ? "1 day ago" : "\(days) days ago"
+            return days == 1 ? "1 day" : "\(days) days"
         } else if weeks < 4 {
-            return weeks == 1 ? "1 week ago" : "\(weeks) weeks ago"
+            return weeks == 1 ? "1 week" : "\(weeks) weeks"
         } else if months < 12 {
-            return months == 1 ? "1 month ago" : "\(months) months ago"
+            return months == 1 ? "1 month" : "\(months) months"
         } else {
-            return years == 1 ? "1 year ago" : "\(years) years ago"
+            return years == 1 ? "1 year" : "\(years) years"
         }
     }
 }

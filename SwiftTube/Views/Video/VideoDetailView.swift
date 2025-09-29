@@ -21,7 +21,9 @@ struct VideoDetailView: View {
                 
                 // Video Stats (Views, Likes, Published)
                 HStack(spacing: 5) {
-                    Text((video.viewCount).formatNumber() + " views")
+                    Label(video.viewCount.formatNumber(), systemImage: "eye")
+                        .labelIconToTitleSpacing(2)
+                    
                     Text("•")
                     Text(video.publishedAt, style: .date)
                     

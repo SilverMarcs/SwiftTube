@@ -112,8 +112,12 @@ class FeedParser: NSObject, XMLParserDelegate {
             throw APIError.invalidResponse
         }
         
-        return feed.entries.map { entry in
-            Video(
+        return feed.entries.compactMap { entry in
+            let viewCount = entry.mediaGroup.views ?? "0"
+            // Filter out videos with 0 views
+            guard viewCount != "0" else { return nil }
+            
+            return Video(
                 id: entry.mediaGroup.videoId,
                 title: entry.title,
                 videoDescription: entry.mediaGroup.description,
@@ -121,7 +125,7 @@ class FeedParser: NSObject, XMLParserDelegate {
                 publishedAt: entry.published,
                 url: entry.link,
                 channel: channel,
-                viewCount: entry.mediaGroup.views ?? "0",
+                viewCount: viewCount,
                 isShort: entry.link.contains("/shorts/")
             )
         }
@@ -139,8 +143,12 @@ class FeedParser: NSObject, XMLParserDelegate {
             throw APIError.invalidResponse
         }
         
-        return feed.entries.prefix(maxResults).map { entry in
-            Video(
+        return feed.entries.compactMap { entry in
+            let viewCount = entry.mediaGroup.views ?? "0"
+            // Filter out videos with 0 views
+            guard viewCount != "0" else { return nil }
+            
+            return Video(
                 id: entry.mediaGroup.videoId,
                 title: entry.title,
                 videoDescription: entry.mediaGroup.description,
@@ -148,9 +156,9 @@ class FeedParser: NSObject, XMLParserDelegate {
                 publishedAt: entry.published,
                 url: entry.link,
                 channel: nil, // Will be nil since we don't have the full channel object
-                viewCount: entry.mediaGroup.views ?? "0",
+                viewCount: viewCount,
                 isShort: entry.link.contains("/shorts/")
             )
-        }
+        }.prefix(maxResults).map { $0 }
     }
 }
