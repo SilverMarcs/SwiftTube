@@ -14,6 +14,8 @@ import AuthenticationServices
     private(set) var accessToken: String = ""
     private var refreshToken: String = ""
     private var expirationDate: Date = Date()
+    private(set) var fullName: String = ""
+    private(set) var avatarUrl: String = ""
     
     let clientId = "551349563852-504vr1i2r82rf2ksnpj9qvu8bmc54ns8.apps.googleusercontent.com"
     let redirectUri = "com.googleusercontent.apps.551349563852-504vr1i2r82rf2ksnpj9qvu8bmc54ns8:/oauth2redirect"
@@ -31,12 +33,16 @@ import AuthenticationServices
         accessToken = UserDefaults.standard.string(forKey: "googleAccessToken") ?? ""
         refreshToken = UserDefaults.standard.string(forKey: "googleRefreshToken") ?? ""
         expirationDate = UserDefaults.standard.object(forKey: "googleTokenExpirationDate") as? Date ?? Date()
+        fullName = UserDefaults.standard.string(forKey: "googleFullName") ?? ""
+        avatarUrl = UserDefaults.standard.string(forKey: "googleAvatarUrl") ?? ""
     }
     
     private func saveTokens() {
         UserDefaults.standard.set(accessToken, forKey: "googleAccessToken")
         UserDefaults.standard.set(refreshToken, forKey: "googleRefreshToken")
         UserDefaults.standard.set(expirationDate, forKey: "googleTokenExpirationDate")
+        UserDefaults.standard.set(fullName, forKey: "googleFullName")
+        UserDefaults.standard.set(avatarUrl, forKey: "googleAvatarUrl")
     }
     
     func clearTokens() {
@@ -44,6 +50,8 @@ import AuthenticationServices
             self.accessToken = ""
             self.refreshToken = ""
             self.expirationDate = Date()
+            self.fullName = ""
+            self.avatarUrl = ""
             self.saveTokens()
         }
     }
@@ -69,6 +77,7 @@ import AuthenticationServices
                 Task {
                     do {
                         try await self.exchangeCodeForTokens(authCode: code)
+                        try await self.fetchUserInfo()
                         continuation.resume()
                     } catch {
                         continuation.resume(throwing: error)
@@ -165,6 +174,27 @@ import AuthenticationServices
         }
     }
     
+    func fetchUserInfo() async throws {
+        let token = try await getValidAccessToken()
+        let url = URL(string: "https://www.googleapis.com/oauth2/v2/userinfo")!
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
+        
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let name = json["name"] as? String,
+              let picture = json["picture"] as? String else {
+            throw NSError(domain: "GoogleAuthManager", code: 5, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch user info"])
+        }
+        
+        DispatchQueue.main.async {
+            self.fullName = name
+            self.avatarUrl = picture
+            self.saveTokens()
+        }
+    }
+    
     func getValidAccessToken() async throws -> String {
         if Date().addingTimeInterval(5 * 60) < expirationDate && !accessToken.isEmpty {
             return accessToken
@@ -173,16 +203,16 @@ import AuthenticationServices
     }
 }
 
-#if os(iOS)
-extension UIViewController: ASWebAuthenticationPresentationContextProviding {
-    public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        return self.view.window ?? ASPresentationAnchor()
-    }
-}
-#elseif os(macOS)
-extension NSWindow: ASWebAuthenticationPresentationContextProviding {
-    public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        return self
-    }
-}
-#endif
+//#if os(iOS)
+//extension UIViewController: ASWebAuthenticationPresentationContextProviding {
+//    public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+//        return self.view.window ?? ASPresentationAnchor()
+//    }
+//}
+//#elseif os(macOS)
+//extension NSWindow: ASWebAuthenticationPresentationContextProviding {
+//    public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+//        return self
+//    }
+//}
+//#endif

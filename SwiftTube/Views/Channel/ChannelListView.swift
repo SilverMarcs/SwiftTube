@@ -33,10 +33,7 @@ struct ChannelListView: View {
                 
                 if authManager.isSignedIn {
                     Section("My Subscriptions") {
-                        if isLoadingSubscriptions {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                        } else if availableSubscriptions.isEmpty {
+                        if availableSubscriptions.isEmpty {
                             Button("Load Subscriptions") {
                                 Task { await loadSubscriptions() }
                             }
@@ -61,6 +58,11 @@ struct ChannelListView: View {
                             }
                         }
                     }
+                    .overlay {
+                        if isLoadingSubscriptions {
+                            UniversalProgressView()
+                        }
+                    }
                 }
             }
             .navigationTitle("Channels")
@@ -77,6 +79,7 @@ struct ChannelListView: View {
         }
         .sheet(isPresented: $showingAddChannel) {
             AddChannelView()
+                .presentationDetents([.medium])
         }
     }
     

@@ -10,10 +10,8 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(VideoManager.self) var manager
-    @Environment(\.modelContext) private var modelContext
     @Namespace private var animation
     @State var selection: AppTab = .feed
-    @State private var videoLoader: VideoLoader?
     
     var body: some View {
         @Bindable var manager = manager
@@ -31,8 +29,8 @@ struct ContentView: View {
                 ChannelListView()
             }
 
-            Tab("Settings", systemImage: "gear", value: .settings, role: .search) {
-                SettingsView()
+            Tab("Profile", systemImage: "person", value: .profile, role: .search) {
+                ProfileView()
             }
         }
         .tabViewStyle(.sidebarAdaptable)
@@ -56,16 +54,6 @@ struct ContentView: View {
             }
         }
         #endif
-         .task {
-             // Initialize video loader and load videos on launch
-             if videoLoader == nil {
-                 videoLoader = VideoLoader(modelContainer: modelContext.container)
-                 await videoLoader?.loadAllChannelVideos()
-             }
-         }
-        .refreshable {
-            await videoLoader?.refreshAllVideos()
-        }
     }
 }
 
@@ -73,5 +61,5 @@ enum AppTab: String, CaseIterable {
     case feed
     case shorts
     case channels
-    case settings
+    case profile
 }

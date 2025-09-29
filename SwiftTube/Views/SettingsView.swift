@@ -11,16 +11,11 @@ import SwiftData
 
 struct SettingsView: View {
     @State private var deleteAlertPresented = false
-    private var googleAuthManager = GoogleAuthManager.shared
     @Environment(\.modelContext) var modelContext
     
     var body: some View {
         NavigationStack {
             Form {
-                Section("Authentication") {
-                    SignInView()
-                }
-                
                 // TODO: put this view in swiftemdi viewer pakcage
                 Section("Cache") {
                     Button {
@@ -87,7 +82,7 @@ struct SettingsView: View {
             }
             .formStyle(.grouped)
             .navigationTitle("Settings")
-            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbarTitleDisplayMode(.inline)
         }
     }
 }
