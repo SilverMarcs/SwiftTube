@@ -40,12 +40,12 @@ struct ContentView: View {
             .tabBarMinimizeBehavior(.onScrollDown)
             .tabViewBottomAccessory {
                 MiniPlayerAccessoryView()
-//                    .matchedTransitionSource(id: "MINIPLAYER", in: animation)
+                    .matchedTransitionSource(id: "MINIPLAYER", in: animation)
             }
             .sheet(isPresented: $manager.isExpanded) {
                 if let video = manager.currentVideo {
                     VideoDetailView(video: video)
-//                        .matchedTransitionSource(id: "MINIPLAYER", in: animation)
+                        .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
                         .presentationBackground(.background)
                         .presentationCornerRadius(0)
                         .presentationDetents([.fraction(7.13/10)])
@@ -59,7 +59,6 @@ struct ContentView: View {
                 PersistentVideoPlayerOverlay()
                     .zIndex(manager.isExpanded ? 1000 : -1)
                     .allowsHitTesting(manager.isExpanded)
-//                    .animation(.easeInOut, value: manager.isExpanded)
             }
         }
         .environment(\.openURL, OpenURLAction { url in

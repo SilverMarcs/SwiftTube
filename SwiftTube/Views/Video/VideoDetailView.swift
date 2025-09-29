@@ -19,7 +19,7 @@ struct VideoDetailView: View {
                     .font(.title3)
                     .fontWeight(.semibold)
                     .multilineTextAlignment(.leading)
-            
+                
                 // Video Stats (Views, Likes, Published)
                 HStack(spacing: 5) {
                     Label(video.viewCount.formatNumber(), systemImage: "eye")

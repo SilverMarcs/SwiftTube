@@ -18,18 +18,12 @@ class VideoManager {
     var playbackState: YouTubePlayer.PlaybackState? = nil
     
     @ObservationIgnored
-    private var player: YouTubePlayer? {
-        didSet {
-            youTubePlayer = player
-        }
-    }
-    @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored
     private var restoredVideoID: String?
     
     func play() async {
-        guard let player else { return }
+        guard let player = youTubePlayer else { return }
         do {
             try await player.play()
         } catch {
@@ -38,7 +32,7 @@ class VideoManager {
     }
     
     func pause() async {
-        guard let player else { return }
+        guard let player = youTubePlayer else { return }
         do {
             try await player.pause()
         } catch {
@@ -60,12 +54,11 @@ class VideoManager {
     }
     
     private func handleCurrentVideoChange(from oldVideo: Video?, to newVideo: Video?) {
-        if let oldVideo, let player {
-            captureSnapshot(for: oldVideo, player: player)
+        if let oldVideo {
+            captureSnapshot(for: oldVideo)
         }
         cancellables.removeAll()
         playbackState = nil
-        player = nil
         youTubePlayer = nil
         restoredVideoID = nil
         
@@ -75,9 +68,8 @@ class VideoManager {
         newVideo.lastWatchedAt = Date()
         
         let newPlayer = makePlayer(for: newVideo)
-        player = newPlayer
         youTubePlayer = newPlayer
-        observePlayer(newPlayer)
+        observePlayer()
         Task { [weak self] in
             guard let self else { return }
             await self.play()
@@ -99,7 +91,8 @@ class VideoManager {
         )
     }
     
-    private func observePlayer(_ player: YouTubePlayer) {
+    private func observePlayer() {
+        guard let player = youTubePlayer else { return }
         player.playbackStatePublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
@@ -123,7 +116,7 @@ class VideoManager {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
                 guard let self, state == .ready else { return }
-                self.restoreProgressIfNeeded(for: player)
+                self.restoreProgressIfNeeded()
             }
             .store(in: &cancellables)
     }
@@ -134,7 +127,8 @@ class VideoManager {
         persistWatchProgress(seconds: seconds, for: video)
     }
     
-    private func captureSnapshot(for video: Video, player: YouTubePlayer) {
+    private func captureSnapshot(for video: Video) {
+        guard let player = youTubePlayer else { return }
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
@@ -154,8 +148,8 @@ class VideoManager {
         }
     }
     
-    private func restoreProgressIfNeeded(for player: YouTubePlayer) {
-        guard let video = currentVideo else { return }
+    private func restoreProgressIfNeeded() {
+        guard let video = currentVideo, let player = youTubePlayer else { return }
         guard restoredVideoID != video.id else { return }
         guard video.watchProgressSeconds > 5 else {
             restoredVideoID = video.id
