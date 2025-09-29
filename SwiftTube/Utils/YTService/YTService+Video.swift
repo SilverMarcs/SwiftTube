@@ -21,10 +21,6 @@ extension YTService {
         video.duration = duration
         video.viewCount = item.statistics.viewCount
         video.likeCount = item.statistics.likeCount
-        video.commentCount = item.statistics.commentCount
-        video.definition = item.contentDetails.definition.uppercased()
-        video.caption = item.contentDetails.caption == "true"
-        video.updatedAt = Date()
     }
     
     static func fetchVideoDetails(for videos: [Video]) async throws {
@@ -44,10 +40,6 @@ extension YTService {
                     video.duration = duration
                     video.viewCount = item.statistics.viewCount
                     video.likeCount = item.statistics.likeCount
-                    video.commentCount = item.statistics.commentCount
-                    video.definition = item.contentDetails.definition.uppercased()
-                    video.caption = item.contentDetails.caption == "true"
-                    video.updatedAt = Date()
                 }
             }
         }

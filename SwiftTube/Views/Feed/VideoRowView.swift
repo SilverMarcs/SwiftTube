@@ -40,7 +40,7 @@ struct VideoRowView: View {
                                 .clipShape(.circle)
                         }
                         
-                        Text(video.channelTitle)
+                        Text(video.channel?.title ?? "Loading")
                             .lineLimit(1)
                             .font(.subheadline)
                             .fontWeight(.medium)

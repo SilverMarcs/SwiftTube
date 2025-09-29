@@ -119,7 +119,6 @@ class FeedParser: NSObject, XMLParserDelegate {
                 videoDescription: entry.mediaGroup.description,
                 thumbnailURL: entry.mediaGroup.thumbnail.url,
                 publishedAt: entry.published,
-                channelTitle: entry.author.name,
                 url: entry.link,
                 channel: channel,
                 viewCount: entry.mediaGroup.views,

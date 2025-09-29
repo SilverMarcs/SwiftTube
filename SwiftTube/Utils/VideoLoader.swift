@@ -66,7 +66,6 @@ actor VideoLoader {
             existing.videoDescription = video.videoDescription
             existing.thumbnailURL = video.thumbnailURL
             existing.publishedAt = video.publishedAt
-            existing.channelTitle = video.channelTitle
             existing.url = video.url
             existing.channel = video.channel
             // Preserve rich data fields: likeCount, viewCount, commentCount, duration, definition, caption, updatedAt, isShort
