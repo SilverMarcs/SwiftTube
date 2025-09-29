@@ -15,7 +15,7 @@ struct MiniPlayerAccessoryView: View {
                         .clipShape(.rect(cornerRadius: 10))
                     
                     Text(video.title)
-                        .font(.caption)
+                        .font(.subheadline)
                         .lineLimit(1)
                     
                     Spacer()
@@ -44,11 +44,11 @@ struct MiniPlayerAccessoryView: View {
 
                     VStack(alignment: .leading) {
                         Text(video.title)
-                            .font(.headline)
+                            .font(.subheadline)
                             .lineLimit(1)
                         
                         Text(video.channel?.title ?? "Title")
-                            .font(.subheadline)
+                            .font(.caption)
                     }
                     
                     Spacer()

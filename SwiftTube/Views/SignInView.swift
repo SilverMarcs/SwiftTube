@@ -10,10 +10,10 @@ import SwiftMediaViewer
 
 struct SignInView: View {
     private var tokenManager = GoogleAuthManager.shared
-    
+
     @State private var isSigningIn = false
-    @State private var errorMessage: String?
-    
+    @State private var showSignOutConfirmation = false   // NEW
+
     var body: some View {
         VStack {
             if tokenManager.isSignedIn {
@@ -24,13 +24,23 @@ struct SignInView: View {
                     Text(tokenManager.fullName)
 
                     Spacer()
-                    
+
                     Button(role: .destructive) {
-                        tokenManager.clearTokens()
+                        // Instead of signing out immediately, show confirmation
+                        showSignOutConfirmation = true
                     } label: {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
                     }
                     .foregroundStyle(.red)
+                }
+                .alert(
+                    "Are you sure you want to sign out?",
+                    isPresented: $showSignOutConfirmation
+                ) {
+                    Button("Sign Out", role: .destructive) {
+                        tokenManager.clearTokens()
+                    }
+                    Button("Cancel", role: .cancel) { }
                 }
             } else {
                 Button("Sign In With Google") {
@@ -38,26 +48,18 @@ struct SignInView: View {
                 }
                 .disabled(isSigningIn)
             }
-            
-            if let errorMessage = errorMessage {
-                Text(errorMessage)
-                    .foregroundColor(.red)
-                    .font(.caption)
-            }
         }
     }
-    
+
     private func signInWithGoogle() {
         isSigningIn = true
-        errorMessage = nil
-        
+
         Task {
             do {
                 try await tokenManager.signIn()
                 isSigningIn = false
             } catch {
                 isSigningIn = false
-                errorMessage = "Sign-in failed: \(error.localizedDescription)"
             }
         }
     }
