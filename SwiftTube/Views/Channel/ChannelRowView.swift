@@ -17,13 +17,21 @@ struct ChannelRowView: View {
     }
 
     var content: some View {
-        Label {
-            Text(item.title)
-            Text(item.subtitle)
-        } icon: {
+        HStack {
             CachedAsyncImage(url:  URL(string: item.thumbnailURL), targetSize: 50)
-                .frame(width: 37, height: 37)
+                .frame(width: 40, height: 40)
                 .clipShape(.circle)
+            
+            VStack(alignment: .leading) {
+                Text(item.title)
+                    .font(.headline)
+                
+                Text(item.subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
         }
     }
 }

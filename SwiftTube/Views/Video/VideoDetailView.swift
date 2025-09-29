@@ -42,6 +42,7 @@ struct VideoDetailView: View {
                         .labelStyle(.iconOnly)
                     }
                     .buttonStyle(.glass)
+                    .controlSize(.small)
                 }
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
