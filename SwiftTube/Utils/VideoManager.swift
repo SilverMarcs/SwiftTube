@@ -15,23 +15,19 @@ class VideoManager {
     var isExpanded: Bool = false
     var isPlaying: Bool = false
     
-    var youTubePlayer: YouTubePlayer? {
-        player
-    }
-
-    // Temporarily store current video when entering Shorts view
-    private var temporaryStoredVideo: Video?
-    
-    // Track if we should auto-resume after view transitions
-    private var shouldAutoResume: Bool = false
-    private var wasPlayingBeforeTransition: Bool = false
+    var youTubePlayer: YouTubePlayer?
     
     @ObservationIgnored
-    private var player: YouTubePlayer?
+    private var player: YouTubePlayer? {
+        didSet {
+            youTubePlayer = player
+        }
+    }
     @ObservationIgnored
     private var playbackState: YouTubePlayer.PlaybackState? {
         didSet {
             let newIsPlaying = playbackState == .playing
+            // Only update isPlaying if it's actually different, to avoid overriding optimistic updates
             if isPlaying != newIsPlaying {
                 isPlaying = newIsPlaying
             }
@@ -46,8 +42,11 @@ class VideoManager {
         guard let player else { return }
         do {
             try await player.play()
+            // Optimistically set isPlaying to true
+            isPlaying = true
         } catch {
             print("Failed to play: \(error)")
+            isPlaying = false
         }
     }
     
@@ -55,57 +54,33 @@ class VideoManager {
         guard let player else { return }
         do {
             try await player.pause()
+            // Optimistically set isPlaying to false
+            isPlaying = false
         } catch {
             print("Failed to pause: \(error)")
         }
     }
     
     func togglePlayPause() async {
-        if playbackState == .playing {
+        if isPlaying {
             await pause()
         } else {
             await play()
         }
     }
     
-    /// Temporarily stores the current video and sets currentVideo to nil
-    func temporarilyStoreCurrentVideo() {
-        temporaryStoredVideo = currentVideo
+    func expand() {
+        isExpanded = true
+    }
+    
+    func dismiss() {
         currentVideo = nil
+        isExpanded = false
     }
     
-    /// Restores the temporarily stored video if there was one
-    func restoreStoredVideo() {
-        if let stored = temporaryStoredVideo {
-            currentVideo = stored
-            temporaryStoredVideo = nil
-        }
-    }
-    
-    /// Call this before view transitions that might cause pausing
-    func prepareForViewTransition() {
-        wasPlayingBeforeTransition = isPlaying
-        shouldAutoResume = isPlaying
-    }
-    
-    /// Call this after view transitions to resume if needed
-    func handleViewTransitionComplete() {
-        if shouldAutoResume {
-            Task {
-                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
-                await self.play()
-            }
-            shouldAutoResume = false
-        }
-    }
-    
-    /// Handle placement changes that might cause auto-pause
-    func handlePlacementChange() {
-        if wasPlayingBeforeTransition {
-            Task {
-                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 second delay
-                await self.play()
-            }
+    func togglePlayback() {
+        Task {
+            await togglePlayPause()
         }
     }
     
@@ -116,6 +91,7 @@ class VideoManager {
         cancellables.removeAll()
         playbackState = nil
         player = nil
+        youTubePlayer = nil
         restoredVideoID = nil
         
         guard let newVideo else { return }
@@ -125,7 +101,10 @@ class VideoManager {
         
         let newPlayer = makePlayer(for: newVideo)
         player = newPlayer
+        youTubePlayer = newPlayer
         playbackState = newPlayer.playbackState
+        // Set isPlaying to true since we're about to play
+        isPlaying = true
         observePlayer(newPlayer)
         Task { [weak self] in
             guard let self else { return }
@@ -138,7 +117,7 @@ class VideoManager {
             source: .video(id: video.id),
             parameters: .init(
                 autoPlay: true,
-                showControls: true
+                showControls: true,
             ),
             configuration: .init(
                 fullscreenMode: .system,
@@ -155,13 +134,8 @@ class VideoManager {
                 guard let self else { return }
                 self.playbackState = state
                 if state == .ended {
+                    self.isPlaying = false
                     self.markVideoAsCompleted()
-                } else if state == .paused && shouldAutoResume {
-                    // If we were expecting to auto-resume but got paused, try again
-                    Task {
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second delay
-                        await self.play()
-                    }
                 }
             }
             .store(in: &cancellables)

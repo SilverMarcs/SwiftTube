@@ -17,50 +17,51 @@ struct ContentView: View {
     var body: some View {
         @Bindable var manager = manager
         
-        TabView(selection: $selection) {
-            Tab("Videos", systemImage: "video", value: .feed) {
-                FeedView()
-            }
-            
-            Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
-                ShortsView()
-            }
+        ZStack(alignment: .top) {
+            TabView(selection: $selection) {
+                Tab("Videos", systemImage: "video", value: .feed) {
+                    FeedView()
+                }
+                
+                Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
+                    ShortsView()
+                }
 
-            Tab("Profile", systemImage: "person", value: .profile, role: .search) {
-                ProfileView()
+                Tab("Profile", systemImage: "person", value: .profile, role: .search) {
+                    ProfileView()
+                }
+            }
+            .tabViewStyle(.sidebarAdaptable)
+            #if os(macOS)
+            .tabViewSidebarBottomBar {
+                MiniPlayerAccessoryView()
+            }
+            #else
+            .tabBarMinimizeBehavior(.onScrollDown)
+            .tabViewBottomAccessory {
+                MiniPlayerAccessoryView()
+                    .matchedTransitionSource(id: "MINIPLAYER", in: animation)
+            }
+            .sheet(isPresented: $manager.isExpanded) {
+                if let video = manager.currentVideo {
+                    VideoDetailView(video: video)
+                        .matchedTransitionSource(id: "MINIPLAYER", in: animation)
+                        .presentationBackground(.background)
+                        .presentationCornerRadius(0)
+                        .presentationDetents([.fraction(7.13/10)])
+                        .presentationBackgroundInteraction(.enabled)
+                }
+            }
+            #endif
+            
+            // Persistent Video Player Overlay
+            if manager.currentVideo != nil {
+                PersistentVideoPlayerOverlay()
+                    .zIndex(manager.isExpanded ? 1000 : -1)
+                    .allowsHitTesting(manager.isExpanded)
+                    .animation(.easeInOut, value: manager.isExpanded)
             }
         }
-        .tabViewStyle(.sidebarAdaptable)
-        #if os(macOS)
-        .tabViewSidebarBottomBar {
-            MiniPlayerAccessoryView()
-        }
-        #else
-        .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory {
-            MiniPlayerAccessoryView()
-                .matchedTransitionSource(id: "MINIPLAYER", in: animation)
-        }
-        .fullScreenCover(isPresented: $manager.isExpanded) {
-            if let video = manager.currentVideo {
-                VideoDetailView(video: video)
-                    .safeAreaInset(edge: .top, spacing: 0) {
-                        YTPlayerView()
-                            .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
-                    }
-                    .onAppear {
-                        // Handle expansion transition
-                        manager.handleViewTransitionComplete()
-                    }
-            }
-        }
-        .onChange(of: manager.isExpanded) { _, isExpanded in
-            if !isExpanded {
-                // Prepare for minimizing transition
-                manager.prepareForViewTransition()
-            }
-        }
-        #endif
         .environment(\.openURL, OpenURLAction { url in
             if let videoId = url.youtubeVideoID {
                 manager.currentVideo = nil

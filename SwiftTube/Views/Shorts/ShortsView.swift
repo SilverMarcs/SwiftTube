@@ -49,12 +49,7 @@ struct ShortsView: View {
             }
             .ignoresSafeArea()
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .task {
-                manager.temporarilyStoreCurrentVideo()
-            }
-            .onDisappear {
-                manager.restoreStoredVideo()
-            }
+
             .onAppear {
                 randomizeVideos()
             }

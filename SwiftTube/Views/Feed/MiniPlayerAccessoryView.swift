@@ -5,15 +5,12 @@ struct MiniPlayerAccessoryView: View {
     @Environment(VideoManager.self) var manager
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     
-    @State private var previousPlacement: TabViewBottomAccessoryPlacement? = nil
-    
     var body: some View {
         Group {
             if let video = manager.currentVideo {
                 if placement == .inline {
                     HStack {
-                        //                   CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
-                        YTPlayerView()
+                       CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
                             .aspectRatio(16/9, contentMode: .fill)
                             .frame(maxWidth: 60, maxHeight: 34)
                             .clipShape(.rect(cornerRadius: 10))
@@ -41,8 +38,7 @@ struct MiniPlayerAccessoryView: View {
                     }
                 } else {
                     HStack {
-                        //                    CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
-                        YTPlayerView()
+                        CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
                             .aspectRatio(16/9, contentMode: .fill)
                             .frame(maxWidth: 60, maxHeight: 34)
                             .clipShape(.rect(cornerRadius: 10))
@@ -58,14 +54,19 @@ struct MiniPlayerAccessoryView: View {
                         
                         Spacer()
                         
-                        Button(action: {
-                            Task {
-                                await manager.togglePlayPause()
-                            }
-                        }) {
+                        Button {
+                            Task { await manager.togglePlayPause() }
+                        } label: {
                             Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.subheadline)
+                                .contentTransition(.symbolEffect(.replace))
                         }
+                        
+//                       Button {
+//                           manager.dismiss()
+//                       } label: {
+//                           Image(systemName: "xmark")
+//                               .font(.title3)
+//                       }
                     }
                     .padding()
                     .contentShape(.rect)
@@ -77,20 +78,6 @@ struct MiniPlayerAccessoryView: View {
                 //            Text("No video playing")
                 EmptyView()
             }
-        }
-        .onChange(of: placement) { oldValue, newValue in
-            // Handle placement change which might cause auto-pause
-            if let oldValue, oldValue != newValue, manager.currentVideo != nil {
-                manager.prepareForViewTransition()
-                // Delay the placement change handling to allow UI to settle
-                Task {
-                    try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 second delay
-                    await MainActor.run {
-                        manager.handlePlacementChange()
-                    }
-                }
-            }
-            previousPlacement = newValue
         }
     }
 }

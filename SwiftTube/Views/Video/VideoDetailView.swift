@@ -1,9 +1,10 @@
 import SwiftUI
 import SwiftData
-import YouTubePlayerKit
+import SwiftMediaViewer
 
 struct VideoDetailView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(VideoManager.self) var manager
     
     let video: Video    
     
@@ -18,7 +19,7 @@ struct VideoDetailView: View {
                     .font(.title3)
                     .fontWeight(.semibold)
                     .multilineTextAlignment(.leading)
-                
+            
                 // Video Stats (Views, Likes, Published)
                 HStack(spacing: 5) {
                     Label(video.viewCount.formatNumber(), systemImage: "eye")
@@ -50,7 +51,7 @@ struct VideoDetailView: View {
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
                 .padding(.top, 1)
-                
+            
                 // Channel Info
                 if let channel = video.channel {
                     ChannelRowView(item: channel, isNavigation: false)
@@ -80,7 +81,7 @@ struct VideoDetailView: View {
                 .padding(.vertical, 12)
                 .padding(.horizontal, 12)
                 .background(RoundedRectangle(cornerRadius: 12).fill(.background.secondary))
-                
+            
                 // Comments Section
                 VideoCommentsView(video: video)
                 
@@ -95,10 +96,10 @@ struct VideoDetailView: View {
                    UniversalProgressView()
                 }
             }
-        }
 //        .refreshable {
 //            await loadVideoDetail()
 //        }
+        }
     }
 
     private func loadVideoDetail() async {
