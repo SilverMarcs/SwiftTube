@@ -22,7 +22,7 @@ struct CompactVideoCard: View {
                 CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
                     .aspectRatio(16/9, contentMode: .fill)
                     .frame(width: 100)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                     .overlay(alignment: .bottomTrailing) {
                         if let duration = video.duration {
                             Text(duration.formatDuration())
@@ -32,6 +32,12 @@ struct CompactVideoCard: View {
                                 .foregroundStyle(.white)
                                 .background(RoundedRectangle(cornerRadius: 3).fill(.black.secondary))
                                 .padding(6)
+                        }
+                    }
+                    .overlay(alignment: .bottom) {
+                        if let progress = video.watchProgressRatio {
+                            ProgressView(value: progress)
+                                .tint(.accent)
                         }
                     }
                 

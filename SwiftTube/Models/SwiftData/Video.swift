@@ -34,3 +34,12 @@ final class Video {
         self.watchProgressSeconds = 0
     }
 }
+
+extension Video {
+    var watchProgressRatio: Double? {
+        guard let duration = duration, duration > 0 else { return nil }
+        let ratio = watchProgressSeconds / Double(duration)
+        let clamped = min(max(ratio, 0), 1)
+        return clamped > 0 ? clamped : nil
+    }
+}

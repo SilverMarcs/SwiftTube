@@ -12,27 +12,25 @@ struct VideoCard: View {
             manager.isExpanded = true
         } label: {
             VStack(alignment: .leading) {
-                VStack(spacing: 0) {
-                    CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 500)
-                        .aspectRatio(16/9, contentMode: .fill)
-                        .overlay(alignment: .bottomTrailing) {
-                            if let duration = video.duration {
-                                Text(duration.formatDuration())
-                                    .font(.caption)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
-                                    .foregroundStyle(.white)
-                                    .background(RoundedRectangle(cornerRadius: 4).fill(.black.secondary))
-                                    .padding(8)
-                            }
+                CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 500)
+                    .aspectRatio(16/9, contentMode: .fill)
+                    .overlay(alignment: .bottomTrailing) {
+                        if let duration = video.duration {
+                            Text(duration.formatDuration())
+                                .font(.caption)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .foregroundStyle(.white)
+                                .background(RoundedRectangle(cornerRadius: 4).fill(.black.secondary))
+                                .padding(8)
                         }
-                    
-                    
-                    if let progress = watchProgressRatio {
-                        ProgressView(value: progress)
-                            .tint(.accent)
                     }
-                }
+                    .overlay(alignment: .bottom) {
+                        if let progress = video.watchProgressRatio {
+                            ProgressView(value: progress)
+                                .tint(.accent)
+                        }
+                    }
                 
                 VStack(alignment: .leading) {
                     Text(video.title)
@@ -83,14 +81,5 @@ struct VideoCard: View {
                 )
             }
         }
-    }
-}
-
-private extension VideoCard {
-    var watchProgressRatio: Double? {
-        guard let duration = video.duration, duration > 0 else { return nil }
-        let ratio = video.watchProgressSeconds / Double(duration)
-        let clamped = min(max(ratio, 0), 1)
-        return clamped > 0 ? clamped : nil
     }
 }
