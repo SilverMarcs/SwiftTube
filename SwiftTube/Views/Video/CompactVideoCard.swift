@@ -8,7 +8,7 @@
 import SwiftUI
 import SwiftMediaViewer
 
-struct WatchLaterVideoCard: View {
+struct CompactVideoCard: View {
     @Environment(VideoManager.self) var manager
     @Environment(\.modelContext) private var modelContext
     let video: Video

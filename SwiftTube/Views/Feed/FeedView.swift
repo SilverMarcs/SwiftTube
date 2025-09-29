@@ -16,7 +16,7 @@ struct FeedView: View {
     var body: some View {
         NavigationStack {
             List(videos) { video in
-                VideoRowView(video: video)
+                VideoCard(video: video)
                     .listRowSeparator(.hidden)
                     .listRowInsets(.vertical, 7)
                     .listRowInsets(.horizontal, 10)

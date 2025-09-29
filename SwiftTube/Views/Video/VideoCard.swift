@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftMediaViewer
 
-struct VideoRowView: View {
+struct VideoCard: View {
     @Environment(VideoManager.self) var manager
     @Environment(\.modelContext) private var modelContext
     let video: Video

@@ -19,27 +19,26 @@ struct WatchLaterView: View {
     
     var body: some View {
         ForEach(Array(watchLaterVideos.prefix(3))) { video in
-            WatchLaterVideoCard(video: video)
+            CompactVideoCard(video: video)
 //                .alignmentGuide(.listRowSeparatorLeading) { _ in
 //                    return 0
 //                }
         }
         
-        if watchLaterVideos.count > 3 {
-            NavigationLink {
-                List {
-                    ForEach(watchLaterVideos) { video in
-                        WatchLaterVideoCard(video: video)
-                    }
+        NavigationLink {
+            List {
+                ForEach(watchLaterVideos) { video in
+                    CompactVideoCard(video: video)
                 }
-                .navigationTitle("Watch Later")
-                .toolbarTitleDisplayMode(.inline)
-            } label: {
-                Text("View All")
-                    .foregroundStyle(.accent)
             }
-            .navigationLinkIndicatorVisibility(.hidden)
+            .navigationTitle("Watch Later")
+            .toolbarTitleDisplayMode(.inline)
+            .contentMargins(.top, 5)
+        } label: {
+            Text("View All")
+                .foregroundStyle(.accent)
         }
+        .navigationLinkIndicatorVisibility(.hidden)
     }
 }
 

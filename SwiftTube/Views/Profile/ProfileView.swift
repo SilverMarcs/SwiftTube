@@ -23,6 +23,7 @@ struct ProfileView: View {
                     WatchLaterView()
                 }
             }
+            .contentMargins(.top, 5)
             .task {
                 try? await authManager.fetchUserInfo()
             }
