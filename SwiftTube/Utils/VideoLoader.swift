@@ -8,18 +8,25 @@
 import SwiftData
 import Foundation
 
+
 @ModelActor
 actor VideoLoader {
+    static let oneMonthAgo =  Calendar.current.date(byAdding: .day, value: -15, to: Date()) ?? Date()
+
     func loadAllChannelVideos() async {
+        // First, clean up videos older than a month
+        await cleanupOldVideos()
+        
         let channels = try! modelExecutor.modelContext.fetch(FetchDescriptor<Channel>())
         
-        // First, fetch basic video data from RSS
+        // Fetch basic video data from RSS (without max results limit)
         await withTaskGroup(of: Void.self) { group in
             for channel in channels {
                 group.addTask {
                     do {
                         let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
-                        for video in channelVideos {
+                        let recentVideos = channelVideos.filter { $0.publishedAt >= Self.oneMonthAgo }
+                        for video in recentVideos {
                             await self.upsertVideo(video)
                         }
                     } catch {
@@ -43,7 +50,8 @@ actor VideoLoader {
                 group.addTask {
                     do {
                         let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
-                        for video in channelVideos {
+                        let recentVideos = channelVideos.filter { $0.publishedAt >= Self.oneMonthAgo }
+                        for video in recentVideos {
                             await self.upsertVideo(video)
                         }
                     } catch {
@@ -61,18 +69,42 @@ actor VideoLoader {
         let videos = try! modelExecutor.modelContext.fetch(descriptor)
         
         let top5 = Array(videos.prefix(5))
-        let allZeroDuration = top5.allSatisfy { $0.duration == nil || $0.duration == 0 }
+        let allMissingRichData = top5.allSatisfy { video in
+            (video.duration == nil || video.duration == 0) && video.likeCount == nil
+        }
         
-        if allZeroDuration {
+        if allMissingRichData {
             let latest50 = Array(videos.prefix(50))
             do {
                 try await YTService.fetchVideoDetails(for: latest50)
-                print("Updated durations for latest 50 videos")
+                print("Updated rich data for latest 50 videos")
             } catch {
-                print("Error updating video durations: \(error)")
+                print("Error updating video rich data: \(error)")
             }
         } else {
-            print("Top 5 videos already have durations set")
+            print("Top 5 videos already have rich data set")
+        }
+    }
+    
+    private func cleanupOldVideos() async {
+        let cutoffDate = Self.oneMonthAgo
+        let descriptor = FetchDescriptor<Video>(predicate: #Predicate<Video> { video in
+            video.publishedAt < cutoffDate
+        })
+        
+        do {
+            let oldVideos = try modelExecutor.modelContext.fetch(descriptor)
+            let count = oldVideos.count
+            
+            for video in oldVideos {
+                modelExecutor.modelContext.delete(video)
+            }
+            
+            if count > 0 {
+                print("Cleaned up \(count) videos older than a month")
+            }
+        } catch {
+            print("Error cleaning up old videos: \(error)")
         }
     }
     
@@ -81,7 +113,6 @@ actor VideoLoader {
         
         if let existing = try? modelExecutor.modelContext.fetch(FetchDescriptor<Video>(predicate: #Predicate { $0.id == videoId })).first {
             // Only update basic fields from RSS feed, preserve rich data
-            let hadRichData = existing.likeCount != nil
             existing.title = video.title
             existing.videoDescription = video.videoDescription
             existing.thumbnailURL = video.thumbnailURL
@@ -89,9 +120,6 @@ actor VideoLoader {
             existing.url = video.url
             existing.channel = video.channel
             // Preserve rich data fields: likeCount, viewCount, commentCount, duration, definition, caption, updatedAt, isShort
-            if hadRichData {
-                print("Updated video '\(video.title)' while preserving rich data")
-            }
         } else {
             modelExecutor.modelContext.insert(video)
             print("Inserted new video: '\(video.title)'")

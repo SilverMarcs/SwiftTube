@@ -19,8 +19,10 @@ struct ProfileView: View {
                     SignInView()
                 }
             
-                Section("Watch Later") {
+                Section {
                     WatchLaterView()
+                } footer: {
+                    Button("View All") {}
                 }
             }
             .contentMargins(.top, 5)

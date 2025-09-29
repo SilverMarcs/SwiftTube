@@ -112,7 +112,7 @@ class FeedParser: NSObject, XMLParserDelegate {
             throw APIError.invalidResponse
         }
         
-        return feed.entries.prefix(5).map { entry in
+        return feed.entries.map { entry in
             Video(
                 id: entry.mediaGroup.videoId,
                 title: entry.title,
