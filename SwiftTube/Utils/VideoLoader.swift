@@ -29,6 +29,8 @@ actor VideoLoader {
             }
         }
         
+        await checkAndUpdateVideoDurations()
+        
         try? modelExecutor.modelContext.save()
     }
     
@@ -54,7 +56,25 @@ actor VideoLoader {
         try? modelExecutor.modelContext.save()
     }
     
-
+    func checkAndUpdateVideoDurations() async {
+        let descriptor = FetchDescriptor<Video>(sortBy: [SortDescriptor(\.publishedAt, order: .reverse)])
+        let videos = try! modelExecutor.modelContext.fetch(descriptor)
+        
+        let top5 = Array(videos.prefix(5))
+        let allZeroDuration = top5.allSatisfy { $0.duration == nil || $0.duration == 0 }
+        
+        if allZeroDuration {
+            let latest50 = Array(videos.prefix(50))
+            do {
+                try await YTService.fetchVideoDetails(for: latest50)
+                print("Updated durations for latest 50 videos")
+            } catch {
+                print("Error updating video durations: \(error)")
+            }
+        } else {
+            print("Top 5 videos already have durations set")
+        }
+    }
     
     private func upsertVideo(_ video: Video) {
         let videoId = video.id

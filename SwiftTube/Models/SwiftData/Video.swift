@@ -15,6 +15,7 @@ final class Video {
     var duration: Int?           // total seconds
     var isShort: Bool   // determined by duration <= 60 seconds
     var isWatchLater: Bool = false  // user's watch later list
+    var watchProgressSeconds: Double = 0
 
     @Relationship var channel: Channel?
     @Relationship(inverse: \Comment.video) var comments: [Comment] = []
@@ -30,5 +31,6 @@ final class Video {
         self.viewCount = viewCount
         self.isShort = isShort
         self.isWatchLater = isWatchLater
+        self.watchProgressSeconds = 0
     }
 }

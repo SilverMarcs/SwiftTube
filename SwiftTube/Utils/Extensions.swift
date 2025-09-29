@@ -76,16 +76,24 @@ extension Array {
 
 extension String {
     func parseDurationToSeconds() -> Int {
+        print(self)
         let pattern = "PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?"
         let regex = try! NSRegularExpression(pattern: pattern)
         let matches = regex.firstMatch(in: self, range: NSRange(self.startIndex..., in: self))
         
-        let hours = matches?.range(at: 1).location != NSNotFound ?
-            Int(String(self[Range(matches!.range(at: 1), in: self)!])) ?? 0 : 0
-        let minutes = matches?.range(at: 2).location != NSNotFound ?
-            Int(String(self[Range(matches!.range(at: 2), in: self)!])) ?? 0 : 0
-        let seconds = matches?.range(at: 3).location != NSNotFound ?
-            Int(String(self[Range(matches!.range(at: 3), in: self)!])) ?? 0 : 0
+        guard let matches = matches else { return 0 }
+        
+        let hours = if let range = Range(matches.range(at: 1), in: self), matches.range(at: 1).location != NSNotFound {
+            Int(String(self[range])) ?? 0
+        } else { 0 }
+        
+        let minutes = if let range = Range(matches.range(at: 2), in: self), matches.range(at: 2).location != NSNotFound {
+            Int(String(self[range])) ?? 0
+        } else { 0 }
+        
+        let seconds = if let range = Range(matches.range(at: 3), in: self), matches.range(at: 3).location != NSNotFound {
+            Int(String(self[range])) ?? 0
+        } else { 0 }
         
         return hours * 3600 + minutes * 60 + seconds
     }

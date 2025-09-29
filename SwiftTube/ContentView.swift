@@ -10,6 +10,7 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(VideoManager.self) var manager
+    @Environment(\.modelContext) private var modelContext
     @Namespace private var animation
     @State var selection: AppTab = .feed
     
