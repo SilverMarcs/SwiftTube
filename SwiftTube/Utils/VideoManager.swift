@@ -68,20 +68,10 @@ class VideoManager {
             await play()
         }
     }
-    
-    func expand() {
-        isExpanded = true
-    }
-    
+
     func dismiss() {
         currentVideo = nil
         isExpanded = false
-    }
-    
-    func togglePlayback() {
-        Task {
-            await togglePlayPause()
-        }
     }
     
     private func handleCurrentVideoChange(from oldVideo: Video?, to newVideo: Video?) {
