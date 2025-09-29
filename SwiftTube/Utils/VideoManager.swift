@@ -12,6 +12,7 @@ class VideoManager {
             handleCurrentVideoChange(from: oldValue, to: currentVideo)
         }
     }
+    
     var isExpanded: Bool = false
     
     var youTubePlayer: YouTubePlayer?
@@ -24,20 +25,12 @@ class VideoManager {
     
     func play() async {
         guard let player = youTubePlayer else { return }
-        do {
-            try await player.play()
-        } catch {
-            print("Failed to play: \(error)")
-        }
+        try? await player.play()
     }
     
     func pause() async {
         guard let player = youTubePlayer else { return }
-        do {
-            try await player.pause()
-        } catch {
-            print("Failed to pause: \(error)")
-        }
+        try? await player.pause()
     }
     
     func togglePlayPause() async {
