@@ -66,10 +66,10 @@ actor VideoLoader {
     
     func checkAndUpdateVideoDurations() async {
         var descriptor = FetchDescriptor<Video>(sortBy: [SortDescriptor(\.publishedAt, order: .reverse)])
-        descriptor.fetchLimit = 1
+        // descriptor.fetchLimit = 5
         let videos = try! modelExecutor.modelContext.fetch(descriptor)
         
-        let top5 = Array(videos.prefix(1))
+        let top5 = Array(videos.prefix(5))
         let allMissingRichData = top5.allSatisfy { video in
             (video.duration == nil || video.duration == 0) && video.likeCount == nil
         }

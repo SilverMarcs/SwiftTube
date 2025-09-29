@@ -13,20 +13,14 @@ class VideoManager {
         }
     }
     var isExpanded: Bool = false
-    var isPlaying: Bool = false
     
     var youTubePlayer: YouTubePlayer?
+    var playbackState: YouTubePlayer.PlaybackState? = nil
     
     @ObservationIgnored
     private var player: YouTubePlayer? {
         didSet {
             youTubePlayer = player
-        }
-    }
-    @ObservationIgnored
-    private var playbackState: YouTubePlayer.PlaybackState? {
-        didSet {
-            isPlaying = (playbackState == .playing)
         }
     }
     @ObservationIgnored
@@ -83,7 +77,6 @@ class VideoManager {
         let newPlayer = makePlayer(for: newVideo)
         player = newPlayer
         youTubePlayer = newPlayer
-        playbackState = newPlayer.playbackState
         observePlayer(newPlayer)
         Task { [weak self] in
             guard let self else { return }

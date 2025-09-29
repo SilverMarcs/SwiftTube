@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftMediaViewer
+import YouTubePlayerKit
 
 struct MiniPlayerAccessoryView: View {
     @Environment(VideoManager.self) var manager
@@ -26,7 +27,7 @@ struct MiniPlayerAccessoryView: View {
                                 await manager.togglePlayPause()
                             }
                         } label: {
-                            Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
+                            Image(systemName: manager.playbackState == .playing ? "pause.fill" : "play.fill")
                                 .font(.caption)
                                 .foregroundColor(.primary)
                         }
@@ -57,7 +58,7 @@ struct MiniPlayerAccessoryView: View {
                         Button {
                             Task { await manager.togglePlayPause() }
                         } label: {
-                            Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
+                            Image(systemName: manager.playbackState == .playing ? "pause.fill" : "play.fill")
                                 .contentTransition(.symbolEffect(.replace))
                         }
                         
