@@ -26,6 +26,8 @@ extension ModelContext {
             existing.title = new.title
             existing.channelDescription = new.channelDescription
             existing.thumbnailURL = new.thumbnailURL
+            existing.viewCount = new.viewCount
+            existing.subscriberCount = new.subscriberCount
         }
     }
 }

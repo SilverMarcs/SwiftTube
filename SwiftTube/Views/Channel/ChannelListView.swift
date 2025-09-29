@@ -65,6 +65,9 @@ struct ChannelListView: View {
                     }
                 }
             }
+            .refreshable {
+                await refreshChannels()
+            }
             .navigationTitle("Channels")
             .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
@@ -112,5 +115,19 @@ struct ChannelListView: View {
         
         modelContext.insert(channel)
         try? modelContext.save()
+    }
+
+    @MainActor
+    private func refreshChannels() async {
+        guard !channels.isEmpty else { return }
+
+        do {
+            let updatedChannels = try await YTService.fetchChannels(byIds: channels.map { $0.id })
+            for channel in updatedChannels {
+                modelContext.upsertChannel(channel)
+            }
+        } catch {
+            print("Error refreshing channels: \(error.localizedDescription)")
+        }
     }
 }
