@@ -9,14 +9,23 @@ import SwiftUI
 import SwiftData
 
 struct ShortsView: View {
-    @Query(
-        filter: #Predicate<Video> { $0.isShort == true },
-        sort: \Video.publishedAt,
-        order: .reverse
-    ) private var shortVideos: [Video]
+    @Query private var shortVideos: [Video]
     
     @Environment(VideoManager.self) var manager
     @State private var currentIndex = 0
+    
+    init() {
+        let predicate = #Predicate<Video> { $0.isShort == true }
+        let sortDescriptors = [
+            SortDescriptor(\Video.watchProgressSeconds, order: .forward),
+            SortDescriptor(\Video.publishedAt, order: .reverse)
+        ]
+        
+        _shortVideos = Query(
+            filter: predicate,
+            sort: sortDescriptors
+        )
+    }
     
     var body: some View {
         NavigationStack {
