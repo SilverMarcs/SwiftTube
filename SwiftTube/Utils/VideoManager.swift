@@ -10,6 +10,7 @@ class VideoManager {
         didSet {
             guard oldValue?.id != currentVideo?.id else { return }
             handleCurrentVideoChange(from: oldValue, to: currentVideo)
+            isExpanded = true
         }
     }
     
