@@ -9,30 +9,22 @@ class VideoManager {
     private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored
     private var progressTimer: Timer?
+    @ObservationIgnored
+    private var restoredVideoID: String?
+    @ObservationIgnored
+    private var player: YouTubePlayer?
     
     var isExpanded: Bool = false
     var playbackState: YouTubePlayer.PlaybackState? = nil
     var currentVideo: Video? = nil
     
-    // Single YouTube player instance - more efficient
-    @ObservationIgnored
-    lazy var player: YouTubePlayer = {
-        YouTubePlayer(
-            source: .video(id: ""),
-            parameters: .init(
-                autoPlay: true,
-                showControls: true
-            ),
-            configuration: .init(
-                fullscreenMode: .system,
-                allowsInlineMediaPlayback: true,
-                allowsPictureInPictureMediaPlayback: true
-            )
-        )
-    }()
+    // Expose player for the UI
+    var youTubePlayer: YouTubePlayer? {
+        player
+    }
     
     init() {
-        setupPlayerObservation()
+        // No setup needed - player created per video
     }
     
     /// Start playing a video
@@ -40,17 +32,30 @@ class VideoManager {
         guard currentVideo?.id != video.id else { return }
         
         // Save progress of current video if any
-        if let current = currentVideo {
-            Task { await saveCurrentProgress(for: current) }
+        if let current = currentVideo, let currentPlayer = player {
+            captureSnapshot(for: current, player: currentPlayer)
         }
         
+        // Clean up previous player
+        cancellables.removeAll()
+        playbackState = nil
+        player = nil
+        restoredVideoID = nil
+        
+        // Set new video and create new player
         currentVideo = video
         video.lastWatchedAt = Date()
         
-        // Load new video source
+        let newPlayer = makePlayer(for: video)
+        player = newPlayer
+        playbackState = newPlayer.playbackState
+        observePlayer(newPlayer)
+        
         isExpanded = true
+        
+        // Start playing
         Task {
-            try? await player.load(source: .video(id: video.id))
+            await play()
         }
     }
     
@@ -69,23 +74,34 @@ class VideoManager {
     }
 
     func dismiss() {
-        if let video = currentVideo {
-            Task { await saveCurrentProgress(for: video) }
+        if let video = currentVideo, let currentPlayer = player {
+            captureSnapshot(for: video, player: currentPlayer)
         }
         currentVideo = nil
         isExpanded = false
-        // Clear player by loading empty source
-        Task {
-           try? await player.load(source: .video(id: ""))
-        }
+        restoredVideoID = nil
+        cancellables.removeAll()
+        playbackState = nil
+        player = nil
+
     }
     
     func play() async {
-        try? await player.play()
+        guard let player else { return }
+        do {
+            try await player.play()
+        } catch {
+            print("Failed to play: \(error)")
+        }
     }
     
     func pause() async {
-        try? await player.pause()
+        guard let player else { return }
+        do {
+            try await player.pause()
+        } catch {
+            print("Failed to pause: \(error)")
+        }
     }
     
     func togglePlayPause() async {
@@ -96,15 +112,38 @@ class VideoManager {
         }
     }
     
-    private func setupPlayerObservation() {
-        // Observe playback state
+    private func makePlayer(for video: Video) -> YouTubePlayer {
+        return YouTubePlayer(
+            source: .video(id: video.id),
+            parameters: .init(
+                autoPlay: true,
+                showControls: true
+            ),
+            configuration: .init(
+                fullscreenMode: .system,
+                allowsInlineMediaPlayback: true,
+                allowsPictureInPictureMediaPlayback: true
+            )
+        )
+    }
+    
+    private func observePlayer(_ player: YouTubePlayer) {
+        // Observe playback state for UI updates
         player.playbackStatePublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
-                self?.playbackState = state
-                if state == .ended {
-                    self?.handleVideoEnded()
-                }
+                guard let self else { return }
+                self.playbackState = state
+            }
+            .store(in: &cancellables)
+        
+        // Observe current time for progress tracking (throttled to every 5 seconds)
+        player.currentTimePublisher
+            .throttle(for: .seconds(5), scheduler: DispatchQueue.main, latest: true)
+            .sink { [weak self] measurement in
+                guard let self, let video = self.currentVideo else { return }
+                let seconds = measurement.converted(to: .seconds).value
+                video.updateWatchProgress(seconds)
             }
             .store(in: &cancellables)
         
@@ -113,60 +152,51 @@ class VideoManager {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
                 if state == .ready {
-                    self?.restoreProgressIfNeeded()
-                    self?.startProgressTracking()
+                    self?.restoreProgressIfNeeded(for: player)
                 }
             }
             .store(in: &cancellables)
     }
     
-    private func startProgressTracking() {
-        progressTimer?.invalidate()
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            Task {
-                await self?.updateProgress()
+    private func saveCurrentProgress(for video: Video) async {
+        guard let player else { return }
+        do {
+            let measurement = try await player.getCurrentTime()
+            let seconds = measurement.converted(to: .seconds).value
+            video.updateWatchProgress(seconds)
+        } catch {
+            // Ignore errors
+        }
+    }
+    
+    private func captureSnapshot(for video: Video, player: YouTubePlayer) {
+        Task {
+            do {
+                let measurement = try await player.getCurrentTime()
+                let seconds = measurement.converted(to: .seconds).value
+                video.updateWatchProgress(seconds)
+            } catch {
+                // Ignore snapshot errors
             }
         }
     }
     
-    private func updateProgress() async {
+    private func restoreProgressIfNeeded(for player: YouTubePlayer) {
         guard let video = currentVideo else { return }
-        do {
-            let measurement = try await player.getCurrentTime()
-            let seconds = measurement.converted(to: .seconds).value
-            video.updateWatchProgress(seconds)
-        } catch {
-            // Ignore errors
+        guard restoredVideoID != video.id else { return } // Prevent duplicate restoration
+        guard video.watchProgressSeconds > 5 else {
+            restoredVideoID = video.id // Mark as processed even if no restoration needed
+            return
         }
-    }
-    
-    private func saveCurrentProgress(for video: Video) async {
-        do {
-            let measurement = try await player.getCurrentTime()
-            let seconds = measurement.converted(to: .seconds).value
-            video.updateWatchProgress(seconds)
-        } catch {
-            // Ignore errors
-        }
-    }
-    
-    private func restoreProgressIfNeeded() {
-        guard let video = currentVideo, video.watchProgressSeconds > 5 else { return }
         
+        restoredVideoID = video.id // Mark as restored
         Task {
             do {
                 let target = Measurement(value: video.watchProgressSeconds, unit: UnitDuration.seconds)
                 try await player.seek(to: target, allowSeekAhead: true)
             } catch {
-                print("Failed to restore progress: \(error)")
+                print("Failed to restore watch progress: \(error)")
             }
-        }
-    }
-    
-    private func handleVideoEnded() {
-        guard let video = currentVideo else { return }
-        if let duration = video.duration {
-            video.updateWatchProgress(Double(duration))
         }
     }
     

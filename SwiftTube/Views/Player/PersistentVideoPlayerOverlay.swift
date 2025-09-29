@@ -7,8 +7,8 @@ struct PersistentVideoPlayerOverlay: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
-        if let video = manager.currentVideo {
-            YouTubePlayerView(manager.player) { state in
+        if let video = manager.currentVideo, let player = manager.youTubePlayer {
+            YouTubePlayerView(player) { state in
                 // An optional overlay view for the current state of the player
                 switch state {
                 case .idle:
@@ -23,6 +23,7 @@ struct PersistentVideoPlayerOverlay: View {
                     )
                 }
             }
+            .id(video.id)
             .aspectRatio(16/9, contentMode: .fit)
             .background {
                 CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)

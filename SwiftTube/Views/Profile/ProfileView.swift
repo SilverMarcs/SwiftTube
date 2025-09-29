@@ -25,6 +25,7 @@ struct ProfileView: View {
                     } label: {
                         Label("Channels", systemImage: "bell")
                     }
+                    .tint(.accent)
                 }
                 
                 WatchLaterView()
