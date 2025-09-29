@@ -3,6 +3,7 @@ import Foundation
 import SwiftData
 
 protocol ChannelDisplayable {
+    var id: String { get }
     var title: String { get }
     var thumbnailURL: String { get }
     var subtitle: String { get }

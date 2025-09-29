@@ -27,7 +27,7 @@ struct ContentView: View {
                 ShortsView()
             }
             
-            Tab("Channels", systemImage: "play.rectangle", value: .channels) {
+            Tab("Channels", systemImage: "bell", value: .channels) {
                 ChannelListView()
             }
 

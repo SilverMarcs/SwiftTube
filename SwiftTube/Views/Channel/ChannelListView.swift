@@ -45,6 +45,7 @@ struct ChannelListView: View {
                             ForEach(availableSubscriptions) { subscription in
                                 HStack {
                                     ChannelRowView(item: subscription)
+                                        .navigationLinkIndicatorVisibility(.hidden)
                                     
                                     Spacer()
                                     

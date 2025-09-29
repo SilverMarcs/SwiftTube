@@ -37,6 +37,7 @@ struct ShortVideoCard: View {
             
             if let channel = video.channel {
                 ChannelRowView(item: channel)
+                    .navigationLinkIndicatorVisibility(.hidden)
                     .padding()
             }
         }

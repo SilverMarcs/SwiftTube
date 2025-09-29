@@ -8,6 +8,7 @@ struct VideoDetailView: View {
     let video: Video    
     
     @State private var isLoading = false
+    @State var showDetail: Bool = false
     
     var body: some View {
         ScrollView {
@@ -36,11 +37,19 @@ struct VideoDetailView: View {
                 
                 // Channel Info
                 if let channel = video.channel {
-                    ChannelRowView(item: channel)
+                    ChannelRowView(item: channel, isNavigation: false)
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
                         .background(.background.secondary)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .onTapGesture {
+                            showDetail.toggle()
+                        }
+                        .sheet(isPresented: $showDetail) {
+                            if let channel = video.channel {
+                                ChannelDetailView(channelItem: channel)
+                            }
+                        }
                 }
 
                 // Description
@@ -64,13 +73,13 @@ struct VideoDetailView: View {
     //                relatedVideosSection(for: videoDetail)
     //            }
             }
+            .padding(10)
             .overlay {
                 if isLoading {
                    UniversalProgressView()
                 }
             }
         }
-        .contentMargins(10)
         .refreshable {
             await loadVideoDetail()
         }

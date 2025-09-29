@@ -126,4 +126,31 @@ class FeedParser: NSObject, XMLParserDelegate {
             )
         }
     }
+    
+    static func fetchChannelVideosFromRSS(channelId: String, maxResults: Int = 5) async throws -> [Video] {
+        let url = URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channelId)")!
+        
+        let (data, _) = try await URLSession.shared.data(from: url)
+        
+        let parser = FeedParser()
+        parser.parse(data: data)
+        
+        guard let feed = parser.feed else {
+            throw APIError.invalidResponse
+        }
+        
+        return feed.entries.prefix(maxResults).map { entry in
+            Video(
+                id: entry.mediaGroup.videoId,
+                title: entry.title,
+                videoDescription: entry.mediaGroup.description,
+                thumbnailURL: entry.mediaGroup.thumbnail.url,
+                publishedAt: entry.published,
+                url: entry.link,
+                channel: nil, // Will be nil since we don't have the full channel object
+                viewCount: entry.mediaGroup.views ?? "0",
+                isShort: entry.link.contains("/shorts/")
+            )
+        }
+    }
 }

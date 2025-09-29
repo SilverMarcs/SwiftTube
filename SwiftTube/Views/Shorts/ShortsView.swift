@@ -25,6 +25,8 @@ struct ShortsView: View {
                     .tag(index)
             }
         }
+        .background(.black)
+        .ignoresSafeArea()
         .tabViewStyle(.page(indexDisplayMode: .never))
         .task {
             manager.temporarilyStoreCurrentVideo()
