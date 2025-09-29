@@ -15,7 +15,7 @@ struct CompactVideoCard: View {
     
     var body: some View {
         Button {
-            manager.currentVideo = video
+            manager.playOrExpand(video)
         } label: {
             HStack {
                 CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)

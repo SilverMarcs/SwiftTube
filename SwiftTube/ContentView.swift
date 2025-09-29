@@ -43,7 +43,7 @@ struct ContentView: View {
                     .matchedTransitionSource(id: "MINIPLAYER", in: animation)
             }
             .sheet(isPresented: $manager.isExpanded) {
-                if let video = manager.currentVideo {
+                if let video = manager.playingVideo?.video {
                     VideoDetailView(video: video)
                         .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
                         .presentationBackground(.background)
@@ -55,7 +55,7 @@ struct ContentView: View {
             #endif
             
             // Persistent Video Player Overlay
-            if manager.currentVideo != nil {
+            if manager.playingVideo != nil {
                 PersistentVideoPlayerOverlay()
                     .zIndex(manager.isExpanded ? 1000 : -1)
                     .allowsHitTesting(manager.isExpanded)
@@ -63,12 +63,12 @@ struct ContentView: View {
         }
         .environment(\.openURL, OpenURLAction { url in
             if let videoId = url.youtubeVideoID {
-                manager.currentVideo = nil
+                manager.dismiss()
                 Task {
                     do {
                         let video = try await YTService.fetchVideo(byId: videoId)
                         
-                        manager.currentVideo = video
+                        manager.startPlaying(video)
                         manager.isExpanded = true
                     } catch {
                         print("Failed to fetch video: \(error)")

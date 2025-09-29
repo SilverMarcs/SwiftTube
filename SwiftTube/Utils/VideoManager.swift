@@ -3,34 +3,90 @@ import Combine
 import SwiftData
 import YouTubePlayerKit
 
+/// A value type that encapsulates a video and its associated YouTube player
+struct PlayingVideo: Equatable {
+    let video: Video
+    let player: YouTubePlayer
+    
+    init(video: Video) {
+        self.video = video
+        self.player = YouTubePlayer(
+            source: .video(id: video.id),
+            parameters: .init(
+                autoPlay: true,
+                showControls: true
+            ),
+            configuration: .init(
+                fullscreenMode: .system,
+                allowsInlineMediaPlayback: true,
+                allowsPictureInPictureMediaPlayback: true
+            )
+        )
+    }
+    
+    static func == (lhs: PlayingVideo, rhs: PlayingVideo) -> Bool {
+        lhs.video.id == rhs.video.id
+    }
+}
+
 @MainActor
 @Observable
 class VideoManager {
-    var currentVideo: Video? {
-        didSet {
-            guard oldValue?.id != currentVideo?.id else { return }
-            handleCurrentVideoChange(from: oldValue, to: currentVideo)
-            isExpanded = true
-        }
-    }
-    
-    var isExpanded: Bool = false
-    
-    var youTubePlayer: YouTubePlayer?
-    var playbackState: YouTubePlayer.PlaybackState? = nil
-    
     @ObservationIgnored
     private var cancellables = Set<AnyCancellable>()
     @ObservationIgnored
     private var restoredVideoID: String?
     
+    var isExpanded: Bool = false
+    var playbackState: YouTubePlayer.PlaybackState? = nil
+    
+    // Main API - use this for new code
+    var playingVideo: PlayingVideo? {
+        get { _playingVideo }
+        set { _playingVideo = newValue }
+    }
+    
+    private var _playingVideo: PlayingVideo? {
+        didSet {
+            guard oldValue?.video.id != _playingVideo?.video.id else { return }
+            handlePlayingVideoChange(from: oldValue, to: _playingVideo)
+            if _playingVideo != nil {
+                isExpanded = true
+            }
+        }
+    }
+    
+    /// Start playing a video
+    func startPlaying(_ video: Video) {
+        _playingVideo = PlayingVideo(video: video)
+    }
+    
+    /// Check if a specific video is currently playing
+    func isPlaying(_ video: Video) -> Bool {
+        _playingVideo?.video.id == video.id
+    }
+    
+    /// Play a video or expand the player if it's already playing
+    func playOrExpand(_ video: Video) {
+        if isPlaying(video) {
+            isExpanded = true
+        } else {
+            startPlaying(video)
+        }
+    }
+
+    func dismiss() {
+        _playingVideo = nil
+        isExpanded = false
+    }
+    
     func play() async {
-        guard let player = youTubePlayer else { return }
+        guard let player = _playingVideo?.player else { return }
         try? await player.play()
     }
     
     func pause() async {
-        guard let player = youTubePlayer else { return }
+        guard let player = _playingVideo?.player else { return }
         try? await player.pause()
     }
     
@@ -41,52 +97,28 @@ class VideoManager {
             await play()
         }
     }
-
-    func dismiss() {
-        currentVideo = nil
-        isExpanded = false
-    }
     
-    private func handleCurrentVideoChange(from oldVideo: Video?, to newVideo: Video?) {
-        if let oldVideo {
-            captureSnapshot(for: oldVideo)
+    private func handlePlayingVideoChange(from oldPlayingVideo: PlayingVideo?, to newPlayingVideo: PlayingVideo?) {
+        if let oldVideo = oldPlayingVideo?.video {
+            captureSnapshot(for: oldVideo, player: oldPlayingVideo?.player)
         }
         cancellables.removeAll()
         playbackState = nil
-        youTubePlayer = nil
         restoredVideoID = nil
         
-        guard let newVideo else { return }
+        guard let newPlayingVideo else { return }
         
         // Update history tracking
-        newVideo.lastWatchedAt = Date()
+        newPlayingVideo.video.lastWatchedAt = Date()
         
-        let newPlayer = makePlayer(for: newVideo)
-        youTubePlayer = newPlayer
-        observePlayer()
+        observePlayer(newPlayingVideo.player)
         Task { [weak self] in
             guard let self else { return }
             await self.play()
         }
     }
     
-    private func makePlayer(for video: Video) -> YouTubePlayer {
-        YouTubePlayer(
-            source: .video(id: video.id),
-            parameters: .init(
-                autoPlay: true,
-                showControls: true,
-            ),
-            configuration: .init(
-                fullscreenMode: .system,
-                allowsInlineMediaPlayback: true,
-                allowsPictureInPictureMediaPlayback: true
-            )
-        )
-    }
-    
-    private func observePlayer() {
-        guard let player = youTubePlayer else { return }
+    private func observePlayer(_ player: YouTubePlayer) {
         player.playbackStatePublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
@@ -116,13 +148,13 @@ class VideoManager {
     }
     
     private func persistCurrentProgress(_ measurement: Measurement<UnitDuration>) {
-        guard let video = currentVideo else { return }
+        guard let video = _playingVideo?.video else { return }
         let seconds = measurement.converted(to: .seconds).value
         persistWatchProgress(seconds: seconds, for: video)
     }
     
-    private func captureSnapshot(for video: Video) {
-        guard let player = youTubePlayer else { return }
+    private func captureSnapshot(for video: Video, player: YouTubePlayer?) {
+        guard let player else { return }
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
@@ -136,14 +168,17 @@ class VideoManager {
     }
     
     private func markVideoAsCompleted() {
-        guard let video = currentVideo else { return }
+        guard let video = _playingVideo?.video else { return }
         if let duration = video.duration {
             persistWatchProgress(seconds: Double(duration), for: video, force: true)
         }
     }
     
     private func restoreProgressIfNeeded() {
-        guard let video = currentVideo, let player = youTubePlayer else { return }
+        guard let playingVideo = _playingVideo else { return }
+        let video = playingVideo.video
+        let player = playingVideo.player
+        
         guard restoredVideoID != video.id else { return }
         guard video.watchProgressSeconds > 5 else {
             restoredVideoID = video.id
