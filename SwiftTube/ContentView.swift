@@ -48,7 +48,11 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $manager.isExpanded) {
             if let video = manager.currentVideo {
-                VideoDetailView(video: video, namespace: animation)
+                VideoDetailView(video: video)
+                    .safeAreaInset(edge: .top, spacing: 0) {
+                        YTPlayerView()
+                            .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
+                    }
             }
         }
         #endif

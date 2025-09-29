@@ -5,8 +5,7 @@ import YouTubePlayerKit
 struct VideoDetailView: View {
     @Environment(\.modelContext) private var modelContext
     
-    let video: Video
-    let namespace: Namespace.ID
+    let video: Video    
     
     @State private var isLoading = false
     
@@ -21,7 +20,7 @@ struct VideoDetailView: View {
                 
                 // Video Stats (Views, Likes, Published)
                 HStack {
-                    Text((video.viewCount ?? "0").formatNumber())
+                    Text((video.viewCount).formatNumber() + " views")
                     Text("•")
                     Text(video.publishedAt, style: .date)
                     
@@ -72,9 +71,6 @@ struct VideoDetailView: View {
             }
         }
         .contentMargins(10)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            YTPlayerView(namespace: namespace)
-        }
         .refreshable {
             await loadVideoDetail()
         }

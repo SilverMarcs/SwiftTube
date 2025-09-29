@@ -48,9 +48,7 @@ struct VideoRowView: View {
                         Spacer()
                         
                         Group {
-                            if let count = video.viewCount {
-                                Text(count.formatNumber() + " views")
-                            }
+                            Text(video.viewCount.formatNumber() + " views")
                             
                             Text("•")
                                 .fontWeight(.light)

@@ -121,7 +121,7 @@ class FeedParser: NSObject, XMLParserDelegate {
                 publishedAt: entry.published,
                 url: entry.link,
                 channel: channel,
-                viewCount: entry.mediaGroup.views,
+                viewCount: entry.mediaGroup.views ?? "0",
                 isShort: entry.link.contains("/shorts/")
             )
         }
