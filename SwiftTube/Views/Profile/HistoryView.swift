@@ -15,32 +15,36 @@ struct HistoryView: View {
     ) private var historyVideos: [Video]
     
     var body: some View {
-        ForEach(Array(historyVideos.prefix(3))) { video in
-            CompactVideoCard(video: video)
-        }
-        
-        NavigationLink {
-            List {
-                ForEach(historyVideos) { video in
-                    CompactVideoCard(video: video)
-                        .swipeActions {
-                            Button {
-                                video.lastWatchedAt = nil
-                            } label: {
-                                Label("Remove from History", systemImage: "trash")
-                            }
-                            .tint(.red)
-                        }
-                }
+        Section {
+            ForEach(Array(historyVideos.prefix(3))) { video in
+                CompactVideoCard(video: video)
             }
-            .navigationTitle("History")
-            .toolbarTitleDisplayMode(.inline)
-            .contentMargins(.top, 5)
-        } label: {
-            Text("View All")
-                .foregroundStyle(.accent)
+            
+            NavigationLink {
+                List {
+                    ForEach(historyVideos) { video in
+                        CompactVideoCard(video: video)
+                            .swipeActions {
+                                Button {
+                                    video.lastWatchedAt = nil
+                                } label: {
+                                    Label("Remove from History", systemImage: "trash")
+                                }
+                                .tint(.red)
+                            }
+                    }
+                }
+                .navigationTitle("History")
+                .toolbarTitleDisplayMode(.inline)
+                .contentMargins(.top, 5)
+            } label: {
+                Text("View full history")
+                    .foregroundStyle(.accent)
+            }
+            .navigationLinkIndicatorVisibility(.hidden)
+        } header: {
+            Text("History")
         }
-        .navigationLinkIndicatorVisibility(.hidden)
     }
 }
 

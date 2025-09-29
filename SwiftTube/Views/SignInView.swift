@@ -19,7 +19,7 @@ struct SignInView: View {
             if tokenManager.isSignedIn {
                 HStack {
                     CachedAsyncImage(url: URL(string: tokenManager.avatarUrl), targetSize: 100)
-                        .frame(width: 50, height: 50)
+                        .frame(width: 40, height: 40)
                     
                     Text(tokenManager.fullName)
 

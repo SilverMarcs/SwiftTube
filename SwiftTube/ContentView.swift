@@ -25,10 +25,6 @@ struct ContentView: View {
             Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
                 ShortsView()
             }
-            
-            Tab("Channels", systemImage: "bell", value: .channels) {
-                ChannelListView()
-            }
 
             Tab("Profile", systemImage: "person", value: .profile, role: .search) {
                 ProfileView()
@@ -78,6 +74,5 @@ struct ContentView: View {
 enum AppTab: String, CaseIterable {
     case feed
     case shorts
-    case channels
     case profile
 }

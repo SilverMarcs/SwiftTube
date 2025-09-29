@@ -17,15 +17,19 @@ struct ProfileView: View {
             Form {
                 Section {
                     SignInView()
-                }
-            
-                Section {
-                    WatchLaterView()
+                        .alignmentGuide(.listRowSeparatorLeading) { _ in
+                             return 0
+                         }
+                    NavigationLink {
+                        ChannelListView()
+                    } label: {
+                        Label("Channels", systemImage: "bell")
+                    }
                 }
                 
-                Section {
-                    HistoryView()
-                }
+                WatchLaterView()
+                
+                HistoryView()
             }
             .contentMargins(.top, 5)
             .task {

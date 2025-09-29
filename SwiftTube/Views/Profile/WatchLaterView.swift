@@ -18,34 +18,38 @@ struct WatchLaterView: View {
     @State private var showingAllVideos = false
     
     var body: some View {
-        ForEach(Array(watchLaterVideos.prefix(3))) { video in
-            CompactVideoCard(video: video)
-//                .alignmentGuide(.listRowSeparatorLeading) { _ in
-//                    return 0
-//                }
-        }
-        
-        NavigationLink {
-            List {
-                ForEach(watchLaterVideos) { video in
-                    CompactVideoCard(video: video)
-                        .swipeActions {
-                            Button {
-                                video.isWatchLater = false
-                            } label: {
-                                Label("Remove from Watch Later", systemImage: "bookmark.slash")
-                            }
-                        }
-                }
+        Section {
+            ForEach(Array(watchLaterVideos.prefix(3))) { video in
+                CompactVideoCard(video: video)
+//                                .alignmentGuide(.listRowSeparatorLeading) { _ in
+//                                    return 0
+//                                }
             }
-            .navigationTitle("Watch Later")
-            .toolbarTitleDisplayMode(.inline)
-            .contentMargins(.top, 5)
-        } label: {
-            Text("View All")
-                .foregroundStyle(.accent)
+            
+            NavigationLink {
+                List {
+                    ForEach(watchLaterVideos) { video in
+                        CompactVideoCard(video: video)
+                            .swipeActions {
+                                Button {
+                                    video.isWatchLater = false
+                                } label: {
+                                    Label("Remove from Watch Later", systemImage: "bookmark.slash")
+                                }
+                            }
+                    }
+                }
+                .navigationTitle("Watch Later")
+                .toolbarTitleDisplayMode(.inline)
+                .contentMargins(.top, 5)
+            } label: {
+                Text("View all Watch Later videos")
+                    .foregroundStyle(.accent)
+            }
+            .navigationLinkIndicatorVisibility(.hidden)
+        } header: {
+            Text("Watch Later")
         }
-        .navigationLinkIndicatorVisibility(.hidden)
     }
 }
 

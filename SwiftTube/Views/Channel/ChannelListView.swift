@@ -69,7 +69,7 @@ struct ChannelListView: View {
                 await refreshChannels()
             }
             .navigationTitle("Channels")
-            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
