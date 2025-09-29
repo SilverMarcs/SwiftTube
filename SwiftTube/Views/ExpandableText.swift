@@ -25,6 +25,7 @@ struct ExpandableText: View {
             Text(LocalizedStringKey(displayedText))
                 .textSelection(.enabled)
                 .lineSpacing(2)
+                .accentColor(.blue)
             
             if needsExpansion {
                 Button {
@@ -33,7 +34,6 @@ struct ExpandableText: View {
                     Text(isExpanded ? "Show Less" : "Show More")
                         .contentShape(.rect)
                 }
-                .buttonStyle(.bordered)
                 .buttonBorderShape(.capsule)
                 .controlSize(.small)
             }

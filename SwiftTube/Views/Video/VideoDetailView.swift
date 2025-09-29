@@ -20,7 +20,7 @@ struct VideoDetailView: View {
                     .multilineTextAlignment(.leading)
                 
                 // Video Stats (Views, Likes, Published)
-                HStack {
+                HStack(spacing: 5) {
                     Text((video.viewCount).formatNumber() + " views")
                     Text("•")
                     Text(video.publishedAt, style: .date)
@@ -41,8 +41,9 @@ struct VideoDetailView: View {
                         )
                         .labelStyle(.iconOnly)
                     }
+                    .foregroundStyle(video.isWatchLater ? .green : .secondary)
                     .buttonStyle(.glass)
-                    .controlSize(.small)
+                    .controlSize(.mini)
                 }
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
