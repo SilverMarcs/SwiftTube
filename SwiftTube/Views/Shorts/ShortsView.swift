@@ -6,12 +6,15 @@
 //
 
 import SwiftUI
+import SwiftMediaViewer
 import SwiftData
 
 struct ShortsView: View {
     @Query private var shortVideos: [Video]
     
     @Environment(VideoManager.self) var manager
+    @Environment(\.colorScheme) var colorScheme
+
     @State private var currentIndex = 0
     
     init() {
@@ -35,7 +38,19 @@ struct ShortsView: View {
                         .tag(index)
                 }
             }
-            .background(.black)
+            .background {
+                    CachedAsyncImage(url:  URL(string: shortVideos[currentIndex].thumbnailURL), targetSize: 500)
+                        .blur(radius: 10)
+                        .overlay {
+                            if colorScheme == .dark {
+                                Color.black.opacity(0.8)
+                            } else {
+                                Color.white.opacity(0.5)
+                            }
+                        }
+                        .clipped()
+                        .ignoresSafeArea()
+                }
             .ignoresSafeArea()
             .tabViewStyle(.page(indexDisplayMode: .never))
             .task {

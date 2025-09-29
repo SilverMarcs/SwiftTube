@@ -12,30 +12,18 @@ class VideoManager {
             handleCurrentVideoChange(from: oldValue, to: currentVideo)
         }
     }
-    var isExpanded: Bool = false {
-        didSet {
-            // When transitioning from expanded to mini player, check for auto-resume
-            if oldValue && !isExpanded {
-                scheduleAutoResumeCheck()
-            }
-        }
-    }
+    var isExpanded: Bool = false
     var isPlaying: Bool = false
     
     var youTubePlayer: YouTubePlayer? {
         player
     }
 
-    
     // Temporarily store current video when entering Shorts view
     private var temporaryStoredVideo: Video?
     
     @ObservationIgnored
     private var player: YouTubePlayer?
-    @ObservationIgnored
-    private var userDidPause: Bool = false
-    @ObservationIgnored
-    private var wasPlayingBeforeStateChange: Bool = false
     @ObservationIgnored
     private var playbackState: YouTubePlayer.PlaybackState? {
         didSet {
@@ -68,65 +56,13 @@ class VideoManager {
         }
     }
     
-    /// Play without marking as user-initiated (for auto-resume scenarios)
-    private func playWithoutUserTracking() async {
-        guard let player else { return }
-        do {
-            try await player.play()
-        } catch {
-            print("Failed to auto-play: \(error)")
-        }
-    }
-    
     func togglePlayPause() async {
         if playbackState == .playing {
-            userDidPause = true
             await pause()
         } else {
-            userDidPause = false
             await play()
         }
     }
-    
-    /// Schedule an auto-resume check after a brief delay to handle state transitions
-    private func scheduleAutoResumeCheck() {
-        // Store the current playing state before potential auto-pause
-        wasPlayingBeforeStateChange = isPlaying
-        
-        // Check after a brief delay to see if we should auto-resume
-        Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-            await checkAndAutoResume()
-        }
-    }
-    
-    /// Check if we should auto-resume after a state change
-    private func checkAndAutoResume() async {
-        // Only auto-resume if:
-        // 1. We were playing before the state change
-        // 2. User didn't manually pause
-        // 3. Player is currently not playing
-        // 4. We have a valid player
-        guard wasPlayingBeforeStateChange,
-              !userDidPause,
-              !isPlaying,
-              player != nil else {
-            return
-        }
-        
-        print("Auto-resuming video after state change")
-        await playWithoutUserTracking()
-    }
-    
-    /// Handle placement change in mini player (inline to non-inline or vice versa)
-    func handlePlacementChange() {
-        scheduleAutoResumeCheck()
-    }
-    
-    /// Handle tab change which might cause auto-pause in mini player
-//    func handleTabChange() {
-//        scheduleAutoResumeCheck()
-//    }
     
     /// Temporarily stores the current video and sets currentVideo to nil
     func temporarilyStoreCurrentVideo() {
@@ -150,9 +86,6 @@ class VideoManager {
         playbackState = nil
         player = nil
         restoredVideoID = nil
-        // Reset user pause state for new video
-        userDidPause = false
-        wasPlayingBeforeStateChange = false
         
         guard let newVideo else { return }
         
@@ -163,6 +96,10 @@ class VideoManager {
         player = newPlayer
         playbackState = newPlayer.playbackState
         observePlayer(newPlayer)
+        Task { [weak self] in
+            guard let self else { return }
+            await self.play()
+        }
     }
     
     private func makePlayer(for video: Video) -> YouTubePlayer {
@@ -185,18 +122,7 @@ class VideoManager {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
                 guard let self else { return }
-                let previousState = self.playbackState
                 self.playbackState = state
-                
-                // Handle auto-pause detection and resume
-                if previousState == .playing && state == .paused && !self.userDidPause {
-                    // This might be an auto-pause, schedule a resume check
-                    Task {
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-                        await self.handlePotentialAutoPause()
-                    }
-                }
-                
                 if state == .ended {
                     self.markVideoAsCompleted()
                 }
@@ -272,18 +198,5 @@ class VideoManager {
         }
         if !force, abs(video.watchProgressSeconds - sanitized) < 1 { return }
         video.watchProgressSeconds = sanitized
-    }
-    
-    /// Handle potential auto-pause and resume if appropriate
-    private func handlePotentialAutoPause() async {
-        // Only auto-resume if user didn't manually pause and we're currently paused
-        guard !userDidPause,
-              playbackState == .paused,
-              player != nil else {
-            return
-        }
-        
-        print("Detected auto-pause, attempting to resume")
-        await playWithoutUserTracking()
     }
 }
