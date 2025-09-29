@@ -90,3 +90,18 @@ extension String {
         return hours * 3600 + minutes * 60 + seconds
     }
 }
+
+extension URL {
+    var youtubeVideoID: String? {
+        if host == "youtu.be" {
+            return pathComponents.dropFirst().first
+        } else if host == "www.youtube.com" || host == "youtube.com" {
+            if path == "/watch" {
+                return URLComponents(url: self, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "v" })?.value
+            } else if path.starts(with: "/embed/") {
+                return pathComponents.last
+            }
+        }
+        return nil
+    }
+}

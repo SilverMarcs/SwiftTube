@@ -4,6 +4,7 @@ import SwiftMediaViewer
 
 struct YTPlayerView: View {
     @Environment(VideoManager.self) var manager
+    @Environment(\.colorScheme) var colorScheme
     
     @State private var showPlayer = false
     
@@ -30,7 +31,11 @@ struct YTPlayerView: View {
                     CachedAsyncImage(url:  URL(string: video.thumbnailURL), targetSize: 500)
                         .blur(radius: 10)
                         .overlay {
-                            Color.black.opacity(0.85)
+                            if colorScheme == .dark {
+                                Color.black.opacity(0.85)
+                            } else {
+                                Color.white.opacity(0.85)
+                            }
                         }
                         .clipped()
                         .ignoresSafeArea()

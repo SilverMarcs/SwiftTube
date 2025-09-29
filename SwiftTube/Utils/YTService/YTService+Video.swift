@@ -44,4 +44,30 @@ extension YTService {
             }
         }
     }
+    
+    static func fetchVideo(byId id: String) async throws -> Video {
+        let url = URL(string: "\(baseURL)/videos?part=snippet,contentDetails,statistics&id=\(id)")!
+        
+        let response: VideoDetailResponse = try await fetchOAuthResponse(from: url)
+        
+        guard let item = response.items.first else {
+            throw APIError.videoNotFound
+        }
+        
+        let channel = try await YTService.fetchChannel(byId: item.snippet.channelId)
+        
+        let duration = item.contentDetails.duration.parseDurationToSeconds()
+        
+        return Video(
+            id: item.id,
+            title: item.snippet.title,
+            videoDescription: item.snippet.description,
+            thumbnailURL: item.snippet.thumbnails.medium.url,
+            publishedAt: ISO8601DateFormatter().date(from: item.snippet.publishedAt) ?? Date(),
+            url: "https://www.youtube.com/watch?v=\(item.id)",
+            channel: channel,
+            viewCount: item.statistics.viewCount,
+            isShort: duration <= 60
+        )
+    }
 }

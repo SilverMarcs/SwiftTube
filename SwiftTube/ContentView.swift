@@ -54,6 +54,23 @@ struct ContentView: View {
             }
         }
         #endif
+        .environment(\.openURL, OpenURLAction { url in
+            if let videoId = url.youtubeVideoID {
+                manager.currentVideo = nil
+                Task {
+                    do {
+                        let video = try await YTService.fetchVideo(byId: videoId)
+                        
+                        manager.currentVideo = video
+                        manager.isExpanded = true
+                    } catch {
+                        print("Failed to fetch video: \(error)")
+                    }
+                }
+                return .handled
+            }
+            return .systemAction
+        })
     }
 }
 
