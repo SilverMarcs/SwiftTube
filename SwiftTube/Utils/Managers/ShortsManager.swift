@@ -8,6 +8,7 @@ class ShortsManager {
     var player: YouTubePlayer?
     var currentVideo: Video?
     var currentIndex: Int = 0
+    var watchStartTime: Date?
     
     /// Start playing a short video
     func startPlaying(_ video: Video, at index: Int) {
@@ -15,6 +16,7 @@ class ShortsManager {
         
         currentVideo = video
         currentIndex = index
+        watchStartTime = Date()
         
         createPlayerIfNeeded(id: video.id)
         loadVideo(video)
@@ -22,8 +24,10 @@ class ShortsManager {
     
     /// Switch to a different short video
     func switchTo(_ video: Video, at index: Int) {
+        markCurrentVideoAsWatchedIfNeeded()
         currentVideo = video
         currentIndex = index
+        watchStartTime = Date()
         loadVideo(video)
     }
     
@@ -35,6 +39,18 @@ class ShortsManager {
     func pause() async {
         guard let player else { return }
         try? await player.pause()
+    }
+    
+    /// Mark current video as watched if we've been watching for about 90% of its duration
+    func markCurrentVideoAsWatchedIfNeeded() {
+        guard let video = currentVideo, let startTime = watchStartTime, let duration = video.duration else { return }
+        
+        let watchDuration = Date().timeIntervalSince(startTime)
+        let ninetyPercentDuration = Double(duration) * 0.9
+        
+        if watchDuration >= ninetyPercentDuration {
+            video.lastWatchedAt = Date()
+        }
     }
     
     private func createPlayerIfNeeded(id: String) {

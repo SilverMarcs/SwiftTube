@@ -20,18 +20,15 @@ struct ShortsView: View {
     
     init() {
         let predicate = #Predicate<Video> { $0.isShort == true }
-        // Remove sort descriptors since we'll randomize manually
-        _shortVideos = Query(filter: predicate)
+        let sortDescriptors = [
+            SortDescriptor(\Video.lastWatchedAt, order: .forward), // nil values first (unwatched), then by date
+            SortDescriptor(\Video.publishedAt, order: .reverse) // newer videos first within each group
+        ]
         
-//        let sortDescriptors = [
-//            SortDescriptor(\Video.watchProgressSeconds, order: .forward),
-//            SortDescriptor(\Video.publishedAt, order: .reverse)
-//        ]
-//        
-//        _shortVideos = Query(
-//            filter: predicate,
-//            sort: sortDescriptors
-//        )
+        _shortVideos = Query(
+            filter: predicate,
+            sort: sortDescriptors
+        )
     }
     
     var body: some View {
@@ -72,6 +69,7 @@ struct ShortsView: View {
                 }
             }
             .onDisappear {
+                shortsManager.markCurrentVideoAsWatchedIfNeeded()
                 Task {
                     await shortsManager.pause()
                 }
