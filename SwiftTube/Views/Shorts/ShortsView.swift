@@ -12,9 +12,9 @@ import SwiftData
 struct ShortsView: View {
     @Query private var shortVideos: [Video]
     
-    @Environment(VideoManager.self) var manager
+    @Environment(VideoManager.self) var videoManager
+    @Environment(ShortsManager.self) var shortsManager
     @Environment(\.colorScheme) var colorScheme
-    @State private var shortsManager = ShortsManager()
 
     @State private var currentIndex = 0
     
