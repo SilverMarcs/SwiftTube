@@ -11,9 +11,9 @@ struct MiniPlayerAccessoryView: View {
             if let video = manager.currentVideo {
                 if placement == .inline {
                     HStack {
-                       CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
-                            .aspectRatio(16/9, contentMode: .fill)
-                            .frame(maxWidth: 60, maxHeight: 34)
+                        CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
+                            .aspectRatio(4/3, contentMode: .fill)
+                            .frame(maxWidth: 40, maxHeight: 34)
                             .clipShape(.rect(cornerRadius: 10))
                         
                         Text(video.title)
@@ -39,9 +39,9 @@ struct MiniPlayerAccessoryView: View {
                     }
                 } else {
                     HStack {
-                        CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 250)
-                            .aspectRatio(16/9, contentMode: .fill)
-                            .frame(maxWidth: 60, maxHeight: 34)
+                        CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
+                            .aspectRatio(4/3, contentMode: .fill)
+                            .frame(maxWidth: 40, maxHeight: 34)
                             .clipShape(.rect(cornerRadius: 10))
                         
                         VStack(alignment: .leading) {
