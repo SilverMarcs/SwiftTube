@@ -11,7 +11,7 @@ import Foundation
 
 @ModelActor
 actor VideoLoader {
-    static let oneMonthAgo =  Calendar.current.date(byAdding: .day, value: -15, to: Date()) ?? Date()
+    static let oneWeekAgo =  Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
 
     func loadAllChannelVideos() async {
         // First, clean up videos older than a month
@@ -25,7 +25,7 @@ actor VideoLoader {
                 group.addTask {
                     do {
                         let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
-                        let recentVideos = channelVideos.filter { $0.publishedAt >= Self.oneMonthAgo }
+                        let recentVideos = channelVideos.filter { $0.publishedAt >= Self.oneWeekAgo }
                         for video in recentVideos {
                             await self.upsertVideo(video)
                         }
@@ -50,7 +50,7 @@ actor VideoLoader {
                 group.addTask {
                     do {
                         let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
-                        let recentVideos = channelVideos.filter { $0.publishedAt >= Self.oneMonthAgo }
+                        let recentVideos = channelVideos.filter { $0.publishedAt >= Self.oneWeekAgo }
                         for video in recentVideos {
                             await self.upsertVideo(video)
                         }
@@ -88,7 +88,7 @@ actor VideoLoader {
     }
     
     private func cleanupOldVideos() async {
-        let cutoffDate = Self.oneMonthAgo
+        let cutoffDate = Self.oneWeekAgo
         let descriptor = FetchDescriptor<Video>(predicate: #Predicate<Video> { video in
             video.publishedAt < cutoffDate
         })

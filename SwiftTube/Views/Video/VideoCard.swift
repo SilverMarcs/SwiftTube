@@ -47,24 +47,31 @@ struct VideoCard: View {
                             .lineLimit(1)
                             .font(.subheadline)
                             .fontWeight(.medium)
+                            .padding(.leading, 2)
 
                         Spacer()
 
                         Group {
                             // Views
-                            Label(video.viewCount.formatNumber(), systemImage: "eye")
-                                .labelIconToTitleSpacing(2)
-                                .font(.caption2)
+                            Label {
+                                Text(video.viewCount.formatNumber())
+                                    .font(.caption)
+                            } icon: {
+                                Image(systemName: "eye")
+                                    .font(.system(size: 8))
+                            }
+                            .labelIconToTitleSpacing(2)
                             
-                            // Separator dot
-                            Text("•")
-                                .fontWeight(.light)
-                                .font(.caption)
 
                             // Time
-                            Label(video.publishedAt.customRelativeFormat(), systemImage: "clock")
-                                .labelIconToTitleSpacing(1)
-                                .font(.caption2)
+                            Label {
+                                Text(video.publishedAt.customRelativeFormat())
+                                    .font(.caption)
+                            } icon: {
+                                Image(systemName: "clock")
+                                    .font(.system(size: 8))
+                            }
+                            .labelIconToTitleSpacing(0)
                         }
                         .padding(.bottom, -1)
                     }

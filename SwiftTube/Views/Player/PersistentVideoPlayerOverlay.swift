@@ -14,6 +14,7 @@ struct PersistentVideoPlayerOverlay: View {
                 case .idle:
                     ProgressView()
                 case .ready:
+                    // TODO: custom overlay here
                     EmptyView()
                 case .error(_):
                     ContentUnavailableView {
