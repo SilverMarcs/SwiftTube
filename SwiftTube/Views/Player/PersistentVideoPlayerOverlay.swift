@@ -23,7 +23,6 @@ struct PersistentVideoPlayerOverlay: View {
                     )
                 }
             }
-            .id(video.id)
             .aspectRatio(16/9, contentMode: .fit)
             .background {
                 CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
