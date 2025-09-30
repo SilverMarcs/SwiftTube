@@ -44,8 +44,11 @@ extension Video {
     }
     
     func updateWatchProgress(_ seconds: Double) {
-        let sanitized = max(0, min(seconds, Double(duration ?? Int.max)))
-        guard abs(watchProgressSeconds - sanitized) > 1 else { return }
-        watchProgressSeconds = sanitized
+        let sanitized = max(0, seconds)
+        if let duration = duration {
+            watchProgressSeconds = min(sanitized, Double(duration))
+        } else {
+            watchProgressSeconds = sanitized
+        }
     }
 }
