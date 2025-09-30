@@ -70,17 +70,19 @@ struct VideoDetailView: View {
                 }
 
                 // Description
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Description")
-                        .font(.headline)
-                    
-                    ExpandableText(text: video.videoDescription, maxCharacters: 200)
-                        .font(.subheadline)
+                if !video.videoDescription.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Description")
+                            .font(.headline)
+                        
+                        ExpandableText(text: video.videoDescription, maxCharacters: 200)
+                            .font(.subheadline)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading) // Add this line
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 12)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(.background.secondary))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading) // Add this line
-                .padding(.vertical, 12)
-                .padding(.horizontal, 12)
-                .background(RoundedRectangle(cornerRadius: 12).fill(.background.secondary))
             
                 // Comments Section
                 VideoCommentsView(video: video)

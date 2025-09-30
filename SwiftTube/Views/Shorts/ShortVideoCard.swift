@@ -4,13 +4,13 @@ import YouTubePlayerKit
 struct ShortVideoCard: View {
     let video: Video
     let isActive: Bool
+    let shortsManager: ShortsManager
     
-    @State private var youTubePlayer: YouTubePlayer?
     @State private var showDetail: Bool = false
     
     var body: some View {
         VStack {
-            if let player = youTubePlayer {
+            if let player = shortsManager.player, isActive, shortsManager.isPlaying(video) {
                 YouTubePlayerView(player) { state in
                     switch state {
                     case .idle:
@@ -59,27 +59,5 @@ struct ShortVideoCard: View {
                 .presentationDetents([.medium])
                 .presentationBackground(.bar)
         }
-        .task(id: isActive) {
-            if isActive {
-                setupPlayer()
-            } else {
-                youTubePlayer = nil
-            }
-        }
-    }
-    
-    private func setupPlayer() {
-        youTubePlayer = YouTubePlayer(
-            source: .video(id: video.id),
-            parameters: .init(
-                autoPlay: true,
-                loopEnabled: true,
-                showControls: false
-            ),
-            configuration: .init(
-                allowsInlineMediaPlayback: true,
-                allowsPictureInPictureMediaPlayback: false
-            )
-        )
     }
 }

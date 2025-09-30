@@ -14,9 +14,9 @@ struct ShortsView: View {
     
     @Environment(VideoManager.self) var manager
     @Environment(\.colorScheme) var colorScheme
+    @State private var shortsManager = ShortsManager()
 
     @State private var currentIndex = 0
-    @State private var randomizedVideos: [Video] = []
     
     init() {
         let predicate = #Predicate<Video> { $0.isShort == true }
@@ -37,14 +37,14 @@ struct ShortsView: View {
     var body: some View {
         NavigationStack {
             TabView(selection: $currentIndex) {
-                ForEach(Array(randomizedVideos.enumerated()), id: \.element.id) { index, video in
-                    ShortVideoCard(video: video, isActive: currentIndex == index)
+                ForEach(Array(shortVideos.enumerated()), id: \.element.id) { index, video in
+                    ShortVideoCard(video: video, isActive: currentIndex == index, shortsManager: shortsManager)
                         .tag(index)
                 }
             }
             .background {
-                if !randomizedVideos.isEmpty {
-                    CachedAsyncImage(url: URL(string: randomizedVideos[currentIndex].thumbnailURL), targetSize: 500)
+                if !shortVideos.isEmpty {
+                    CachedAsyncImage(url: URL(string: shortVideos[currentIndex].thumbnailURL), targetSize: 500)
                         .blur(radius: 10)
                         .overlay {
                             if colorScheme == .dark {
@@ -59,17 +59,24 @@ struct ShortsView: View {
             }
             .ignoresSafeArea()
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .onAppear {
-                randomizeVideos()
+            .onChange(of: currentIndex) { oldIndex, newIndex in
+                if !shortVideos.isEmpty && newIndex < shortVideos.count {
+                    let video = shortVideos[newIndex]
+                    shortsManager.switchTo(video, at: newIndex)
+                }
             }
-//            .onChange(of: shortVideos) { _, _ in
-//                randomizeVideos()
-//            }
+            .onAppear {
+                if !shortVideos.isEmpty {
+                    let video = shortVideos[currentIndex]
+                    shortsManager.startPlaying(video, at: currentIndex)
+                }
+            }
+            .onDisappear {
+                Task {
+                    await shortsManager.pause()
+                }
+            }
         }
-    }
-    
-    private func randomizeVideos() {
-        randomizedVideos = shortVideos.shuffled()
-        currentIndex = 0
+        .environment(shortsManager)
     }
 }
