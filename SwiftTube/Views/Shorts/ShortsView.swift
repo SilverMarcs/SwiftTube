@@ -45,11 +45,7 @@ struct ShortsView: View {
                     CachedAsyncImage(url: URL(string: shortVideos[currentIndex].thumbnailURL), targetSize: 500)
                         .blur(radius: 10)
                         .overlay {
-                            if colorScheme == .dark {
-                                Color.black.opacity(0.8)
-                            } else {
-                                Color.white.opacity(0.5)
-                            }
+                            Color.black.opacity(0.8)
                         }
                         .clipped()
                         .ignoresSafeArea()

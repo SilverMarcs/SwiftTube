@@ -36,7 +36,7 @@ struct VideoCard: View {
                         .font(.headline)
                         .lineLimit(2)
                     
-                    HStack(alignment: .center, spacing: 2) {
+                    HStack(alignment: .center, spacing: 4) {
                         if let channel = video.channel, let url = URL(string: channel.thumbnailURL) {
                             CachedAsyncImage(url: url, targetSize: 50)
                                 .frame(width: 20, height: 20)
@@ -47,18 +47,17 @@ struct VideoCard: View {
                             .lineLimit(1)
                             .font(.subheadline)
                             .fontWeight(.medium)
-                            .padding(.leading, 2)
 
                         Spacer()
 
-                        Group {
+                        HStack(spacing: 4) {
                             // Views
                             Label {
                                 Text(video.viewCount.formatNumber())
-                                    .font(.caption)
+                                    .font(.footnote)
                             } icon: {
                                 Image(systemName: "eye")
-                                    .font(.system(size: 8))
+                                    .font(.system(size: 10))
                             }
                             .labelIconToTitleSpacing(2)
                             
@@ -66,10 +65,10 @@ struct VideoCard: View {
                             // Time
                             Label {
                                 Text(video.publishedAt.customRelativeFormat())
-                                    .font(.caption)
+                                    .font(.footnote)
                             } icon: {
                                 Image(systemName: "clock")
-                                    .font(.system(size: 8))
+                                    .font(.system(size: 10))
                             }
                             .labelIconToTitleSpacing(0)
                         }
