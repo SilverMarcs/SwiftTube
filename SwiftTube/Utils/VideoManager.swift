@@ -80,7 +80,7 @@ class VideoManager {
     private func loadVideo(_ video: Video) {
         guard let player else { return }
         
-        // Simple approach: load video, then seek if needed
+        // Simple approach: load video with current progress directly
         let startTime = video.watchProgressSeconds > 5 
             ? Measurement(value: video.watchProgressSeconds, unit: UnitDuration.seconds)
             : nil

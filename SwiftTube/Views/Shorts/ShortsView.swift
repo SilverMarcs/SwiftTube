@@ -22,6 +22,16 @@ struct ShortsView: View {
         let predicate = #Predicate<Video> { $0.isShort == true }
         // Remove sort descriptors since we'll randomize manually
         _shortVideos = Query(filter: predicate)
+        
+//        let sortDescriptors = [
+//            SortDescriptor(\Video.watchProgressSeconds, order: .forward),
+//            SortDescriptor(\Video.publishedAt, order: .reverse)
+//        ]
+//        
+//        _shortVideos = Query(
+//            filter: predicate,
+//            sort: sortDescriptors
+//        )
     }
     
     var body: some View {
