@@ -9,6 +9,7 @@ import Foundation
 
 enum YTService {
     static let baseURL = "https://www.googleapis.com/youtube/v3"
+    static let isoFormatter = ISO8601DateFormatter()
     
     // MARK: - Core Request Methods
     

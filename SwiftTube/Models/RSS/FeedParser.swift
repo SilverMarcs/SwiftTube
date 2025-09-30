@@ -8,6 +8,7 @@
 import Foundation
 
 class FeedParser: NSObject, XMLParserDelegate {
+    private static let isoFormatter = ISO8601DateFormatter()
     var feed: Feed?
     private var currentElement = ""
     private var currentEntry: Entry?
@@ -84,8 +85,8 @@ class FeedParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
         if elementName == "entry" {
             inEntry = false
-            if let publishedDate = ISO8601DateFormatter().date(from: currentPublished),
-               let updatedDate = ISO8601DateFormatter().date(from: currentUpdated) {
+            if let publishedDate = FeedParser.isoFormatter.date(from: currentPublished),
+               let updatedDate = FeedParser.isoFormatter.date(from: currentUpdated) {
                 let author = Author(name: currentAuthorName)
                 let videoThumbnail = YouTubeVideoThumbnail(videoID: currentVideoId)
                 let thumbnail = FeedThumbnail(url: videoThumbnail.url?.absoluteString ?? "", width: 120, height: 90)

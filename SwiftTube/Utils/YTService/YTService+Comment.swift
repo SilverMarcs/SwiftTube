@@ -14,7 +14,7 @@ extension YTService {
         let response: CommentThreadsResponse = try await fetchOAuthResponse(from: url)
         
         var comments: [Comment] = []
-        let dateFormatter = ISO8601DateFormatter()
+        let dateFormatter = YTService.isoFormatter
         
         for thread in response.items {
             // Create top-level comment

@@ -63,7 +63,7 @@ extension YTService {
             title: item.snippet.title,
             videoDescription: item.snippet.description,
             thumbnailURL: item.snippet.thumbnails.medium.url,
-            publishedAt: ISO8601DateFormatter().date(from: item.snippet.publishedAt) ?? Date(),
+            publishedAt: YTService.isoFormatter.date(from: item.snippet.publishedAt) ?? Date(),
             url: "https://www.youtube.com/watch?v=\(item.id)",
             channel: channel,
             viewCount: item.statistics.viewCount,
