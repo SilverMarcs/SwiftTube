@@ -12,6 +12,7 @@ class VideoManager {
     var isExpanded: Bool = false
     var playbackState: YouTubePlayer.PlaybackState? = nil
     var currentVideo: Video? = nil
+    var isMiniPlayerVisible: Bool = true
     
     /// Start playing a video
     func startPlaying(_ video: Video) {
@@ -49,6 +50,7 @@ class VideoManager {
         }
     }
     
+    @MainActor
     func togglePlayPause() async {
         guard let player else { return }
         

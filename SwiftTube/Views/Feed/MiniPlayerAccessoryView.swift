@@ -7,7 +7,7 @@ struct MiniPlayerAccessoryView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     
     var body: some View {
-        if let video = manager.currentVideo {
+        if let video = manager.currentVideo, manager.isMiniPlayerVisible {
             if placement == .inline {
                 HStack {
                     CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
@@ -29,6 +29,7 @@ struct MiniPlayerAccessoryView: View {
                         Image(systemName: manager.playbackState == .playing ? "pause.fill" : "play.fill")
                             .font(.caption)
                             .foregroundColor(.primary)
+                            .contentTransition(.symbolEffect(.replace))
                     }
                 }
                 .padding(.horizontal)

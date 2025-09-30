@@ -59,11 +59,7 @@ class ShortsManager {
         player = YouTubePlayer(
             source: .video(id: id),
             parameters: .init(autoPlay: true, loopEnabled: true, showControls: false),
-            configuration: .init(
-                fullscreenMode: .system,
-                allowsInlineMediaPlayback: true,
-                allowsPictureInPictureMediaPlayback: false
-            )
+            configuration: .init(allowsInlineMediaPlayback: true)
         )
     }
     

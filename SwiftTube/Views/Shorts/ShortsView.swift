@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftMediaViewer
 import SwiftData
+import YouTubePlayerKit
 
 struct ShortsView: View {
     @Query private var shortVideos: [Video]
@@ -67,11 +68,21 @@ struct ShortsView: View {
                     let video = shortVideos[currentIndex]
                     shortsManager.startPlaying(video, at: currentIndex)
                 }
+                
+                DispatchQueue.main.async {
+                    videoManager.isMiniPlayerVisible = false
+                }
+                Task {
+                    try? await videoManager.player?.pause()
+                }
             }
             .onDisappear {
                 shortsManager.markCurrentVideoAsWatchedIfNeeded()
                 Task {
                     await shortsManager.pause()
+                }
+                DispatchQueue.main.async {
+                    videoManager.isMiniPlayerVisible = true
                 }
             }
         }
