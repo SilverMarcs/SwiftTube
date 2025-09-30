@@ -21,9 +21,9 @@ struct ShortVideoCard: View {
                     case .ready:
                         HStack {
                             if let channel = video.channel {
-                                ChannelRowView(item: channel)
+                                ChannelRowView(item: channel, subtitle: video.title)
                                     .foregroundStyle(.white)
-                                    .shadow(color: .black, radius: 6, x: 0, y: 2)
+                                    .shadow(color: .black, radius: 20, x: 0, y: 0)
                                     .navigationLinkIndicatorVisibility(.hidden)
                             }
                             

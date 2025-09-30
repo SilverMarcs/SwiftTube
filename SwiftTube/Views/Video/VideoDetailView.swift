@@ -12,95 +12,90 @@ struct VideoDetailView: View {
     @State var showDetail: Bool = false
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading) {
-                // Video Title
-                Text(video.title)
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                    .multilineTextAlignment(.leading)
-                
-                // Video Stats (Views, Likes, Published)
-                HStack(spacing: 5) {
-                    Label(video.viewCount.formatNumber(), systemImage: "eye")
-                        .labelIconToTitleSpacing(2)
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading) {
+                    // Video Title
+                    Text(video.title)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .multilineTextAlignment(.leading)
                     
-                    Text("•")
-                    Text(video.publishedAt, style: .date)
-                    
-                    Spacer()
-                    
-                    if let likesText = video.likeCount?.formatNumber() {
-                        Label(likesText, systemImage: "hand.thumbsup.fill")
-                    }
-                    
-                    Button {
-                        video.isWatchLater.toggle()
-                        try? modelContext.save()
-                    } label: {
-                        Label(
-                            video.isWatchLater ? "Remove from Watch Later" : "Add to Watch Later",
-                            systemImage: video.isWatchLater ? "bookmark.fill" : "bookmark"
-                        )
-                        .labelStyle(.iconOnly)
-                    }
-                    .foregroundStyle(video.isWatchLater ? .green : .secondary)
-                    .buttonStyle(.glass)
-                    .controlSize(.mini)
-                }
-                .font(.system(size: 14))
-                .foregroundStyle(.secondary)
-                .padding(.top, 1)
-            
-                // Channel Info
-                if let channel = video.channel {
-                    ChannelRowView(item: channel, isNavigation: false)
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(.background.secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .onTapGesture {
-                            showDetail.toggle()
-                        }
-                        .sheet(isPresented: $showDetail) {
-                            if let channel = video.channel {
-                                ChannelDetailView(channelItem: channel)
-                            }
-                        }
-                }
-
-                // Description
-                if !video.videoDescription.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Description")
-                            .font(.headline)
+                    // Video Stats (Views, Likes, Published)
+                    HStack(spacing: 5) {
+                        Label(video.viewCount.formatNumber(), systemImage: "eye")
+                            .labelIconToTitleSpacing(2)
                         
-                        ExpandableText(text: video.videoDescription, maxCharacters: 200)
-                            .font(.subheadline)
+                        Text("•")
+                        Text(video.publishedAt, style: .date)
+                        
+                        Spacer()
+                        
+                        if let likesText = video.likeCount?.formatNumber() {
+                            Label(likesText, systemImage: "hand.thumbsup.fill")
+                        }
+                        
+                        Button {
+                            video.isWatchLater.toggle()
+                            try? modelContext.save()
+                        } label: {
+                            Label(
+                                video.isWatchLater ? "Remove from Watch Later" : "Add to Watch Later",
+                                systemImage: video.isWatchLater ? "bookmark.fill" : "bookmark"
+                            )
+                            .labelStyle(.iconOnly)
+                        }
+                        .foregroundStyle(video.isWatchLater ? .green : .secondary)
+                        .buttonStyle(.glass)
+                        .controlSize(.mini)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading) // Add this line
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 12)
-                    .background(RoundedRectangle(cornerRadius: 12).fill(.background.secondary))
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 1)
+                    
+                    // Channel Info
+                    if let channel = video.channel {
+                        ChannelRowView(item: channel)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(.background.secondary)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .foregroundStyle(.primary)
+                    }
+                    
+                    // Description
+                    if !video.videoDescription.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Description")
+                                .font(.headline)
+                            
+                            ExpandableText(text: video.videoDescription, maxCharacters: 200)
+                                .font(.subheadline)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading) // Add this line
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(.background.secondary))
+                    }
+                    
+                    // Comments Section
+                    VideoCommentsView(video: video)
+                    
+                    // Related Videos
+                    //            if !videoDetail.relatedVideos.isEmpty {
+                    //                relatedVideosSection(for: videoDetail)
+                    //            }
                 }
-            
-                // Comments Section
-                VideoCommentsView(video: video)
-                
-                // Related Videos
-    //            if !videoDetail.relatedVideos.isEmpty {
-    //                relatedVideosSection(for: videoDetail)
-    //            }
-            }
-            .padding(10)
-            .overlay {
-                if isLoading {
-                   UniversalProgressView()
+                .padding(10)
+                .overlay {
+                    if isLoading {
+                        UniversalProgressView()
+                    }
                 }
+                //        .refreshable {
+                //            await loadVideoDetail()
+                //        }
             }
-//        .refreshable {
-//            await loadVideoDetail()
-//        }
         }
     }
 
