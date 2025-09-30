@@ -15,12 +15,17 @@ struct PersistentVideoPlayerOverlay: View {
                     ProgressView()
                 case .ready:
                     EmptyView()
-                case .error(let error):
-                    ContentUnavailableView(
-                        "Error",
-                        systemImage: "exclamationmark.triangle.fill",
-                        description: Text("YouTube player couldn't be loaded: \(error.localizedDescription)")
-                    )
+                case .error(_):
+                    ContentUnavailableView {
+                        Label("Error", systemImage: "exclamationmark.triangle.fill")
+                    } description: {
+                        Text("YouTube player couldn't be loaded:")
+                    } actions: {
+                        Button("Retry") {
+                            manager.retryCurrentVideo()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
             }
             .aspectRatio(16/9, contentMode: .fit)
