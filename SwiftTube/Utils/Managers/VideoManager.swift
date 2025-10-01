@@ -84,7 +84,11 @@ class VideoManager {
             
         Task {
             try? await player.load(videoId: video.id, startTime: startTime)
-            // Auto-play is handled by the player configuration
+            
+            // Fetch and set duration if not already set
+            if video.duration == nil, let duration = try? await player.duration {
+                video.duration = Int(duration)
+            }
         }
     }
     
@@ -103,7 +107,7 @@ class VideoManager {
         // Start observing player progress (every 5 seconds for progress saving)
         timeUpdateTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
+                try? await Task.sleep(for: .seconds(7))
                 guard let self = self else { break }
                 
                 // Get fresh current time directly from player

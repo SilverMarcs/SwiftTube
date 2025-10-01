@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		08E6301D2E87AB21007AD438 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 08E6301C2E87AB21007AD438 /* YouTubePlayerKit */; };
 		08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630512E87AD2A007AD438 /* SwiftMediaViewer */; };
 		08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630542E87AD56007AD438 /* SwiftMediaViewer */; };
 /* End PBXBuildFile section */
@@ -43,7 +42,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */,
-				08E6301D2E87AB21007AD438 /* YouTubePlayerKit in Frameworks */,
 				08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -87,7 +85,6 @@
 			);
 			name = SwiftTube;
 			packageProductDependencies = (
-				08E6301C2E87AB21007AD438 /* YouTubePlayerKit */,
 				08E630512E87AD2A007AD438 /* SwiftMediaViewer */,
 				08E630542E87AD56007AD438 /* SwiftMediaViewer */,
 			);
@@ -120,7 +117,6 @@
 			mainGroup = 08E62F7C2E871877007AD438;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				08E6301B2E87AB21007AD438 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */,
 				08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -404,14 +400,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		08E6301B2E87AB21007AD438 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/SvenTiigi/YouTubePlayerKit";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.2;
-			};
-		};
 		08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SilverMarcs/SwiftMediaViewer";
@@ -423,11 +411,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		08E6301C2E87AB21007AD438 /* YouTubePlayerKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 08E6301B2E87AB21007AD438 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */;
-			productName = YouTubePlayerKit;
-		};
 		08E630512E87AD2A007AD438 /* SwiftMediaViewer */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SwiftMediaViewer;

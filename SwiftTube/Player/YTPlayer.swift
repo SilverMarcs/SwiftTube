@@ -35,6 +35,8 @@ final class YTPlayer {
     // MARK: - Properties
     
     var state: State = .idle
+    private(set) var webPage: WebPage
+
     /// Get playback state as an async computed property
     var playbackState: PlaybackState {
         get async throws {
@@ -56,8 +58,16 @@ final class YTPlayer {
             return time
         }
     }
-    
-    private(set) var webPage: WebPage
+    /// Get video duration
+    var duration: TimeInterval {
+        get async throws {
+            let result = try await webPage.callJavaScript("return player.getDuration();")
+            guard let time = result as? Double else {
+                throw YTPlayerError.invalidResponse
+            }
+            return time
+        }
+    }
     private var videoId: String?
     private let configuration: Configuration
     
@@ -94,6 +104,9 @@ final class YTPlayer {
             switch event {
             case .finished:
                 state = .ready
+                if configuration.autoPlay {
+                    try? await play()
+                }
             default:
                 break
             }
