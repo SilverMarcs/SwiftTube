@@ -6,7 +6,7 @@ struct MiniPlayerAccessoryView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     
     var body: some View {
-        if let video = manager.currentVideo {
+        if let video = manager.currentVideo, manager.isMiniPlayerVisible {
             HStack {
                 CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
                     .aspectRatio(4/3, contentMode: .fill)
@@ -38,12 +38,10 @@ struct MiniPlayerAccessoryView: View {
             .onTapGesture {
                 manager.isExpanded = true
             }
+        } else if !manager.isMiniPlayerVisible {
+            EmptyView()
         } else {
-            if manager.isMiniPlayerVisible {
-                Text("No video playing")
-            } else {
-                EmptyView()
-            }
+            Text("No video playing")
         }
     }
 }

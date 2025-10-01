@@ -38,12 +38,6 @@ class ShortsManager {
         try? await player.pause()
     }
     
-    /// Mark current video as watched
-    func markCurrentVideoAsWatchedIfNeeded() {
-        guard let video = currentVideo else { return }
-        video.lastWatchedAt = Date()
-    }
-    
     private func createPlayerIfNeeded(id: String) {
         guard player == nil else { return }
         

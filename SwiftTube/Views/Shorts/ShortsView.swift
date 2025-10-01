@@ -10,38 +10,26 @@ import SwiftMediaViewer
 import SwiftData
 
 struct ShortsView: View {
-    @Query private var shortVideos: [Video]
+    @Query(filter: #Predicate<Video> { $0.isShort == true }) private var shortVideos: [Video]
     
     @Environment(VideoManager.self) var videoManager
     @Environment(ShortsManager.self) var shortsManager
     @Environment(\.colorScheme) var colorScheme
 
     @State private var currentIndex = 0
-    
-    init() {
-        let predicate = #Predicate<Video> { $0.isShort == true }
-        let _ = [
-//            SortDescriptor(\Video.lastWatchedAt, order: .forward), // nil values first (unwatched), then by date
-            SortDescriptor(\Video.publishedAt, order: .reverse) // newer videos first within each group
-        ]
-        
-        _shortVideos = Query(
-            filter: predicate,
-//            sort: sortDescriptors
-        )
-    }
+    @State private var shuffledVideos: [Video] = []
     
     var body: some View {
         NavigationStack {
             TabView(selection: $currentIndex) {
-                ForEach(Array(shortVideos.enumerated()), id: \.element.id) { index, video in
+                ForEach(Array(shuffledVideos.enumerated()), id: \.element.id) { index, video in
                     ShortVideoCard(video: video, isActive: currentIndex == index, shortsManager: shortsManager)
                         .tag(index)
                 }
             }
             .background {
-                if !shortVideos.isEmpty {
-                    CachedAsyncImage(url: URL(string: shortVideos[currentIndex].thumbnailURL), targetSize: 500)
+                if !shuffledVideos.isEmpty {
+                    CachedAsyncImage(url: URL(string: shuffledVideos[currentIndex].thumbnailURL), targetSize: 500)
                         .blur(radius: 10)
                         .overlay {
                             Color.black.opacity(0.8)
@@ -53,8 +41,8 @@ struct ShortsView: View {
             .ignoresSafeArea()
             .tabViewStyle(.page(indexDisplayMode: .never))
             .onChange(of: currentIndex) { oldIndex, newIndex in
-                if !shortVideos.isEmpty && newIndex < shortVideos.count {
-                    let video = shortVideos[newIndex]
+                if !shuffledVideos.isEmpty && newIndex < shuffledVideos.count {
+                    let video = shuffledVideos[newIndex]
                     shortsManager.switchTo(video, at: newIndex)
                 }
             }
@@ -63,8 +51,10 @@ struct ShortsView: View {
                     videoManager.isMiniPlayerVisible = false
                 }
                 
-                if !shortVideos.isEmpty {
-                    let video = shortVideos[currentIndex]
+                shuffledVideos = shortVideos.shuffled()
+                
+                if !shuffledVideos.isEmpty {
+                    let video = shuffledVideos[currentIndex]
                     shortsManager.startPlaying(video, at: currentIndex)
                 }
                 
@@ -76,13 +66,14 @@ struct ShortsView: View {
                 DispatchQueue.main.async {
                     videoManager.isMiniPlayerVisible = true
                 }
-                
-                shortsManager.markCurrentVideoAsWatchedIfNeeded()
+
                 Task {
                     await shortsManager.pause()
                 }
             }
+            .onChange(of: shortVideos) {
+                shuffledVideos = shortVideos.shuffled()
+            }
         }
-        .environment(shortsManager)
     }
 }
