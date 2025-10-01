@@ -127,6 +127,12 @@ final class YTPlayer {
         try await executePlayerCommand("seekTo(\(time), true)")
     }
     
+    /// Retry loading the current video
+    func retry() async throws {
+        guard let videoId else { throw YTPlayerError.playerNotReady }
+        try await load(videoId: videoId)
+    }
+    
     // MARK: - Private Methods
     
     private func executePlayerCommand(_ command: String) async throws {

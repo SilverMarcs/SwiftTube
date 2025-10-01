@@ -8,25 +8,6 @@ struct PersistentVideoPlayerOverlay: View {
     var body: some View {
         if let video = manager.currentVideo, let player = manager.player {
             YTPlayerView(player: player)
-                .overlay {
-                    switch player.state {
-                    case .idle:
-                        ProgressView().controlSize(.large)
-                    case .ready:
-                        EmptyView()
-                    case .error(_):
-                        ContentUnavailableView {
-                            Label("Error", systemImage: "exclamationmark.triangle.fill")
-                        } description: {
-                            Text("YouTube player couldn't be loaded")
-                        } actions: {
-                            Button("Retry") {
-                                manager.retryCurrentVideo()
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                    }
-                }
                 .aspectRatio(16/9, contentMode: .fit)
                 .background {
                     CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
