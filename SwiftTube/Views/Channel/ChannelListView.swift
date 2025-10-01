@@ -17,7 +17,7 @@ struct ChannelListView: View {
     // Filter subscriptions that aren't already saved as channels
     private var availableSubscriptions: [Subscription] {
         let channelIds = Set(channels.map { $0.id })
-        return subscriptions.filter { !channelIds.contains($0.channelId) }
+        return subscriptions.filter { !channelIds.contains($0.id) }
     }
     
     private var channels: [Channel] {
@@ -35,27 +35,13 @@ struct ChannelListView: View {
     var body: some View {
         NavigationStack {
             List {
-                if !channels.isEmpty {
-                    Section {
-                        ForEach(channels) { channel in
-                            ChannelRowView(item: channel)
-                        }
-                        .onDelete(perform: deleteChannels)
-                    }
-                }
-                
                 if authManager.isSignedIn {
-                    Section("My Subscriptions") {
+                    Section {
                         if availableSubscriptions.isEmpty {
-                            Button("Load Subscriptions") {
+                            Button(isLoadingSubscriptions ? "Loading..." : "Load Subscriptions") {
                                 Task { await loadSubscriptions() }
                             }
                             .frame(maxWidth: .infinity)
-                            .overlay {
-                                if isLoadingSubscriptions {
-                                    UniversalProgressView()
-                                }
-                            }
                         } else {
                             ForEach(filteredSubscriptions) { subscription in
                                 HStack {
@@ -75,6 +61,15 @@ struct ChannelListView: View {
                                 }
                             }
                         }
+                    }
+                }
+                
+                if !channels.isEmpty {
+                    Section("Saved Channels") {
+                        ForEach(channels) { channel in
+                            ChannelRowView(item: channel)
+                        }
+                        .onDelete(perform: deleteChannels)
                     }
                 }
             }
@@ -122,7 +117,7 @@ struct ChannelListView: View {
     
     private func addSubscriptionAsChannel(_ subscription: Subscription) {
         let channel = Channel(
-            id: subscription.channelId,
+            id: subscription.id,
             title: subscription.title,
             channelDescription: subscription.description,
             thumbnailURL: subscription.thumbnailURL

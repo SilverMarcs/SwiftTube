@@ -51,8 +51,7 @@ struct ChannelDetailView: View {
         id: "UCBJycsmduvYEL83R_U4JriQ",
         title: "Marques Brownlee",
         description: "Technology reviews and discussions",
-        thumbnailURL: "https://example.com/thumbnail.jpg",
-        channelId: "UCBJycsmduvYEL83R_U4JriQ"
+        thumbnailURL: "https://example.com/thumbnail.jpg"
     )
     
     ChannelDetailView(channelItem: subscription)

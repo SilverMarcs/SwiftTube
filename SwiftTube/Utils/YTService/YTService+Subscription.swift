@@ -23,11 +23,10 @@ extension YTService {
             
             for item in response.items {
                 let subscription = Subscription(
-                    id: item.id,
+                    id: item.snippet.resourceId.channelId,
                     title: item.snippet.title,
                     description: item.snippet.description,
-                    thumbnailURL: item.snippet.thumbnails.medium.url,
-                    channelId: item.snippet.resourceId.channelId
+                    thumbnailURL: item.snippet.thumbnails.medium.url
                 )
                 allSubscriptions.append(subscription)
             }

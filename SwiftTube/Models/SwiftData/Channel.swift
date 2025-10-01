@@ -43,7 +43,6 @@ struct Subscription: Identifiable, Hashable {
     let title: String
     let description: String
     let thumbnailURL: String
-    let channelId: String
 }
 
 extension Subscription: ChannelDisplayable {
