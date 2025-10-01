@@ -1,13 +1,12 @@
 import SwiftUI
 import SwiftMediaViewer
-import YouTubePlayerKit
 
 struct MiniPlayerAccessoryView: View {
     @Environment(VideoManager.self) var manager
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     
     var body: some View {
-        if let video = manager.currentVideo, manager.isMiniPlayerVisible {
+        if let video = manager.currentVideo {
             if placement == .inline {
                 HStack {
                     CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
@@ -76,7 +75,11 @@ struct MiniPlayerAccessoryView: View {
                 }
             }
         } else {
-            Text("No video playing")
+            if manager.isMiniPlayerVisible {
+                Text("No video playing")
+            } else {
+                EmptyView()
+            }
         }
     }
 }
