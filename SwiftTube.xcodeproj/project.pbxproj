@@ -21,6 +21,10 @@
 			membershipExceptions = (
 				Info.plist,
 			);
+			platformFiltersByRelativePath = {
+				AppDelegate.swift = (ios, xros, );
+				Utils/Managers/OrientationManager.swift = (ios, xros, );
+			};
 			target = 08E62F842E871877007AD438 /* SwiftTube */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */

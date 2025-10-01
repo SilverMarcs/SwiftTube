@@ -2,6 +2,12 @@ import Foundation
 import WebKit
 import Observation
 
+// MARK: - Notifications
+
+extension Notification.Name {
+    static let fullscreenStateChanged = Notification.Name("fullscreenStateChanged")
+}
+
 /// A minimal YouTube player using WebPage and WebView APIs
 @Observable
 final class YTPlayer {
@@ -35,6 +41,8 @@ final class YTPlayer {
     // MARK: - Properties
     
     var state: State = .idle
+    /// Local source of truth for fullscreen state - toggles whenever YouTube sends a fullscreen change event
+    var isFullscreen: Bool = false
     private(set) var webPage: WebPage
 
     /// Get playback state as an async computed property
@@ -80,8 +88,29 @@ final class YTPlayer {
         config.mediaPlaybackBehavior = .allowsInlinePlayback
         config.websiteDataStore = .default()
         
+        // Set up message handler for fullscreen changes
+        let handler = FullscreenMessageHandler()
+        config.userContentController.add(handler, name: "fullscreenChange")
+        
         self.webPage = WebPage(configuration: config)
         self.webPage.isInspectable = false
+        
+        // Set up notification observer after initialization
+        setupFullscreenObserver()
+    }
+    
+    private func setupFullscreenObserver() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleFullscreenChange(_:)),
+            name: .fullscreenStateChanged,
+            object: nil
+        )
+    }
+    
+    @objc private func handleFullscreenChange(_ notification: Notification) {
+        // Toggle our local fullscreen state whenever we receive a fullscreen change event
+        self.isFullscreen.toggle()
     }
     
     // MARK: - Public API
@@ -200,7 +229,8 @@ final class YTPlayer {
                         events: {
                             'onReady': onPlayerReady,
                             'onStateChange': onPlayerStateChange,
-                            'onError': onPlayerError
+                            'onError': onPlayerError,
+                            'onFullscreenChange': onFullscreenChange
                         }
                     });
                 }
@@ -216,6 +246,13 @@ final class YTPlayer {
                 function onPlayerError(event) {
                     // Error occurred
                 }
+                
+                function onFullscreenChange(event) {
+                    const isFullscreen = event.data === 1;
+                    window.webkit.messageHandlers.fullscreenChange.postMessage({
+                        fullscreen: isFullscreen
+                    });
+                }
             </script>
         </body>
         </html>
@@ -228,4 +265,22 @@ final class YTPlayer {
 enum YTPlayerError: Error {
     case invalidResponse
     case playerNotReady
+}
+
+// MARK: - Fullscreen Message Handler
+
+private class FullscreenMessageHandler: NSObject, WKScriptMessageHandler {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let body = message.body as? [String: Any],
+              let isFullscreen = body["fullscreen"] as? Bool else {
+            return
+        }
+        
+        // Post notification that can be observed
+        NotificationCenter.default.post(
+            name: .fullscreenStateChanged,
+            object: nil,
+            userInfo: ["isFullscreen": isFullscreen]
+        )
+    }
 }
