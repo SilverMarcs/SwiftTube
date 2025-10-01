@@ -41,6 +41,7 @@ struct ChannelListView: View {
                             Button(isLoadingSubscriptions ? "Loading..." : "Load Subscriptions") {
                                 Task { await loadSubscriptions() }
                             }
+                            .disabled(isLoadingSubscriptions)
                             .frame(maxWidth: .infinity)
                         } else {
                             ForEach(filteredSubscriptions) { subscription in

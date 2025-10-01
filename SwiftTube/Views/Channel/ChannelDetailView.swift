@@ -3,9 +3,17 @@ import SwiftData
 
 struct ChannelDetailView: View {
     let channelItem: ChannelDisplayable
+    @Environment(\.modelContext) private var modelContext
     @State private var videos: [Video] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    
+    private var isSavedChannel: Bool {
+        let channelId = channelItem.id
+        var descriptor = FetchDescriptor<Channel>(predicate: #Predicate { $0.id == channelId })
+        descriptor.fetchLimit = 1
+        return (try? modelContext.fetch(descriptor).first) != nil
+    }
     
     var body: some View {
         NavigationStack {
@@ -23,6 +31,38 @@ struct ChannelDetailView: View {
             }
             .navigationTitle(channelItem.title)
             .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .destructiveAction) {
+                    if isSavedChannel {
+                        Button(role: .confirm) {
+                            let channelId = channelItem.id
+                            var descriptor = FetchDescriptor<Channel>(predicate: #Predicate { $0.id == channelId })
+                            descriptor.fetchLimit = 1
+                            if let channel = try? modelContext.fetch(descriptor).first {
+                                modelContext.delete(channel)
+                                try? modelContext.save()
+                            }
+                        } label: {
+                            Label("Remove Channel", systemImage: "minus")
+                        }
+//                        .tint(.red)
+                    } else {
+                        Button(role: .confirm) {
+                            let channel = Channel(
+                                id: channelItem.id,
+                                title: channelItem.title,
+                                channelDescription: channelItem is Subscription ? (channelItem as! Subscription).description : "",
+                                thumbnailURL: channelItem.thumbnailURL
+                            )
+                            modelContext.insert(channel)
+                            try? modelContext.save()
+                        } label: {
+                            Label("Add Channel", systemImage: "plus")
+                        }
+//                        .tint(.red)
+                    }
+                }
+            }
             .task {
                 if videos.isEmpty {
                     await loadChannelVideos()
