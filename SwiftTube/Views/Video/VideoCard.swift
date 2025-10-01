@@ -30,6 +30,13 @@ struct VideoCard: View {
                                 .tint(.accent)
                         }
                     }
+                    .overlay(alignment: .topTrailing) {
+                        if video.isWatchLater {
+                            Image(systemName: "bookmark.fill")
+                                .foregroundStyle(.green)
+                                .padding(10)
+                        }
+                    }
                 
                 VStack(alignment: .leading) {
                     Text(video.title)

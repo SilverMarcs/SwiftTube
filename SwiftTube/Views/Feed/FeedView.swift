@@ -18,7 +18,7 @@ struct FeedView: View {
             List(videos) { video in
                 VideoCard(video: video)
                     .listRowSeparator(.hidden)
-                    .listRowInsets(.vertical, 7)
+                    .listRowInsets(.vertical, 5)
                     .listRowInsets(.horizontal, 10)
             }
             .listStyle(.plain)

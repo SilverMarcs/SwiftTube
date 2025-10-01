@@ -18,16 +18,18 @@ extension Date {
         let months = Int(timeInterval / 2629746)
         let years = Int(timeInterval / 31556952)
         
-        if hours < 24 {
-            return hours <= 1 ? "1 hour" : "\(hours) hours"
-        } else if days < 7 {
-            return days == 1 ? "1 day" : "\(days) days"
-        } else if weeks < 4 {
-            return weeks == 1 ? "1 week" : "\(weeks) weeks"
-        } else if months < 12 {
-            return months == 1 ? "1 month" : "\(months) months"
+        if years > 0 {
+            return "\(years)Y"
+        } else if months > 0 {
+            return "\(months)M"
+        } else if weeks > 0 {
+            return "\(weeks)W"
+        } else if days > 0 {
+            return "\(days)D"
+        } else if hours > 0 {
+            return "\(hours)H"
         } else {
-            return years == 1 ? "1 year" : "\(years) years"
+            return "1H"  // Minimum display for anything less than an hour
         }
     }
 }
