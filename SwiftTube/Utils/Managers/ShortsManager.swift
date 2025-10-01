@@ -51,9 +51,4 @@ class ShortsManager {
             try? await player.load(videoId: video.id)
         }
     }
-    
-    func retryCurrentVideo() {
-        guard let video = currentVideo else { return }
-        loadVideo(video)
-    }
 }

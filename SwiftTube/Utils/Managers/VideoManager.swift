@@ -92,12 +92,6 @@ class VideoManager {
         }
     }
     
-    /// Retry loading the current video
-    func retryCurrentVideo() {
-        guard let video = currentVideo else { return }
-        loadVideo(video)
-    }
-    
     private func setupPlayerObserver() {
         guard let player else { return }
         
