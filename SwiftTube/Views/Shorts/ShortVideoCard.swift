@@ -3,9 +3,11 @@ import SwiftUI
 struct ShortVideoCard: View {
     let video: Video
     let isActive: Bool
-    let shortsManager: ShortsManager
+    
+    @Environment(ShortsManager.self) var shortsManager
     
     @State private var showDetail: Bool = false
+    @State private var isPlaying: Bool = true // Assume starts playing
     
     var body: some View {
         VStack {
@@ -16,7 +18,47 @@ struct ShortVideoCard: View {
                         case .idle:
                             ProgressView().controlSize(.large)
                         case .ready:
-                            EmptyView()
+                            ZStack {
+                                Color.clear
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        Task {
+                                            if isPlaying {
+                                                try? await player.pause()
+                                            } else {
+                                                try? await player.play()
+                                            }
+                                            isPlaying.toggle()
+                                        }
+                                    }
+                                
+                                VStack {
+                                    Spacer()
+                                    HStack {
+                                        if let channel = video.channel {
+                                            ChannelRowView(item: channel, subtitle: video.title)
+                                                .foregroundStyle(.white)
+                                                .shadow(color: .black, radius: 20, x: 0, y: 0)
+                                                .navigationLinkIndicatorVisibility(.hidden)
+                                                .allowsHitTesting(false)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Button {
+                                            showDetail = true
+                                        } label: {
+                                            Image(systemName: "info")
+                                        }
+                                        .buttonStyle(.glass)
+                                        .controlSize(.large)
+                                        .buttonBorderShape(.circle)
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.bottom, 20)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
                         case .error(_):
                             ContentUnavailableView {
                                 Label("Error", systemImage: "exclamationmark.triangle.fill")

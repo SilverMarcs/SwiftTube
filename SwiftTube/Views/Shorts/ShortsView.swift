@@ -23,7 +23,7 @@ struct ShortsView: View {
         NavigationStack {
             TabView(selection: $currentIndex) {
                 ForEach(Array(shuffledVideos.enumerated()), id: \.element.id) { index, video in
-                    ShortVideoCard(video: video, isActive: currentIndex == index, shortsManager: shortsManager)
+                    ShortVideoCard(video: video, isActive: currentIndex == index)
                         .tag(index)
                 }
             }
