@@ -22,13 +22,13 @@ struct ShortsView: View {
     init() {
         let predicate = #Predicate<Video> { $0.isShort == true }
         let sortDescriptors = [
-            SortDescriptor(\Video.lastWatchedAt, order: .forward), // nil values first (unwatched), then by date
+//            SortDescriptor(\Video.lastWatchedAt, order: .forward), // nil values first (unwatched), then by date
             SortDescriptor(\Video.publishedAt, order: .reverse) // newer videos first within each group
         ]
         
         _shortVideos = Query(
             filter: predicate,
-            sort: sortDescriptors
+//            sort: sortDescriptors
         )
     }
     

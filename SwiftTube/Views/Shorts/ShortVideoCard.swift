@@ -19,28 +19,40 @@ struct ShortVideoCard: View {
                             .tint(.white)
                         
                     case .ready:
-                        HStack {
-                            if let channel = video.channel {
-                                ChannelRowView(item: channel, subtitle: video.title)
-                                    .foregroundStyle(.white)
-                                    .shadow(color: .black, radius: 20, x: 0, y: 0)
-                                    .navigationLinkIndicatorVisibility(.hidden)
-                            }
+                        Color.clear.overlay {
+//                            Button {
+//                                
+//                            } label: {
+//                                Image(systemName: "pause.fill")
+//                            }
+//                            .buttonStyle(.glass)
+//                            .buttonBorderShape(.circle)
+//                            .controlSize(.extraLarge)
+//                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                             
-                            Spacer()
-                            
-                            Button {
-                                showDetail = true
-                            } label: {
-                                Image(systemName: "info")
+                            HStack {
+                                if let channel = video.channel {
+                                    ChannelRowView(item: channel, subtitle: video.title)
+                                        .foregroundStyle(.white)
+                                        .shadow(color: .black, radius: 20, x: 0, y: 0)
+                                        .navigationLinkIndicatorVisibility(.hidden)
+                                }
+                                
+                                Spacer()
+                                
+                                Button {
+                                    showDetail = true
+                                } label: {
+                                    Image(systemName: "info")
+                                }
+                                .buttonStyle(.glass)
+                                .controlSize(.large)
+                                .buttonBorderShape(.circle)
                             }
-                            .buttonStyle(.glass)
-                            .controlSize(.large)
-                            .buttonBorderShape(.circle)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 20)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 20)
                         
                     case .error(let error):
                         ContentUnavailableView(
