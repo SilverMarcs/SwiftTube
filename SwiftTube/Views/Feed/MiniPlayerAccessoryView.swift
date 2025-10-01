@@ -76,8 +76,7 @@ struct MiniPlayerAccessoryView: View {
                 }
             }
         } else {
-            //            Text("No video playing")
-            EmptyView()
+            Text("No video playing")
         }
     }
 }
