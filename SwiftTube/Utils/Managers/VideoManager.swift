@@ -1,22 +1,21 @@
 import SwiftUI
-import Combine
 import SwiftData
-import YouTubePlayerKit
 
 @Observable
 class VideoManager {
-    @ObservationIgnored
-    private var cancellables = Set<AnyCancellable>()
+    var player: YTPlayer?
+    private(set) var isPlaying: Bool = false
     
-    var player: YouTubePlayer?
     var isExpanded: Bool = false
-    var playbackState: YouTubePlayer.PlaybackState? = nil
     var currentVideo: Video? = nil
     var isMiniPlayerVisible: Bool = true
+    
+    private var timeUpdateTask: Task<Void, Never>?
     
     /// Start playing a video
     func startPlaying(_ video: Video) {
         guard currentVideo?.id != video.id else { return }
+        isPlaying = true
 
         // Update to new video
         currentVideo = video
@@ -54,9 +53,17 @@ class VideoManager {
     func togglePlayPause() async {
         guard let player else { return }
         
-        if playbackState == .playing {
-            try? await player.pause()
-        } else {
+        do {
+            if try await player.playbackState == .playing {
+                isPlaying = false
+                try? await player.pause()
+            } else if try await player.playbackState == .paused {
+                isPlaying = true
+                try? await player.play()
+            }
+        } catch {
+            // safer option maybe?
+            isPlaying = true
             try? await player.play()
         }
     }
@@ -64,32 +71,20 @@ class VideoManager {
     private func createPlayerIfNeeded(id: String) {
         guard player == nil else { return }
         
-        let newPlayer = YouTubePlayer(
-            source: .video(id: id), // Placeholder, will be replaced
-            parameters: .init(autoPlay: false, showControls: true),
-            configuration: .init(
-                fullscreenMode: .system,
-                allowsInlineMediaPlayback: true,
-                allowsPictureInPictureMediaPlayback: true
-            )
-        )
-        
+        let newPlayer = YTPlayer()
         player = newPlayer
-        playbackState = newPlayer.playbackState
-        setupPlayerObservers()
+        setupPlayerObserver()
     }
     
     private func loadVideo(_ video: Video) {
         guard let player else { return }
         
-        // Simple approach: load video with current progress directly
-        let startTime = video.watchProgressSeconds > 5 
-            ? Measurement(value: video.watchProgressSeconds, unit: UnitDuration.seconds)
-            : nil
+        // Load video with current progress directly
+        let startTime = video.watchProgressSeconds > 5 ? video.watchProgressSeconds : nil
             
         Task {
-            try? await player.load(source: .video(id: video.id), startTime: startTime)
-            try? await player.play()
+            try? await player.load(videoId: video.id, startTime: startTime)
+            // Auto-play is handled by the player configuration
         }
     }
     
@@ -99,29 +94,28 @@ class VideoManager {
         loadVideo(video)
     }
     
-    private func setupPlayerObservers() {
+    private func setupPlayerObserver() {
         guard let player else { return }
         
-        // Track playback state
-        player.playbackStatePublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] state in
-                self?.playbackState = state
-            }
-            .store(in: &cancellables)
+        // Cancel existing task
+        timeUpdateTask?.cancel()
         
-        // Track progress every 5 seconds
-        player.currentTimePublisher
-            .throttle(for: .seconds(5), scheduler: DispatchQueue.main, latest: true)
-            .sink { [weak self] time in
-                self?.updateVideoProgress(time)
+        // Start observing player progress (every 5 seconds for progress saving)
+        timeUpdateTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                guard let self = self else { break }
+                
+                // Get fresh current time directly from player
+                if let currentTime = try? await player.currentPlaybackTime {
+                    self.updateVideoProgress(currentTime)
+                }
             }
-            .store(in: &cancellables)
+        }
     }
     
-    private func updateVideoProgress(_ time: Measurement<UnitDuration>) {
+    private func updateVideoProgress(_ seconds: TimeInterval) {
         guard let video = currentVideo else { return }
-        let seconds = time.converted(to: .seconds).value
         video.updateWatchProgress(seconds)
     }
 }

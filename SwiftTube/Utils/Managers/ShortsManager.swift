@@ -1,11 +1,9 @@
 import SwiftUI
-import Combine
 import SwiftData
-import YouTubePlayerKit
 
 @Observable
 class ShortsManager {
-    var player: YouTubePlayer?
+    var player: YTPlayer?
     var currentVideo: Video?
     var currentIndex: Int = 0
     
@@ -49,19 +47,19 @@ class ShortsManager {
     private func createPlayerIfNeeded(id: String) {
         guard player == nil else { return }
         
-        player = YouTubePlayer(
-            source: .video(id: id),
-            parameters: .init(autoPlay: true, loopEnabled: true, showControls: false),
-            configuration: .init(allowsInlineMediaPlayback: true)
-        )
+        player = YTPlayer(configuration: .shorts)
     }
     
     private func loadVideo(_ video: Video) {
         guard let player else { return }
         
         Task {
-            try? await player.load(source: .video(id: video.id))
-            try? await player.play()
+            try? await player.load(videoId: video.id)
         }
+    }
+    
+    func retryCurrentVideo() {
+        guard let video = currentVideo else { return }
+        loadVideo(video)
     }
 }
