@@ -6,10 +6,11 @@ import SwiftMediaViewer
 struct ChannelListView: View {
     @Environment(\.modelContext) private var modelContext
 
-    @Query private var channels: [Channel]
+    @Query(sort: \Channel.title) private var allChannels: [Channel]
     @State private var showingAddChannel = false
     @State private var subscriptions: [Subscription] = []
     @State private var isLoadingSubscriptions = false
+    @State private var searchText = ""
     
     private var authManager = GoogleAuthManager.shared
     
@@ -19,11 +20,23 @@ struct ChannelListView: View {
         return subscriptions.filter { !channelIds.contains($0.channelId) }
     }
     
+    private var channels: [Channel] {
+        if searchText.isEmpty {
+            allChannels
+        } else {
+            allChannels.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+        }
+    }
+    
+    private var filteredSubscriptions: [Subscription] {
+        availableSubscriptions.filter { searchText.isEmpty || $0.title.localizedCaseInsensitiveContains(searchText) }
+    }
+    
     var body: some View {
         NavigationStack {
             List {
                 if !channels.isEmpty {
-                    Section("Saved Channels") {
+                    Section {
                         ForEach(channels) { channel in
                             ChannelRowView(item: channel)
                         }
@@ -44,7 +57,7 @@ struct ChannelListView: View {
                                 }
                             }
                         } else {
-                            ForEach(availableSubscriptions) { subscription in
+                            ForEach(filteredSubscriptions) { subscription in
                                 HStack {
                                     ChannelRowView(item: subscription)
                                         .navigationLinkIndicatorVisibility(.hidden)
@@ -65,6 +78,8 @@ struct ChannelListView: View {
                     }
                 }
             }
+            .searchable(text: $searchText, prompt: "Search channels and subscriptions")
+
             .refreshable {
                 await refreshChannels()
             }
@@ -79,10 +94,10 @@ struct ChannelListView: View {
                     }
                 }
             }
-        }
-        .sheet(isPresented: $showingAddChannel) {
-            AddChannelView()
-                .presentationDetents([.medium])
+            .sheet(isPresented: $showingAddChannel) {
+                AddChannelView()
+                    .presentationDetents([.medium])
+            }
         }
     }
     
@@ -99,7 +114,7 @@ struct ChannelListView: View {
         
         do {
             let fetchedSubscriptions = try await YTService.fetchMySubscriptions()
-            subscriptions = fetchedSubscriptions
+            subscriptions = fetchedSubscriptions.sorted { $0.title < $1.title }
         } catch {
             print("Error loading subscriptions: \(error.localizedDescription)")
         }
@@ -119,10 +134,10 @@ struct ChannelListView: View {
 
     @MainActor
     private func refreshChannels() async {
-        guard !channels.isEmpty else { return }
+        guard !allChannels.isEmpty else { return }
 
         do {
-            let updatedChannels = try await YTService.fetchChannels(byIds: channels.map { $0.id })
+            let updatedChannels = try await YTService.fetchChannels(byIds: allChannels.map { $0.id })
             for channel in updatedChannels {
                 modelContext.upsertChannel(channel)
             }
