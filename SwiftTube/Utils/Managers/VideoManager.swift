@@ -44,6 +44,7 @@ class VideoManager {
     func dismiss() {
         currentVideo = nil
         isExpanded = false
+        timeUpdateTask?.cancel()
         Task {
             try? await player?.pause()
         }
@@ -98,10 +99,10 @@ class VideoManager {
         // Cancel existing task
         timeUpdateTask?.cancel()
         
-        // Start observing player progress (every 5 seconds for progress saving)
+        // Start observing player progress (every 10 seconds for progress saving, since high accuracy isn't needed)
         timeUpdateTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(7))
+                try? await Task.sleep(for: .seconds(10))
                 guard let self = self else { break }
                 
                 // Get fresh current time directly from player

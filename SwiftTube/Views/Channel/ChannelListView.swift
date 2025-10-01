@@ -38,6 +38,11 @@ struct ChannelListView: View {
                                 Task { await loadSubscriptions() }
                             }
                             .frame(maxWidth: .infinity)
+                            .overlay {
+                                if isLoadingSubscriptions {
+                                    UniversalProgressView()
+                                }
+                            }
                         } else {
                             ForEach(availableSubscriptions) { subscription in
                                 HStack {
@@ -51,16 +56,11 @@ struct ChannelListView: View {
                                     } label: {
                                         Image(systemName: "plus")
                                     }
-                                    .buttonStyle(.glassProminent)
-                                    .controlSize(.small)
+                                    .buttonStyle(.bordered)
+                                    .tint(.blue)
                                     .buttonBorderShape(.circle)
                                 }
                             }
-                        }
-                    }
-                    .overlay {
-                        if isLoadingSubscriptions {
-                            UniversalProgressView()
                         }
                     }
                 }
