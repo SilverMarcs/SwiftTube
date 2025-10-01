@@ -1,12 +1,4 @@
-import Foundation
 import WebKit
-import Observation
-
-// MARK: - Notifications
-
-extension Notification.Name {
-    static let fullscreenStateChanged = Notification.Name("fullscreenStateChanged")
-}
 
 /// A minimal YouTube player using WebPage and WebView APIs
 @Observable
@@ -89,28 +81,14 @@ final class YTPlayer {
         config.websiteDataStore = .default()
         
         // Set up message handler for fullscreen changes
-        let handler = FullscreenMessageHandler()
+        let handler = FullscreenMessageHandler(onChange: {})
         config.userContentController.add(handler, name: "fullscreenChange")
         
         self.webPage = WebPage(configuration: config)
         self.webPage.isInspectable = false
         
-        // Set up notification observer after initialization
-        setupFullscreenObserver()
-    }
-    
-    private func setupFullscreenObserver() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleFullscreenChange(_:)),
-            name: .fullscreenStateChanged,
-            object: nil
-        )
-    }
-    
-    @objc private func handleFullscreenChange(_ notification: Notification) {
-        // Toggle our local fullscreen state whenever we receive a fullscreen change event
-        self.isFullscreen.toggle()
+        // Set the callback after self is fully initialized
+        handler.onChange = { self.isFullscreen.toggle() }
     }
     
     // MARK: - Public API
@@ -270,17 +248,14 @@ enum YTPlayerError: Error {
 // MARK: - Fullscreen Message Handler
 
 private class FullscreenMessageHandler: NSObject, WKScriptMessageHandler {
+    var onChange: (() -> Void)
+    
+    init(onChange: @escaping () -> Void) {
+        self.onChange = onChange
+    }
+    
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard let body = message.body as? [String: Any],
-              let isFullscreen = body["fullscreen"] as? Bool else {
-            return
-        }
-        
-        // Post notification that can be observed
-        NotificationCenter.default.post(
-            name: .fullscreenStateChanged,
-            object: nil,
-            userInfo: ["isFullscreen": isFullscreen]
-        )
+        // Call the callback on fullscreen change
+        onChange()
     }
 }
