@@ -29,9 +29,14 @@ struct ChannelDetailView: View {
                     UniversalProgressView()
                 }
             }
-            .navigationTitle(channelItem.title)
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    ChannelRowView(item: channelItem)
+                        .allowsHitTesting(false)
+                        .foregroundStyle(.primary)
+                }
+                
                 ToolbarItem(placement: .destructiveAction) {
                     if isSavedChannel {
                         Button(role: .confirm) {
