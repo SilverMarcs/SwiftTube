@@ -6,7 +6,7 @@ struct ChannelRowView: View {
     let channel: Channel
     
     var body: some View {
-        NavigationLink(destination: ChannelDetailView(channel: channel)) {
+        NavigationLink(destination: ChannelVideoList(channel: channel)) {
             HStack {
                 CachedAsyncImage(url:  URL(string: channel.thumbnailURL), targetSize: 50)
                     .frame(width: 40, height: 40)

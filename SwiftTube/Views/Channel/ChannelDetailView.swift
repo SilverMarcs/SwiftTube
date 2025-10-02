@@ -1,103 +1,48 @@
 import SwiftUI
-import SwiftData
 
 struct ChannelDetailView: View {
     let channel: Channel
-    @Environment(\.modelContext) private var modelContext
-    @State private var videos: [Video] = []
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-    
-    private var isSavedChannel: Bool {
-        let channelId = channel.id
-        var descriptor = FetchDescriptor<Channel>(predicate: #Predicate { $0.id == channelId })
-        descriptor.fetchLimit = 1
-        return (try? modelContext.fetch(descriptor).first) != nil
-    }
     
     var body: some View {
         NavigationStack {
-            List(videos) { video in
-                VideoCard(video: video)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(.vertical, 7)
-                    .listRowInsets(.horizontal, 10)
-            }
-            .listStyle(.plain)
-            .overlay {
-                if isLoading {
-                    UniversalProgressView()
-                }
-            }
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .title) {
-                    ChannelRowView(channel: channel)
-                        .allowsHitTesting(false)
-                        .foregroundStyle(.primary)
-                }
-                
-                ToolbarItem(placement: .destructiveAction) {
-                    if isSavedChannel {
-                        Button(role: .confirm) {
-                            let channelId = channel.id
-                            var descriptor = FetchDescriptor<Channel>(predicate: #Predicate { $0.id == channelId })
-                            descriptor.fetchLimit = 1
-                            if let channel = try? modelContext.fetch(descriptor).first {
-                                modelContext.delete(channel)
-                                try? modelContext.save()
-                            }
-                        } label: {
-                            Label("Remove Channel", systemImage: "minus")
-                        }
-                    } else {
-                        Button(role: .confirm) {
-                            let newChannel = Channel(
-                                id: channel.id,
-                                title: channel.title,
-                                channelDescription: channel.channelDescription,
-                                thumbnailURL: channel.thumbnailURL
-                            )
-                            modelContext.insert(newChannel)
-                            try? modelContext.save()
-                        } label: {
-                            Label("Add Channel", systemImage: "plus")
-                        }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Channel thumbnail
+                    AsyncImage(url: URL(string: channel.thumbnailURL)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color.gray.opacity(0.3)
                     }
+                    .frame(height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    
+                    // Channel title
+                    Text(channel.title)
+                        .font(.title)
+                        .fontWeight(.bold)
+                    
+                    // Subscriber count if available
+                    if channel.subscriberCount > 0 {
+                        Text("\(Int(channel.subscriberCount).formatted()) subscribers")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    // Channel description
+                    if !channel.channelDescription.isEmpty {
+                        Text(LocalizedStringKey(channel.channelDescription))
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                    }
+                    
+                    Spacer()
                 }
+                .padding()
             }
-            .task {
-                if videos.isEmpty {
-                    await loadChannelVideos()
-                }
-            }
-            .refreshable {
-                await loadChannelVideos()
-            }
-        }
-    }
-    
-    private func loadChannelVideos() async {
-        isLoading = true
-        defer { isLoading = false }
-        
-        do {
-            let rssData = try await FeedParser.fetchChannelVideosFromRSS(channelId: channel.id)
-            videos = rssData.map { data in
-                Video(
-                    id: data.id,
-                    title: data.title,
-                    videoDescription: data.videoDescription,
-                    thumbnailURL: data.thumbnailURL,
-                    publishedAt: data.publishedAt,
-                    url: data.url,
-                    channel: channel,
-                    viewCount: data.viewCount,
-                    isShort: data.isShort
-                )
-            }
-        } catch {
-            print(error.localizedDescription)
+            .navigationTitle("Channel Details")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
@@ -106,8 +51,9 @@ struct ChannelDetailView: View {
     let channel = Channel(
         id: "UCBJycsmduvYEL83R_U4JriQ",
         title: "Marques Brownlee",
-        channelDescription: "Technology reviews and discussions",
-        thumbnailURL: "https://example.com/thumbnail.jpg"
+        channelDescription: "Technology reviews and discussions covering the latest gadgets, smartphones, and consumer electronics.",
+        thumbnailURL: "https://example.com/thumbnail.jpg",
+        subscriberCount: 15000000
     )
     
     ChannelDetailView(channel: channel)
