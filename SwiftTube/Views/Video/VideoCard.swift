@@ -57,7 +57,8 @@ struct VideoCard: View {
                             .lineLimit(1)
                             .font(.subheadline)
                             .fontWeight(.medium)
-
+                            .padding(.leading, 2)
+                        
                         Spacer()
 
                         HStack(spacing: 4) {
@@ -93,15 +94,5 @@ struct VideoCard: View {
             .background(.background.secondary, in: .rect(cornerRadius: 12))
         }
         .buttonStyle(.plain)
-        .contextMenu {
-            Button {
-                video.isWatchLater.toggle()
-            } label: {
-                Label(
-                    video.isWatchLater ? "Remove from Watch Later" : "Add to Watch Later",
-                    systemImage: video.isWatchLater ? "bookmark.fill" : "bookmark"
-                )
-            }
-        }
     }
 }

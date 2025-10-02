@@ -11,10 +11,10 @@ import Foundation
 
 @ModelActor
 actor VideoLoader {
-    static let oneWeekAgo =  Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+    static let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
 
     func loadAllChannelVideos() async {
-        // First, clean up videos older than a month
+        // First, clean up old videos
         await cleanupOldVideos()
         
         let channels = try! modelExecutor.modelContext.fetch(FetchDescriptor<Channel>())
@@ -25,8 +25,8 @@ actor VideoLoader {
                 group.addTask {
                     do {
                         let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
-                        let recentVideos = channelVideos.filter { $0.publishedAt >= Self.oneWeekAgo }
-                        for video in recentVideos {
+                        let filteredVideos = await self.filterVideosForChannel(channelVideos)
+                        for video in filteredVideos {
                             await self.upsertVideo(video)
                         }
                     } catch {
@@ -50,8 +50,8 @@ actor VideoLoader {
                 group.addTask {
                     do {
                         let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
-                        let recentVideos = channelVideos.filter { $0.publishedAt >= Self.oneWeekAgo }
-                        for video in recentVideos {
+                        let filteredVideos = await self.filterVideosForChannel(channelVideos)
+                        for video in filteredVideos {
                             await self.upsertVideo(video)
                         }
                     } catch {
@@ -62,6 +62,21 @@ actor VideoLoader {
         }
         
         try? modelExecutor.modelContext.save()
+    }
+    
+    private func filterVideosForChannel(_ videos: [Video]) -> [Video] {
+        // Separate shorts and regular videos
+        let shorts = videos.filter { $0.isShort }
+        let regularVideos = videos.filter { !$0.isShort }
+        
+        // For shorts: keep all of them (no filtering)
+        var result = shorts
+        
+        // For regular videos: only keep those published within the last 15 days
+        let recentRegularVideos = regularVideos.filter { $0.publishedAt >= Self.oneWeekAgo }
+        result.append(contentsOf: recentRegularVideos)
+        
+        return result
     }
     
     func checkAndUpdateVideoDurations() async {
@@ -90,7 +105,7 @@ actor VideoLoader {
     private func cleanupOldVideos() async {
         let cutoffDate = Self.oneWeekAgo
         let descriptor = FetchDescriptor<Video>(predicate: #Predicate<Video> { video in
-            video.publishedAt < cutoffDate
+            video.publishedAt < cutoffDate && video.isShort == false
         })
         
         do {
@@ -102,7 +117,7 @@ actor VideoLoader {
             }
             
             if count > 0 {
-                print("Cleaned up \(count) videos older than a month")
+                print("Cleaned up \(count) regular videos older than 15 days")
             }
         } catch {
             print("Error cleaning up old videos: \(error)")
@@ -120,10 +135,11 @@ actor VideoLoader {
             existing.publishedAt = video.publishedAt
             existing.url = video.url
             existing.channel = video.channel
-            // Preserve rich data fields: likeCount, viewCount, commentCount, duration, definition, caption, updatedAt, isShort
+            existing.isShort = video.isShort // Update isShort status
+            // Preserve rich data fields: likeCount, viewCount, commentCount, duration, definition, caption, updatedAt
         } else {
             modelExecutor.modelContext.insert(video)
-            print("Inserted new video: '\(video.title)'")
+            print("Inserted new video: '\(video.title)' (Short: \(video.isShort))")
         }
     }
 }

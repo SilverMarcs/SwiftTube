@@ -85,15 +85,15 @@ class FeedParser: NSObject, XMLParserDelegate {
     func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
         if elementName == "entry" {
             inEntry = false
-            if let publishedDate = FeedParser.isoFormatter.date(from: currentPublished),
-               let updatedDate = FeedParser.isoFormatter.date(from: currentUpdated) {
-                let author = Author(name: currentAuthorName)
-                let videoThumbnail = YouTubeVideoThumbnail(videoID: currentVideoId)
-                let thumbnail = FeedThumbnail(url: videoThumbnail.url?.absoluteString ?? "", width: 120, height: 90)
-                let mediaGroup = MediaGroup(title: currentMediaTitle, description: currentDescription, thumbnail: thumbnail, videoId: currentVideoId, views: currentViews)
-                let entry = Entry(title: currentTitle, link: currentLink, published: publishedDate, updated: updatedDate, author: author, mediaGroup: mediaGroup)
-                entries.append(entry)
-            }
+            let publishedDate = FeedParser.isoFormatter.date(from: currentPublished) ?? Date.distantPast
+            let updatedDate = FeedParser.isoFormatter.date(from: currentUpdated) ?? Date.distantPast
+            
+            let author = Author(name: currentAuthorName)
+            let videoThumbnail = YouTubeVideoThumbnail(videoID: currentVideoId)
+            let thumbnail = FeedThumbnail(url: videoThumbnail.url?.absoluteString ?? "", width: 120, height: 90)
+            let mediaGroup = MediaGroup(title: currentMediaTitle, description: currentDescription, thumbnail: thumbnail, videoId: currentVideoId, views: currentViews)
+            let entry = Entry(title: currentTitle, link: currentLink, published: publishedDate, updated: updatedDate, author: author, mediaGroup: mediaGroup)
+            entries.append(entry)
         }
     }
 
@@ -115,8 +115,6 @@ class FeedParser: NSObject, XMLParserDelegate {
         
         return feed.entries.compactMap { entry in
             let viewCount = entry.mediaGroup.views ?? "0"
-            // Filter out videos with 0 views
-            guard viewCount != "0" else { return nil }
             
             return Video(
                 id: entry.mediaGroup.videoId,
@@ -146,8 +144,6 @@ class FeedParser: NSObject, XMLParserDelegate {
         
         return feed.entries.compactMap { entry in
             let viewCount = entry.mediaGroup.views ?? "0"
-            // Filter out videos with 0 views
-            guard viewCount != "0" else { return nil }
             
             return Video(
                 id: entry.mediaGroup.videoId,

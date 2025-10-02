@@ -20,6 +20,16 @@ struct FeedView: View {
                     .listRowSeparator(.hidden)
                     .listRowInsets(.vertical, 5)
                     .listRowInsets(.horizontal, 10)
+                    .contextMenu {
+                        Button {
+                            video.isWatchLater.toggle()
+                        } label: {
+                            Label(
+                                video.isWatchLater ? "Remove from Watch Later" : "Add to Watch Later",
+                                systemImage: video.isWatchLater ? "bookmark.fill" : "bookmark"
+                            )
+                        }
+                    }
             }
             .listStyle(.plain)
             .navigationTitle("Feed")
