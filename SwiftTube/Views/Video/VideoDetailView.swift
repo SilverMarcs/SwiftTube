@@ -55,7 +55,7 @@ struct VideoDetailView: View {
                     
                     // Channel Info
                     if let channel = video.channel {
-                        ChannelRowView(item: channel)
+                        ChannelRowView(channel: channel)
                             .padding(.vertical, 8)
                             .padding(.horizontal, 12)
                             .background(.background.secondary)

@@ -2,13 +2,6 @@
 import Foundation
 import SwiftData
 
-protocol ChannelDisplayable {
-    var id: String { get }
-    var title: String { get }
-    var thumbnailURL: String { get }
-    var subtitle: String { get }
-}
-
 @Model
 final class Channel {
     @Attribute(.unique) var id: String          // UC...
@@ -28,23 +21,8 @@ final class Channel {
     }
 }
 
-extension Channel: ChannelDisplayable {
+extension Channel {
     var subtitle: String {
-        "\(Int(subscriberCount).formatNumber()) subscribers"
-    }
-}
-
-
-// Local subscription struct for display only
-struct Subscription: Identifiable, Hashable {
-    let id: String
-    let title: String
-    let description: String
-    let thumbnailURL: String
-}
-
-extension Subscription: ChannelDisplayable {
-    var subtitle: String {
-        description
+        subscriberCount == 0 ? channelDescription : "\(Int(subscriberCount).formatNumber()) subscribers"
     }
 }

@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftData
 
 struct SubscriptionView: View {
-    @State private var subscriptions: [Subscription] = []
+    @State private var subscriptions: [Channel] = []
     @State private var isLoading = false
     
     private var authManager = GoogleAuthManager.shared
@@ -33,7 +33,7 @@ struct SubscriptionView: View {
                             Text(subscription.title)
                                 .font(.headline)
                             
-                            Text(subscription.description)
+                            Text(subscription.channelDescription)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)

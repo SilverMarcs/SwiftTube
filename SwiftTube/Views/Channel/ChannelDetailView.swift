@@ -2,14 +2,14 @@ import SwiftUI
 import SwiftData
 
 struct ChannelDetailView: View {
-    let channelItem: ChannelDisplayable
+    let channel: Channel
     @Environment(\.modelContext) private var modelContext
     @State private var videos: [Video] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
     
     private var isSavedChannel: Bool {
-        let channelId = channelItem.id
+        let channelId = channel.id
         var descriptor = FetchDescriptor<Channel>(predicate: #Predicate { $0.id == channelId })
         descriptor.fetchLimit = 1
         return (try? modelContext.fetch(descriptor).first) != nil
@@ -31,8 +31,8 @@ struct ChannelDetailView: View {
             }
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    ChannelRowView(item: channelItem)
+                ToolbarItem(placement: .title) {
+                    ChannelRowView(channel: channel)
                         .allowsHitTesting(false)
                         .foregroundStyle(.primary)
                 }
@@ -40,7 +40,7 @@ struct ChannelDetailView: View {
                 ToolbarItem(placement: .destructiveAction) {
                     if isSavedChannel {
                         Button(role: .confirm) {
-                            let channelId = channelItem.id
+                            let channelId = channel.id
                             var descriptor = FetchDescriptor<Channel>(predicate: #Predicate { $0.id == channelId })
                             descriptor.fetchLimit = 1
                             if let channel = try? modelContext.fetch(descriptor).first {
@@ -50,21 +50,19 @@ struct ChannelDetailView: View {
                         } label: {
                             Label("Remove Channel", systemImage: "minus")
                         }
-//                        .tint(.red)
                     } else {
                         Button(role: .confirm) {
-                            let channel = Channel(
-                                id: channelItem.id,
-                                title: channelItem.title,
-                                channelDescription: channelItem is Subscription ? (channelItem as! Subscription).description : "",
-                                thumbnailURL: channelItem.thumbnailURL
+                            let newChannel = Channel(
+                                id: channel.id,
+                                title: channel.title,
+                                channelDescription: channel.channelDescription,
+                                thumbnailURL: channel.thumbnailURL
                             )
-                            modelContext.insert(channel)
+                            modelContext.insert(newChannel)
                             try? modelContext.save()
                         } label: {
                             Label("Add Channel", systemImage: "plus")
                         }
-//                        .tint(.red)
                     }
                 }
             }
@@ -84,7 +82,7 @@ struct ChannelDetailView: View {
         defer { isLoading = false }
         
         do {
-            let rssData = try await FeedParser.fetchChannelVideosFromRSS(channelId: channelItem.id)
+            let rssData = try await FeedParser.fetchChannelVideosFromRSS(channelId: channel.id)
             videos = rssData.map { data in
                 Video(
                     id: data.id,
@@ -93,7 +91,7 @@ struct ChannelDetailView: View {
                     thumbnailURL: data.thumbnailURL,
                     publishedAt: data.publishedAt,
                     url: data.url,
-                    channel: nil, // No full channel object available here
+                    channel: channel,
                     viewCount: data.viewCount,
                     isShort: data.isShort
                 )
@@ -105,12 +103,12 @@ struct ChannelDetailView: View {
 }
 
 #Preview {
-    let subscription = Subscription(
+    let channel = Channel(
         id: "UCBJycsmduvYEL83R_U4JriQ",
         title: "Marques Brownlee",
-        description: "Technology reviews and discussions",
+        channelDescription: "Technology reviews and discussions",
         thumbnailURL: "https://example.com/thumbnail.jpg"
     )
     
-    ChannelDetailView(channelItem: subscription)
+    ChannelDetailView(channel: channel)
 }

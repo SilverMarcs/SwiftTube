@@ -32,19 +32,9 @@ struct VideoCard: View {
                     }
                 
                 VStack(alignment: .leading) {
-                    HStack {
-                        if video.isWatchLater {
-                            Image(systemName: "bookmark.fill")
-                                .foregroundStyle(.green)
-                                .imageScale(.small)
-                        }
-                        
-                        Text(video.title)
-                            .font(.headline)
-                            .lineLimit(2)
-       
-                        Spacer()
-                    }
+                    Text(video.title)
+                        .font(.headline)
+                        .lineLimit(2)
                     
                     HStack(alignment: .center, spacing: 4) {
                         if let channel = video.channel, let url = URL(string: channel.thumbnailURL) {
@@ -82,6 +72,12 @@ struct VideoCard: View {
                                     .font(.system(size: 10))
                             }
                             .labelIconToTitleSpacing(0)
+                            
+                            if video.isWatchLater {
+                                Image(systemName: "bookmark.fill")
+                                    .foregroundStyle(.green)
+                                    .font(.system(size: 10))
+                            }
                         }
                         .padding(.bottom, -1)
                     }

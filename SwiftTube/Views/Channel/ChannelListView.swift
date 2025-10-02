@@ -8,14 +8,14 @@ struct ChannelListView: View {
 
     @Query(sort: \Channel.title) private var allChannels: [Channel]
     @State private var showingAddChannel = false
-    @State private var subscriptions: [Subscription] = []
+    @State private var subscriptions: [Channel] = []
     @State private var isLoadingSubscriptions = false
     @State private var searchText = ""
     
     private var authManager = GoogleAuthManager.shared
     
     // Filter subscriptions that aren't already saved as channels
-    private var availableSubscriptions: [Subscription] {
+    private var availableSubscriptions: [Channel] {
         let channelIds = Set(channels.map { $0.id })
         return subscriptions.filter { !channelIds.contains($0.id) }
     }
@@ -28,7 +28,7 @@ struct ChannelListView: View {
         }
     }
     
-    private var filteredSubscriptions: [Subscription] {
+    private var filteredSubscriptions: [Channel] {
         availableSubscriptions.filter { searchText.isEmpty || $0.title.localizedCaseInsensitiveContains(searchText) }
     }
     
@@ -46,7 +46,7 @@ struct ChannelListView: View {
                         } else {
                             ForEach(filteredSubscriptions) { subscription in
                                 HStack {
-                                    ChannelRowView(item: subscription)
+                                    ChannelRowView(channel: subscription)
                                         .navigationLinkIndicatorVisibility(.hidden)
                                     
                                     Spacer()
@@ -68,7 +68,7 @@ struct ChannelListView: View {
                 if !channels.isEmpty {
                     Section("Saved Channels") {
                         ForEach(channels) { channel in
-                            ChannelRowView(item: channel)
+                            ChannelRowView(channel: channel)
                         }
                         .onDelete(perform: deleteChannels)
                     }
@@ -116,11 +116,11 @@ struct ChannelListView: View {
         }
     }
     
-    private func addSubscriptionAsChannel(_ subscription: Subscription) {
+    private func addSubscriptionAsChannel(_ subscription: Channel) {
         let channel = Channel(
             id: subscription.id,
             title: subscription.title,
-            channelDescription: subscription.description,
+            channelDescription: subscription.channelDescription,
             thumbnailURL: subscription.thumbnailURL
         )
         

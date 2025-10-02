@@ -8,8 +8,8 @@
 import Foundation
 
 extension YTService {
-    static func fetchMySubscriptions() async throws -> [Subscription] {
-        var allSubscriptions: [Subscription] = []
+    static func fetchMySubscriptions() async throws -> [Channel] {
+        var allSubscriptions: [Channel] = []
         var nextPageToken: String? = nil
         
         repeat {
@@ -22,10 +22,10 @@ extension YTService {
             let response: SubscriptionListResponse = try await fetchResponse(from: url)
             
             for item in response.items {
-                let subscription = Subscription(
+                let subscription = Channel(
                     id: item.snippet.resourceId.channelId,
                     title: item.snippet.title,
-                    description: item.snippet.description,
+                    channelDescription: item.snippet.description,
                     thumbnailURL: item.snippet.thumbnails.medium.url
                 )
                 allSubscriptions.append(subscription)
