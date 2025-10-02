@@ -30,18 +30,24 @@ actor VideoLoader {
                         let rssVideoData = try await FeedParser.fetchChannelVideosFromRSS(channelId: channel.id)
                         let filteredData = await self.filterRSSVideoData(rssVideoData)
                         for data in filteredData {
-                            let video = Video(
-                                id: data.id,
-                                title: data.title,
-                                videoDescription: data.videoDescription,
-                                thumbnailURL: data.thumbnailURL,
-                                publishedAt: data.publishedAt,
-                                url: data.url,
-                                channel: channel,
-                                viewCount: data.viewCount,
-                                isShort: data.isShort
-                            )
-                            self.modelExecutor.modelContext.insert(video)
+                            // Check if video already exists
+                            let id = data.id
+                            var descriptor = FetchDescriptor<Video>(predicate: #Predicate<Video> { $0.id == id })
+                            descriptor.fetchLimit = 1
+                            if (try? self.modelExecutor.modelContext.fetch(descriptor).first) == nil {
+                                let video = Video(
+                                    id: data.id,
+                                    title: data.title,
+                                    videoDescription: data.videoDescription,
+                                    thumbnailURL: data.thumbnailURL,
+                                    publishedAt: data.publishedAt,
+                                    url: data.url,
+                                    channel: channel,
+                                    viewCount: data.viewCount,
+                                    isShort: data.isShort
+                                )
+                                self.modelExecutor.modelContext.insert(video)
+                            }
                         }
                     } catch {
                         print("Error fetching videos for \(channel.title): \(error)")
@@ -50,11 +56,11 @@ actor VideoLoader {
             }
         }
         
-        // Unconditionally refresh metadata for recent 50 videos
+        
+        #if !DEBUG // dont fetch details on debug due to many app launches
         var descriptor = FetchDescriptor<Video>(sortBy: [SortDescriptor(\.publishedAt, order: .reverse)])
         descriptor.fetchLimit = 50
         
-        #if !DEBUG // dont fetch details on debug due to many app launches
         if let videos = try? modelExecutor.modelContext.fetch(descriptor) {
             do {
                 try await YTService.fetchVideoDetails(for: videos)
