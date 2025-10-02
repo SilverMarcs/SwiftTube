@@ -24,23 +24,21 @@ extension YTService {
     }
     
     static func fetchVideoDetails(for videos: [Video]) async throws {
-        // Split into chunks of 50 (YouTube API limit)
-        let chunks = videos.chunked(into: 50)
+        // Take only first 50 videos (YouTube API limit)
+        let limitedVideos = Array(videos.prefix(50))
         
-        for chunk in chunks {
-            let videoIds = chunk.map { $0.id }.joined(separator: ",")
-            let url = URL(string: "\(baseURL)/videos?part=snippet,contentDetails,statistics&id=\(videoIds)")!
-            
-            let response: VideoDetailResponse = try await fetchResponse(from: url)
-            
-            // Update each video with the fetched details
-            for item in response.items {
-                if let video = chunk.first(where: { $0.id == item.id }) {
-                    let duration = item.contentDetails.duration.parseDurationToSeconds()
-                    video.duration = duration
-                    video.viewCount = item.statistics.viewCount
-                    video.likeCount = item.statistics.likeCount
-                }
+        let videoIds = limitedVideos.map { $0.id }.joined(separator: ",")
+        let url = URL(string: "\(baseURL)/videos?part=snippet,contentDetails,statistics&id=\(videoIds)")!
+        
+        let response: VideoDetailResponse = try await fetchResponse(from: url)
+        
+        // Update each video with the fetched details
+        for item in response.items {
+            if let video = limitedVideos.first(where: { $0.id == item.id }) {
+                let duration = item.contentDetails.duration.parseDurationToSeconds()
+                video.duration = duration
+                video.viewCount = item.statistics.viewCount
+                video.likeCount = item.statistics.likeCount
             }
         }
     }

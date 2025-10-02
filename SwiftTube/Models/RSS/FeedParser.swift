@@ -114,8 +114,6 @@ class FeedParser: NSObject, XMLParserDelegate {
         }
         
         return feed.entries.compactMap { entry in
-            let viewCount = entry.mediaGroup.views ?? "0"
-            
             return RSSVideoData(
                 id: entry.mediaGroup.videoId,
                 title: entry.title,
@@ -123,7 +121,7 @@ class FeedParser: NSObject, XMLParserDelegate {
                 thumbnailURL: entry.mediaGroup.thumbnail.url,
                 publishedAt: entry.published,
                 url: entry.link,
-                viewCount: viewCount,
+                viewCount: entry.mediaGroup.views ?? "0",
                 isShort: entry.link.contains("/shorts/")
             )
         }
