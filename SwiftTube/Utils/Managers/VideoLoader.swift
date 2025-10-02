@@ -12,20 +12,22 @@ import Foundation
 @ModelActor
 actor VideoLoader {
     static let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+    
+    private var newVideos: [Video] = []
 
     func loadAllChannelVideos() async {
         // First, clean up old videos
         await cleanupOldVideos()
+        
+        newVideos = [] // Reset the array
         
         guard let channels = try? modelExecutor.modelContext.fetch(FetchDescriptor<Channel>()) else {
             print("Error fetching channels")
             return
         }
         
-        // Fetch all existing video IDs once for efficient lookup
-        let existingVideoIds = await fetchExistingVideoIds()
-        
         // Fetch basic video data from RSS (without max results limit)
+        var newVideos: [Video] = []
         await withTaskGroup(of: Void.self) { group in
             for channel in channels {
                 group.addTask {
@@ -34,7 +36,7 @@ actor VideoLoader {
                         let filteredData = await self.filterRSSVideoData(rssVideoData)
                         for data in filteredData {
                             // Check against the pre-fetched set (O(1) lookup)
-                            if !existingVideoIds.contains(data.id) {
+//                            if !existingVideoIds.contains(data.id) {
                                 let video = Video(
                                     id: data.id,
                                     title: data.title,
@@ -46,8 +48,9 @@ actor VideoLoader {
                                     viewCount: data.viewCount,
                                     isShort: data.isShort
                                 )
-                                self.modelExecutor.modelContext.insert(video)
-                            }
+                                // Instead of inserting here, collect the video
+                                await self.addVideo(video)
+//                            }
                         }
                     } catch {
                         print("Error fetching videos for \(channel.title): \(error)")
@@ -55,6 +58,13 @@ actor VideoLoader {
                 }
             }
         }
+        
+        // Insert all new videos serially
+        for video in newVideos {
+            self.modelExecutor.modelContext.insert(video)
+        }
+        
+        newVideos = [] // Clear after insert
         
         
         #if !DEBUG // dont fetch details on debug due to many app launches
@@ -83,22 +93,6 @@ actor VideoLoader {
         }
     }
     
-    private func fetchExistingVideoIds() async -> Set<String> {
-        // Fetch only video IDs from the last 7 days for efficient memory usage
-        let date = Self.oneWeekAgo
-        let descriptor = FetchDescriptor<Video>(predicate: #Predicate<Video> { video in
-            video.publishedAt >= date
-        })
-        
-        do {
-            let videos = try modelExecutor.modelContext.fetch(descriptor)
-            return Set(videos.map { $0.id })
-        } catch {
-            print("Error fetching existing video IDs: \(error)")
-            return []
-        }
-    }
-    
     private func filterRSSVideoData(_ rssData: [RSSVideoData]) -> [RSSVideoData] {
         // Keep only videos from the last 7 days
         return rssData.filter { data in
@@ -111,20 +105,24 @@ actor VideoLoader {
         let descriptor = FetchDescriptor<Video>(predicate: #Predicate<Video> { video in
             video.publishedAt < cutoffDate
         })
-
+        
         do {
             let oldVideos = try modelExecutor.modelContext.fetch(descriptor)
             let count = oldVideos.count
-
+            
             for video in oldVideos {
                 modelExecutor.modelContext.delete(video)
             }
-
+            
             if count > 0 {
                 print("Cleaned up \(count) videos older than 7 days")
             }
         } catch {
             print("Error cleaning up old videos: \(error)")
         }
+    }
+    
+    private func addVideo(_ video: Video) {
+        newVideos.append(video)
     }
 }

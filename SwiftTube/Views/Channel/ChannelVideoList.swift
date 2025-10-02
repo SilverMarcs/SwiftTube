@@ -32,15 +32,17 @@ struct ChannelVideoList: View {
             }
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .title) {
+                ToolbarItem(placement: .principal) {
                     Button {
                         showingDetails = true
                     } label: {
                         ChannelRowView(channel: channel)
                             .allowsHitTesting(false)
+                            .contentShape(.rect)
                     }
                     .frame(maxWidth: 40)
                 }
+                .sharedBackgroundVisibility(.visible)
                 
                 ToolbarItem(placement: .destructiveAction) {
                     if isSavedChannel {
