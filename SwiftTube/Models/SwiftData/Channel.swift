@@ -18,8 +18,6 @@ final class Channel {
     var viewCount: UInt64
     var subscriberCount: UInt64
 
-    @Relationship(deleteRule: .cascade, inverse: \Video.channel) var videos: [Video] = []
-
     init(id: String, title: String, channelDescription: String, thumbnailURL: String, viewCount: UInt64 = 0, subscriberCount: UInt64 = 0) {
         self.id = id
         self.title = title

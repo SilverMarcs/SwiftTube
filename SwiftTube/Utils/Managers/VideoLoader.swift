@@ -22,6 +22,9 @@ actor VideoLoader {
             return
         }
         
+        // Fetch all existing video IDs once for efficient lookup
+        let existingVideoIds = await fetchExistingVideoIds()
+        
         // Fetch basic video data from RSS (without max results limit)
         await withTaskGroup(of: Void.self) { group in
             for channel in channels {
@@ -30,11 +33,8 @@ actor VideoLoader {
                         let rssVideoData = try await FeedParser.fetchChannelVideosFromRSS(channelId: channel.id)
                         let filteredData = await self.filterRSSVideoData(rssVideoData)
                         for data in filteredData {
-                            // Check if video already exists
-                            let id = data.id
-                            var descriptor = FetchDescriptor<Video>(predicate: #Predicate<Video> { $0.id == id })
-                            descriptor.fetchLimit = 1
-                            if (try? self.modelExecutor.modelContext.fetch(descriptor).first) == nil {
+                            // Check against the pre-fetched set (O(1) lookup)
+                            if !existingVideoIds.contains(data.id) {
                                 let video = Video(
                                     id: data.id,
                                     title: data.title,
@@ -58,7 +58,12 @@ actor VideoLoader {
         
         
         #if !DEBUG // dont fetch details on debug due to many app launches
-        var descriptor = FetchDescriptor<Video>(sortBy: [SortDescriptor(\.publishedAt, order: .reverse)])
+        var descriptor = FetchDescriptor<Video>(
+            predicate: #Predicate<Video> { video in
+                !video.isShort
+            },
+            sortBy: [SortDescriptor(\.publishedAt, order: .reverse)]
+        )
         descriptor.fetchLimit = 50
         
         if let videos = try? modelExecutor.modelContext.fetch(descriptor) {
@@ -75,6 +80,22 @@ actor VideoLoader {
             try modelExecutor.modelContext.save()
         } catch {
             print("Error saving video loader: \(error)")
+        }
+    }
+    
+    private func fetchExistingVideoIds() async -> Set<String> {
+        // Fetch only video IDs from the last 7 days for efficient memory usage
+        let date = Self.oneWeekAgo
+        let descriptor = FetchDescriptor<Video>(predicate: #Predicate<Video> { video in
+            video.publishedAt >= date
+        })
+        
+        do {
+            let videos = try modelExecutor.modelContext.fetch(descriptor)
+            return Set(videos.map { $0.id })
+        } catch {
+            print("Error fetching existing video IDs: \(error)")
+            return []
         }
     }
     
