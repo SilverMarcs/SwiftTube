@@ -13,6 +13,11 @@ struct PersistentVideoPlayerOverlay: View {
                            OrientationManager.shared.lockOrientation(.landscape, andRotateTo: .landscapeRight)
                        } else {
                            OrientationManager.shared.lockOrientation(.all)
+                           DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                               Task { @MainActor in
+                                   await manager.togglePlayPause()
+                               }
+                           }
                        }
                    }
                 .aspectRatio(16/9, contentMode: .fit)

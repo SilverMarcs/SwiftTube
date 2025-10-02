@@ -28,7 +28,7 @@ struct HistoryView: View {
                                 Button {
                                     video.lastWatchedAt = nil
                                 } label: {
-                                    Label("Remove from History", systemImage: "trash")
+                                    Label("Remove", systemImage: "trash")
                                 }
                                 .tint(.red)
                             }

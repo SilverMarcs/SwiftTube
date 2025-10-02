@@ -30,18 +30,21 @@ struct VideoCard: View {
                                 .tint(.accent)
                         }
                     }
-                    .overlay(alignment: .topTrailing) {
+                
+                VStack(alignment: .leading) {
+                    HStack {
                         if video.isWatchLater {
                             Image(systemName: "bookmark.fill")
                                 .foregroundStyle(.green)
-                                .padding(10)
+                                .imageScale(.small)
                         }
+                        
+                        Text(video.title)
+                            .font(.headline)
+                            .lineLimit(2)
+       
+                        Spacer()
                     }
-                
-                VStack(alignment: .leading) {
-                    Text(video.title)
-                        .font(.headline)
-                        .lineLimit(2)
                     
                     HStack(alignment: .center, spacing: 4) {
                         if let channel = video.channel, let url = URL(string: channel.thumbnailURL) {

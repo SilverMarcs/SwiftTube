@@ -34,7 +34,7 @@ struct WatchLaterView: View {
                                 Button {
                                     video.isWatchLater = false
                                 } label: {
-                                    Label("Remove from Watch Later", systemImage: "bookmark.slash")
+                                    Label("Remove", systemImage: "bookmark.slash")
                                 }
                             }
                     }
