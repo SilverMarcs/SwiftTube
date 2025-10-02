@@ -27,7 +27,6 @@ actor VideoLoader {
         }
         
         // Fetch basic video data from RSS (without max results limit)
-        var newVideos: [Video] = []
         await withTaskGroup(of: Void.self) { group in
             for channel in channels {
                 group.addTask {
@@ -60,7 +59,7 @@ actor VideoLoader {
         }
         
         // Insert all new videos serially
-        for video in newVideos {
+        for video in self.newVideos {
             self.modelExecutor.modelContext.insert(video)
         }
         
