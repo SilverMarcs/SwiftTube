@@ -84,7 +84,20 @@ struct ChannelDetailView: View {
         defer { isLoading = false }
         
         do {
-            videos = try await FeedParser.fetchChannelVideosFromRSS(channelId: channelItem.id, maxResults: 20)
+            let rssData = try await FeedParser.fetchChannelVideosFromRSS(channelId: channelItem.id)
+            videos = rssData.map { data in
+                Video(
+                    id: data.id,
+                    title: data.title,
+                    videoDescription: data.videoDescription,
+                    thumbnailURL: data.thumbnailURL,
+                    publishedAt: data.publishedAt,
+                    url: data.url,
+                    channel: nil, // No full channel object available here
+                    viewCount: data.viewCount,
+                    isShort: data.isShort
+                )
+            }
         } catch {
             print(error.localizedDescription)
         }

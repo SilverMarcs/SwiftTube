@@ -22,15 +22,32 @@ actor VideoLoader {
             return
         }
         
+        // Fetch all existing video IDs once for efficient duplicate checking
+        let existingVideoIds = await fetchAllVideoIds()
+        
         // Fetch basic video data from RSS (without max results limit)
         await withTaskGroup(of: Void.self) { group in
             for channel in channels {
                 group.addTask {
                     do {
-                        let channelVideos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
-                        let filteredVideos = await self.filterVideosForChannel(channelVideos)
-                        for video in filteredVideos {
-                            self.modelExecutor.modelContext.insert(video)
+                        let rssVideoData = try await FeedParser.fetchChannelVideosFromRSS(channelId: channel.id)
+                        let filteredData = await self.filterRSSVideoData(rssVideoData)
+                        for data in filteredData {
+                            // Only insert if this video doesn't already exist
+                            if !existingVideoIds.contains(data.id) {
+                                let video = Video(
+                                    id: data.id,
+                                    title: data.title,
+                                    videoDescription: data.videoDescription,
+                                    thumbnailURL: data.thumbnailURL,
+                                    publishedAt: data.publishedAt,
+                                    url: data.url,
+                                    channel: channel,
+                                    viewCount: data.viewCount,
+                                    isShort: data.isShort
+                                )
+                                self.modelExecutor.modelContext.insert(video)
+                            }
                         }
                     } catch {
                         print("Error fetching videos for \(channel.title): \(error)")
@@ -46,9 +63,8 @@ actor VideoLoader {
         if let videos = try? modelExecutor.modelContext.fetch(descriptor) {
             do {
                 try await YTService.fetchVideoDetails(for: videos)
-//                print("Updated rich data for latest 50 videos")
             } catch {
-//                print("Error updating video rich data: \(error)")
+                print("Error updating video rich data: \(error)")
             }
         }
         
@@ -59,10 +75,10 @@ actor VideoLoader {
         }
     }
     
-    private func filterVideosForChannel(_ videos: [Video]) -> [Video] {
+    private func filterRSSVideoData(_ rssData: [RSSVideoData]) -> [RSSVideoData] {
         // Single-pass filtering: keep all shorts and recent regular videos
-        return videos.filter { video in
-            video.isShort || video.publishedAt >= Self.oneWeekAgo
+        return rssData.filter { data in
+            data.isShort || data.publishedAt >= Self.oneWeekAgo
         }
     }
     
@@ -105,5 +121,13 @@ actor VideoLoader {
         } catch {
             print("Error cleaning up excess Shorts: \(error)")
         }
+    }
+    
+    private func fetchAllVideoIds() async -> Set<String> {
+        let descriptor = FetchDescriptor<Video>()
+        guard let videos = try? modelExecutor.modelContext.fetch(descriptor) else {
+            return []
+        }
+        return Set(videos.map { $0.id })
     }
 }

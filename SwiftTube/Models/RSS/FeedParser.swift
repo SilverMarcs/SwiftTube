@@ -101,36 +101,7 @@ class FeedParser: NSObject, XMLParserDelegate {
         feed = Feed(title: feedTitle, entries: entries)
     }
     
-    static func fetchChannelVideosFromRSS(channel: Channel) async throws -> [Video] {
-        let url = URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channel.id)")!
-        
-        let (data, _) = try await URLSession.shared.data(from: url)
-        
-        let parser = FeedParser()
-        parser.parse(data: data)
-        
-        guard let feed = parser.feed else {
-            throw APIError.invalidResponse
-        }
-        
-        return feed.entries.compactMap { entry in
-            let viewCount = entry.mediaGroup.views ?? "0"
-            
-            return Video(
-                id: entry.mediaGroup.videoId,
-                title: entry.title,
-                videoDescription: entry.mediaGroup.description,
-                thumbnailURL: entry.mediaGroup.thumbnail.url,
-                publishedAt: entry.published,
-                url: entry.link,
-                channel: channel,
-                viewCount: viewCount,
-                isShort: entry.link.contains("/shorts/")
-            )
-        }
-    }
-    
-    static func fetchChannelVideosFromRSS(channelId: String, maxResults: Int = 5) async throws -> [Video] {
+    static func fetchChannelVideosFromRSS(channelId: String) async throws -> [RSSVideoData] {
         let url = URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channelId)")!
         
         let (data, _) = try await URLSession.shared.data(from: url)
@@ -145,17 +116,16 @@ class FeedParser: NSObject, XMLParserDelegate {
         return feed.entries.compactMap { entry in
             let viewCount = entry.mediaGroup.views ?? "0"
             
-            return Video(
+            return RSSVideoData(
                 id: entry.mediaGroup.videoId,
                 title: entry.title,
                 videoDescription: entry.mediaGroup.description,
                 thumbnailURL: entry.mediaGroup.thumbnail.url,
                 publishedAt: entry.published,
                 url: entry.link,
-                channel: nil, // Will be nil since we don't have the full channel object
                 viewCount: viewCount,
                 isShort: entry.link.contains("/shorts/")
             )
-        }.prefix(maxResults).map { $0 }
+        }
     }
 }
