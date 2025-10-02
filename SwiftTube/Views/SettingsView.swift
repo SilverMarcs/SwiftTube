@@ -12,6 +12,7 @@ import SwiftData
 struct SettingsView: View {
     @State private var deleteAlertPresented = false
     @Environment(\.modelContext) var modelContext
+    @AppStorage("youtubeAPIKey") private var apiKey = ""
     
     var body: some View {
         NavigationStack {
@@ -45,6 +46,12 @@ struct SettingsView: View {
                     }
                 }
                 
+                
+                Section("API") {
+                    TextField("YouTube API Key", text: $apiKey)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                }
                 
                 #if DEBUG
                 Section("Data Management") {

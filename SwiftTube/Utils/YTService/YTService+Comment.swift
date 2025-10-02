@@ -11,7 +11,7 @@ extension YTService {
     static func fetchComments(for video: Video) async throws -> [Comment] {
         let url = URL(string: "\(baseURL)/commentThreads?part=snippet,replies&videoId=\(video.id)&maxResults=100&order=relevance&textFormat=plainText")!
         
-        let response: CommentThreadsResponse = try await fetchOAuthResponse(from: url)
+        let response: CommentThreadsResponse = try await fetchResponse(from: url)
         
         var comments: [Comment] = []
         let dateFormatter = YTService.isoFormatter

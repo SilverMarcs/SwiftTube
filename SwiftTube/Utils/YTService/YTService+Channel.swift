@@ -12,7 +12,7 @@ extension YTService {
         let encoded = handle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? handle
         let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails,statistics&forHandle=\(encoded)")!
         
-        let response: ChannelResponse = try await fetchOAuthResponse(from: url)
+        let response: ChannelResponse = try await fetchResponse(from: url)
         
         guard let item = response.items.first else {
             throw APIError.channelNotFound
@@ -31,7 +31,7 @@ extension YTService {
     static func fetchChannel(byId channelId: String) async throws -> Channel {
         let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails,statistics&id=\(channelId)")!
         
-        let response: ChannelResponse = try await fetchOAuthResponse(from: url)
+        let response: ChannelResponse = try await fetchResponse(from: url)
         
         guard let item = response.items.first else {
             throw APIError.channelNotFound
@@ -61,7 +61,7 @@ extension YTService {
 
             let idList = chunk.joined(separator: ",")
             let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails,statistics&id=\(idList)")!
-            let response: ChannelResponse = try await fetchOAuthResponse(from: url)
+            let response: ChannelResponse = try await fetchResponse(from: url)
 
             let channels = response.items.map { item in
                 Channel(

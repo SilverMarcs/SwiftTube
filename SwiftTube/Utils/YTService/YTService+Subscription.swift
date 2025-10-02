@@ -19,7 +19,7 @@ extension YTService {
             }
             
             let url = URL(string: urlString)!
-            let response: SubscriptionListResponse = try await fetchOAuthResponse(from: url)
+            let response: SubscriptionListResponse = try await fetchResponse(from: url)
             
             for item in response.items {
                 let subscription = Subscription(

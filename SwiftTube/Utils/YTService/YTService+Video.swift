@@ -11,7 +11,7 @@ extension YTService {
     static func fetchVideoDetails(for video: Video) async throws {
         let url = URL(string: "\(baseURL)/videos?part=snippet,contentDetails,statistics&id=\(video.id)")!
         
-        let response: VideoDetailResponse = try await fetchOAuthResponse(from: url)
+        let response: VideoDetailResponse = try await fetchResponse(from: url)
         
         guard let item = response.items.first else {
             throw APIError.videoNotFound
@@ -31,7 +31,7 @@ extension YTService {
             let videoIds = chunk.map { $0.id }.joined(separator: ",")
             let url = URL(string: "\(baseURL)/videos?part=snippet,contentDetails,statistics&id=\(videoIds)")!
             
-            let response: VideoDetailResponse = try await fetchOAuthResponse(from: url)
+            let response: VideoDetailResponse = try await fetchResponse(from: url)
             
             // Update each video with the fetched details
             for item in response.items {
@@ -48,7 +48,7 @@ extension YTService {
     static func fetchVideo(byId id: String) async throws -> Video {
         let url = URL(string: "\(baseURL)/videos?part=snippet,contentDetails,statistics&id=\(id)")!
         
-        let response: VideoDetailResponse = try await fetchOAuthResponse(from: url)
+        let response: VideoDetailResponse = try await fetchResponse(from: url)
         
         guard let item = response.items.first else {
             throw APIError.videoNotFound

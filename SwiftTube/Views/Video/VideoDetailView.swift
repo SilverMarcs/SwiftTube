@@ -80,11 +80,6 @@ struct VideoDetailView: View {
                     
                     // Comments Section
                     VideoCommentsView(video: video)
-                    
-                    // Related Videos
-                    //            if !videoDetail.relatedVideos.isEmpty {
-                    //                relatedVideosSection(for: videoDetail)
-                    //            }
                 }
                 .padding(10)
                 .overlay {
@@ -92,9 +87,6 @@ struct VideoDetailView: View {
                         UniversalProgressView()
                     }
                 }
-                //        .refreshable {
-                //            await loadVideoDetail()
-                //        }
             }
         }
     }
