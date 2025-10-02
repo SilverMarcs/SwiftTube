@@ -78,7 +78,7 @@ extension Array {
 
 extension String {
     func parseDurationToSeconds() -> Int {
-        print(self)
+//        print(self)
         let pattern = "PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?"
         let regex = try! NSRegularExpression(pattern: pattern)
         let matches = regex.firstMatch(in: self, range: NSRange(self.startIndex..., in: self))

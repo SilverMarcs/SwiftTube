@@ -42,7 +42,7 @@ struct FeedView: View {
                 }
             }
             .refreshable {
-                await videoLoader?.refreshAllVideos()
+                await videoLoader?.loadAllChannelVideos()
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
