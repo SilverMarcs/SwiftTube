@@ -3,6 +3,7 @@ import SwiftMediaViewer
 
 struct MiniPlayerAccessoryView: View {
     @Environment(VideoManager.self) var manager
+    @Environment(\.openWindow) private var openWindow
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     
     var body: some View {
@@ -42,10 +43,16 @@ struct MiniPlayerAccessoryView: View {
                 .padding()
                 .contentShape(.rect)
                 .onTapGesture {
+                    #if os(macOS)
+                    openWindow(id: "media-player")
+                    #else
                     manager.isExpanded = true
+                    #endif
                 }
             } else {
+                #if !os(macOS)
                 Text("No video playing")
+                #endif
             }
         }
     }

@@ -4,9 +4,7 @@ import SwiftMediaViewer
 struct VideoCard: View {
     @Environment(VideoManager.self) var manager
     @Environment(UserDefaultsManager.self) private var userDefaults
-    #if os(macOS)
     @Environment(\.openWindow) private var openWindow
-    #endif
     let video: Video
     
     var body: some View {
@@ -109,5 +107,27 @@ struct VideoCard: View {
             .background(.background.secondary, in: .rect(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            NavigationLink {
+                ChannelVideoList(channel: video.channel)
+            } label: {
+                Label(video.channel.title, systemImage: "person.circle")
+            }
+            
+            Button {
+                userDefaults.toggleWatchLater(video.id)
+            } label: {
+                Label(
+                    userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
+                    systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
+                )
+            }
+            
+            Section {
+                ShareLink(item: URL(string: video.url)!) {
+                    Label("Share Video", systemImage: "square.and.arrow.up")
+                }
+            }
+        }
     }
 }

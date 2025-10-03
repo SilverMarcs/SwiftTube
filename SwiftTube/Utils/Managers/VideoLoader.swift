@@ -10,9 +10,13 @@ import Foundation
 @Observable
 final class VideoLoader {
     public var videos: [Video] = []
+    private(set) var isLoading: Bool = false
     private let userDefaults = UserDefaultsManager.shared
     
     func loadAllChannelVideos() async {
+        isLoading = true
+        defer { isLoading = false }
+        
         let channels = userDefaults.savedChannels
         guard !channels.isEmpty else {
             videos = []
@@ -54,7 +58,7 @@ final class VideoLoader {
                 try await YTService.fetchVideoDetails(for: &mutableVideos)
                 
                 // Update the corresponding entries in self.videos
-                var lookup = Dictionary(uniqueKeysWithValues: mutableVideos.map { ($0.id, $0) })
+                let lookup = Dictionary(uniqueKeysWithValues: mutableVideos.map { ($0.id, $0) })
                 for i in self.videos.indices {
                     if let updated = lookup[self.videos[i].id] {
                         self.videos[i] = updated

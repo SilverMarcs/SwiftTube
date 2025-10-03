@@ -14,22 +14,11 @@ struct ChannelVideoList: View {
     
     var body: some View {
         NavigationStack {
-            List(videos) { video in
-                VideoCard(video: video)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(.vertical, 7)
-                    .listRowInsets(.horizontal, 10)
-            }
-            .listStyle(.plain)
-            .overlay {
-                if isLoading {
-                    UniversalProgressView()
-                }
-            }
+            VideoGridView(videos: videos)
             .navigationTitle(channel.title)
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .destructiveAction) {
+                ToolbarItem(placement: .primaryAction) {
                     if isSavedChannel {
                         Button(role: .confirm) {
                             userDefaults.removeChannel(channel)
@@ -45,13 +34,13 @@ struct ChannelVideoList: View {
                     }
                 }
             }
+            .refreshable {
+                await loadChannelVideos()
+            }
             .task {
                 if videos.isEmpty {
                     await loadChannelVideos()
                 }
-            }
-            .refreshable {
-                await loadChannelVideos()
             }
         }
         .sheet(isPresented: $showingDetails) {
