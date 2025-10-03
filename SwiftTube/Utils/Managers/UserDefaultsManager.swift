@@ -7,13 +7,13 @@
 
 import Foundation
 
-// TODO: does this need to be .shared
-
 @Observable
 final class UserDefaultsManager {
     static let shared = UserDefaultsManager()
     
-    private let defaults = UserDefaults.standard
+//    private let defaults = UserDefaults.standard
+    // Use iCloud key-value store for syncing across devices
+    private let defaults = NSUbiquitousKeyValueStore.default
     
     // Keys
     private enum Keys {
@@ -40,6 +40,27 @@ final class UserDefaultsManager {
     private(set) var watchProgress: [String: Double] = [:] { didSet { persistProgress() } }
     
     private init() {
+        load()
+        setupCloudSync()
+    }
+    
+    // MARK: - iCloud Sync Setup
+    
+    private func setupCloudSync() {
+        // Listen for changes from other devices
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleCloudStoreChange),
+            name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: defaults
+        )
+        
+        // Synchronize to get latest from iCloud
+        defaults.synchronize()
+    }
+    
+    @objc private func handleCloudStoreChange(_ notification: Notification) {
+        // Reload data when changes come from iCloud
         load()
     }
     
@@ -70,21 +91,25 @@ final class UserDefaultsManager {
     private func persistChannels() {
         let data = try? JSONEncoder().encode(savedChannels)
         defaults.set(data, forKey: Keys.savedChannels)
+        defaults.synchronize()
     }
     
     private func persistWatchLater() {
         let data = try? JSONEncoder().encode(watchLaterIds)
         defaults.set(data, forKey: Keys.watchLaterIds)
+        defaults.synchronize()
     }
     
     private func persistHistory() {
         let data = try? JSONEncoder().encode(historyIds)
         defaults.set(data, forKey: Keys.historyIds)
+        defaults.synchronize()
     }
     
     private func persistProgress() {
         let data = try? JSONEncoder().encode(watchProgress)
         defaults.set(data, forKey: Keys.watchProgress)
+        defaults.synchronize()
     }
     
     func addChannel(_ channel: Channel) {

@@ -72,9 +72,9 @@ struct ShortsView: View {
                     await shortsManager.pause()
                 }
             }
-            .onChange(of: shortVideos) {
-                shuffledVideos = shortVideos.shuffled()
-            }
+//            .onChange(of: shortVideos) {
+//                shuffledVideos = shortVideos.shuffled()
+//            }
         }
     }
 }

@@ -4,6 +4,7 @@ import SwiftMediaViewer
 
 struct ChannelListView: View {
     @Environment(UserDefaultsManager.self) private var userDefaults
+    @AppStorage("youtubeAPIKey") private var apiKey = ""
 
     @State private var showingAddChannel = false
     @State private var subscriptions: [Channel] = []
@@ -34,14 +35,15 @@ struct ChannelListView: View {
     var body: some View {
         NavigationStack {
             List {
-                if authManager.isSignedIn {
+                if authManager.isSignedIn && apiKey.isEmpty {
                     Section {
                         if availableSubscriptions.isEmpty {
-                            Button(isLoadingSubscriptions ? "Loading..." : "Load Subscriptions") {
+                            Button(isLoadingSubscriptions ? "Loading Subscriptions..." : "Load Subscriptions") {
                                 Task { await loadSubscriptions() }
                             }
                             .disabled(isLoadingSubscriptions)
                             .frame(maxWidth: .infinity)
+                            .listRowSeparator(.hidden)
                         } else {
                             ForEach(filteredSubscriptions) { subscription in
                                 HStack {
@@ -73,8 +75,11 @@ struct ChannelListView: View {
                     }
                 }
             }
+            #if os(macOS)
+            .searchable(text: $searchText, placement: .toolbarPrincipal, prompt: "Search channels and subscriptions")
+            #else
             .searchable(text: $searchText, prompt: "Search channels and subscriptions")
-
+            #endif
             .refreshable {
                 await refreshChannels()
             }

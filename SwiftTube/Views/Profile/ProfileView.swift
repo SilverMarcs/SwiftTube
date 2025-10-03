@@ -31,6 +31,7 @@ struct ProfileView: View {
                 
                 HistoryView()
             }
+            .formStyle(.grouped)
             .contentMargins(.top, 5)
             .task {
                 try? await authManager.fetchUserInfo()

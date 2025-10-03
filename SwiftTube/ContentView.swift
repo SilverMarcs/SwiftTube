@@ -45,6 +45,7 @@ struct ContentView: View {
             #if os(macOS)
             .tabViewSidebarBottomBar {
                 MiniPlayerAccessoryView()
+                    .padding(10)
             }
             #else
             .tabBarMinimizeBehavior(.onScrollDown)
