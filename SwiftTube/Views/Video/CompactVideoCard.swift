@@ -53,6 +53,11 @@ struct CompactVideoCard: View {
                     }
                 }
             }
+            .contextMenu {
+                ShareLink(item: URL(string: video.url)!) {
+                    Label("Share Video", systemImage: "square.and.arrow.up")
+                }
+            }
         }
         .buttonStyle(.plain)
     }

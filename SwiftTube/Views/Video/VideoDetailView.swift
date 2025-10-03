@@ -34,6 +34,14 @@ struct VideoDetailView: View {
                             Label(likesText, systemImage: "hand.thumbsup.fill")
                         }
                         
+                        
+                        ShareLink(item: URL(string: video.url)!) {
+                            Label("Share Video", systemImage: "square.and.arrow.up")
+                        }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.glass)
+                        .controlSize(.mini)
+                        
                         Button {
                             userDefaults.toggleWatchLater(video.id)
                         } label: {

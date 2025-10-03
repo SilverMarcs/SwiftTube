@@ -26,6 +26,11 @@ struct FeedView: View {
                                 systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
                             )
                         }
+                        Section {
+                            ShareLink(item: URL(string: video.url)!) {
+                                Label("Share Video", systemImage: "square.and.arrow.up")
+                            }
+                        }
                     }
             }
             .listStyle(.plain)

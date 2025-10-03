@@ -5,10 +5,10 @@ class ShortsManager {
     var player: YTPlayer?
     var currentVideo: Video?
     var currentIndex: Int = 0
+    var isCurrentlyPlaying: Bool = false
     
     private let userDefaults = UserDefaultsManager.shared
     
-    // TODO: switch to n start plahing too similar
     /// Start playing a short video
     func startPlaying(_ video: Video, at index: Int) {
         guard currentVideo?.id != video.id else { return }
@@ -19,6 +19,7 @@ class ShortsManager {
         
         createPlayerIfNeeded(id: video.id)
         loadVideo(video)
+        isCurrentlyPlaying = true
     }
     
     /// Switch to a different short video
@@ -29,6 +30,7 @@ class ShortsManager {
         currentVideo = video
         currentIndex = index
         loadVideo(video)
+        isCurrentlyPlaying = true
     }
     
     /// Check if a specific video is currently playing
@@ -36,9 +38,21 @@ class ShortsManager {
         currentVideo?.id == video.id
     }
     
+    func togglePlay() async {
+        guard let player else { return }
+        if isCurrentlyPlaying {
+            try? await player.pause()
+            isCurrentlyPlaying = false
+        } else {
+            try? await player.play()
+            isCurrentlyPlaying = true
+        }
+    }
+    
     func pause() async {
         guard let player else { return }
         try? await player.pause()
+        isCurrentlyPlaying = false
     }
     
     private func createPlayerIfNeeded(id: String) {

@@ -7,7 +7,6 @@ struct ShortVideoCard: View {
     @Environment(ShortsManager.self) var shortsManager
     
     @State private var showDetail: Bool = false
-    @State private var isPlaying: Bool = true // Assume starts playing
     
     var body: some View {
         VStack {
@@ -17,12 +16,7 @@ struct ShortVideoCard: View {
                         .contentShape(Rectangle())
                         .onTapGesture {
                             Task {
-                                if isPlaying {
-                                    try? await player.pause()
-                                } else {
-                                    try? await player.play()
-                                }
-                                isPlaying.toggle()
+                                await shortsManager.togglePlay()
                             }
                         }
                         .overlay(alignment: .bottomLeading) {
@@ -56,6 +50,7 @@ struct ShortVideoCard: View {
                     VideoDetailView(video: video)
                         .presentationDetents([.medium])
                         .presentationBackground(.bar)
+                        .presentationDragIndicator(.visible)
                 }
             }
         }

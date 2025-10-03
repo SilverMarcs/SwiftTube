@@ -129,9 +129,9 @@ class FeedParser: NSObject, XMLParserDelegate, Sendable {
         
         // Parse on background thread
         let entries = try await Task.detached(priority: .userInitiated) {
-            let parser = FeedParser()
-            parser.parse(data: data)
-            guard let feed = parser.feed else {
+            let parser = await FeedParser()
+            await parser.parse(data: data)
+            guard let feed = await parser.feed else {
                 throw APIError.invalidResponse
             }
             return feed.entries
