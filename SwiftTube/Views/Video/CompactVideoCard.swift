@@ -50,7 +50,7 @@ struct CompactVideoCard: View {
                             .fontWeight(.medium)
                             .lineLimit(2)
                         
-                        Text(video.channel?.title ?? "Loading")
+                        Text(video.channel.title)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)

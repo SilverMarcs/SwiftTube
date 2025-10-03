@@ -8,25 +8,11 @@ struct Video: Codable, Identifiable, Hashable {
     var thumbnailURL: String
     var publishedAt: Date
     var url: String
+    var channel: Channel
     var viewCount: String
+    var isShort: Bool
     var likeCount: String?          // optional; filled on detail fetch
-    var duration: Int?           // total seconds
-    var isShort: Bool   // determined by duration <= 60 seconds
-    
-    // Embedded channel data instead of separate relationship
-    var channel: Channel?
-
-    init(id: String, title: String, videoDescription: String, thumbnailURL: String, publishedAt: Date, url: String, channel: Channel?, viewCount: String = "0", isShort: Bool) {
-        self.id = id
-        self.title = title
-        self.videoDescription = videoDescription
-        self.thumbnailURL = thumbnailURL
-        self.publishedAt = publishedAt
-        self.url = url
-        self.channel = channel
-        self.viewCount = viewCount
-        self.isShort = isShort
-    }
+    var duration: Int?  // total seconds
 }
 
 extension Video {

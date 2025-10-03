@@ -19,7 +19,7 @@ struct MiniPlayerAccessoryView: View {
                             .font(.subheadline)
                             .lineLimit(1)
                         
-                        Text(video.channel?.title ?? "Title")
+                        Text(video.channel.title)
                             .font(.caption)
                     }
                     

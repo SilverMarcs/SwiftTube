@@ -41,13 +41,13 @@ struct VideoCard: View {
                         .lineLimit(2)
                     
                     HStack(alignment: .center, spacing: 4) {
-                        if let channel = video.channel, let url = URL(string: channel.thumbnailURL) {
+                        if let url = URL(string: video.channel.thumbnailURL) {
                             CachedAsyncImage(url: url, targetSize: 50)
                                 .frame(width: 20, height: 20)
                                 .clipShape(.circle)
                         }
                         
-                        Text(video.channel?.title ?? "Loading")
+                        Text(video.channel.title)
                             .lineLimit(1)
                             .font(.subheadline)
                             .fontWeight(.medium)

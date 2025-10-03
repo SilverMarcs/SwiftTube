@@ -21,13 +21,11 @@ struct ShortVideoCard: View {
                         }
                         .overlay(alignment: .bottomLeading) {
                             HStack {
-                                if let channel = video.channel {
-                                    ChannelRowView(channel: channel)
-                                        .foregroundStyle(.white)
-                                        .shadow(color: .black, radius: 20, x: 0, y: 0)
-                                        .navigationLinkIndicatorVisibility(.hidden)
-                                        .allowsHitTesting(false)
-                                }
+                                ChannelRowView(channel: video.channel)
+                                    .foregroundStyle(.white)
+                                    .shadow(color: .black, radius: 20, x: 0, y: 0)
+                                    .navigationLinkIndicatorVisibility(.hidden)
+                                    .allowsHitTesting(false)
                                 
                                 Spacer()
                                 

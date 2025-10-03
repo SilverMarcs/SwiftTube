@@ -60,14 +60,12 @@ struct VideoDetailView: View {
                     .padding(.top, 1)
                     
                     // Channel Info
-                    if let channel = video.channel {
-                        ChannelRowView(channel: channel)
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 12)
-                            .background(.background.secondary)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .foregroundStyle(.primary)
-                    }
+                    ChannelRowView(channel: video.channel)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(.background.secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .foregroundStyle(.primary)
                     
                     // Description
                     if !video.videoDescription.isEmpty {

@@ -52,7 +52,12 @@ extension YTService {
             throw APIError.videoNotFound
         }
         
-        let channel = try await YTService.fetchChannel(byId: item.snippet.channelId)
+        let channel: Channel
+        if let savedChannel = UserDefaultsManager.shared.savedChannels.first(where: { $0.id == item.snippet.channelId }) {
+            channel = savedChannel
+        } else {
+            channel = try await YTService.fetchChannel(byId: item.snippet.channelId)
+        }
         
         let duration = item.contentDetails.duration.parseDurationToSeconds()
         
