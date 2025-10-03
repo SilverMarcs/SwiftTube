@@ -22,16 +22,16 @@ struct ContentView: View {
                 Tab("Videos", systemImage: "video", value: .feed) {
                     FeedView()
                 }
-                
-                Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
-                    ShortsView()
-                }
 
                 #if os(macOS)
                 Tab("Profile", systemImage: "person", value: .profile) {
                     ProfileView()
                 }
                 #else
+                Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
+                    ShortsView()
+                }
+                
                 Tab("Profile", systemImage: "person", value: .profile, role: .search) {
                     ProfileView()
                 }
