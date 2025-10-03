@@ -33,7 +33,7 @@ final class UserDefaultsManager {
     
     // MARK: - History
     
-    private(set) var historyIds: Set<String> = [] { didSet { persistHistory() } }
+    private(set) var historyIds: [String: Date] = [:] { didSet { persistHistory() } }
     
     // MARK: - Watch Progress
     
@@ -57,7 +57,7 @@ final class UserDefaultsManager {
         }
         
         if let data = defaults.data(forKey: Keys.historyIds),
-           let decoded = try? decoder.decode(Set<String>.self, from: data) {
+           let decoded = try? decoder.decode([String: Date].self, from: data) {
             historyIds = decoded
         }
         
@@ -125,22 +125,26 @@ final class UserDefaultsManager {
         watchLaterIds.remove(videoId)
     }
     
-    // MARK: - History (using Set for O(1) lookups)
+    // MARK: - History (using Dictionary for O(1) lookups with timestamps)
     
     func isInHistory(_ videoId: String) -> Bool {
-        historyIds.contains(videoId)
+        historyIds[videoId] != nil
     }
     
     func addToHistory(_ videoId: String) {
-        historyIds.insert(videoId)
+        historyIds[videoId] = Date()
     }
     
     func removeFromHistory(_ videoId: String) {
-        historyIds.remove(videoId)
+        historyIds.removeValue(forKey: videoId)
+    }
+    
+    func getWatchTime(_ videoId: String) -> Date? {
+        historyIds[videoId]
     }
     
     func clearHistory() {
-        historyIds = []
+        historyIds = [:]
     }
     
     // MARK: - Watch Progress (Dictionary for O(1) lookups)

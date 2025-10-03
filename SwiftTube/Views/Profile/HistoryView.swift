@@ -12,7 +12,11 @@ struct HistoryView: View {
     
     private var historyVideos: [Video] {
         videoLoader.videos.filter { userDefaults.isInHistory($0.id) }
-            .sorted { $0.publishedAt > $1.publishedAt }
+            .sorted {
+                let time1 = userDefaults.getWatchTime($0.id) ?? .distantPast
+                let time2 = userDefaults.getWatchTime($1.id) ?? .distantPast
+                return time1 > time2
+            }
     }
     
     var body: some View {
