@@ -16,7 +16,6 @@ final class VideoLoader {
     
     private let userDefaults = UserDefaultsManager.shared
     
-    @MainActor
     func loadAllChannelVideos() async {
         isLoading = true
         defer { isLoading = false }
@@ -34,27 +33,13 @@ final class VideoLoader {
             for channel in channels {
                 group.addTask {
                     do {
-                        let rssVideoData = try await FeedParser.fetchChannelVideosFromRSS(channelId: channel.id)
-                        return rssVideoData.map { data in
-                            Video(
-                                id: data.id,
-                                title: data.title,
-                                videoDescription: data.videoDescription,
-                                thumbnailURL: data.thumbnailURL,
-                                publishedAt: data.publishedAt,
-                                url: data.url,
-                                channel: channel,
-                                viewCount: data.viewCount,
-                                isShort: data.isShort
-                            )
-                        }
+                        return try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
                     } catch {
                         print("Error fetching videos for \(channel.title): \(error)")
                         return []
                     }
                 }
             }
-            
             for await channelVideos in group {
                 videos.append(contentsOf: channelVideos)
             }
@@ -63,7 +48,7 @@ final class VideoLoader {
         // Sort by published date
         videos.sort { $0.publishedAt > $1.publishedAt }
         
-        #if !DEBUG
+        // #if !DEBUG
         // Fetch details for the first 50 non-short videos
         let videosForDetails = videos.filter { !$0.isShort }.prefix(50)
         if !videosForDetails.isEmpty {
@@ -82,6 +67,6 @@ final class VideoLoader {
                 print("Error updating video rich data: \(error)")
             }
         }
-        #endif
+        // #endif
     }
 }

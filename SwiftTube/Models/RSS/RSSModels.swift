@@ -41,14 +41,3 @@ struct FeedThumbnail: Codable {
     let height: Int
 }
 
-// MARK: - Video Data from RSS
-struct RSSVideoData {
-    let id: String
-    let title: String
-    let videoDescription: String
-    let thumbnailURL: String
-    let publishedAt: Date
-    let url: String
-    let viewCount: String
-    let isShort: Bool
-}

@@ -123,29 +123,25 @@ class FeedParser: NSObject, XMLParserDelegate {
         feed = Feed(title: feedTitle, entries: entries)
     }
     
-    static func fetchChannelVideosFromRSS(channelId: String) async throws -> [RSSVideoData] {
-        let url = URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channelId)")!
-        
+    static func fetchChannelVideosFromRSS(channel: Channel) async throws -> [Video] {
+        let url = URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channel.id)")!
         let (data, _) = try await URLSession.shared.data(from: url)
-        
         // Explicitly perform parsing on a background task to ensure it doesn't block
         return try await Task.detached(priority: .userInitiated) {
             let parser = await FeedParser()
             await parser.parse(data: data)
-            
             guard let feed = await parser.feed else {
                 throw APIError.invalidResponse
             }
-            
-            // Use map instead of compactMap since we're not filtering anything
             return feed.entries.map { entry in
-                RSSVideoData(
+                Video(
                     id: entry.mediaGroup.videoId,
                     title: entry.title,
                     videoDescription: entry.mediaGroup.description,
                     thumbnailURL: entry.mediaGroup.thumbnail.url,
                     publishedAt: entry.published,
                     url: entry.link,
+                    channel: channel,
                     viewCount: entry.mediaGroup.views ?? "0",
                     isShort: entry.link.contains("/shorts/")
                 )
