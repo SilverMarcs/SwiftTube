@@ -54,8 +54,8 @@ struct FeedView: View {
                     .presentationDetents([.medium])
             }
             .overlay {
-                if videoLoader.isLoading && videos.isEmpty {
-                    ProgressView("Loading videos...")
+                if videos.isEmpty {
+                    UniversalProgressView()
                 }
             }
         }

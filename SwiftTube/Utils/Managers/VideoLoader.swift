@@ -12,14 +12,9 @@ import Foundation
 @Observable
 final class VideoLoader {
     var videos: [Video] = []
-    var isLoading = false
-    
     private let userDefaults = UserDefaultsManager.shared
     
     func loadAllChannelVideos() async {
-        isLoading = true
-        defer { isLoading = false }
-        
         let channels = userDefaults.savedChannels
         guard !channels.isEmpty else {
             videos = []

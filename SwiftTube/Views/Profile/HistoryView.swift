@@ -8,7 +8,7 @@ import SwiftUI
 
 struct HistoryView: View {
     @Environment(UserDefaultsManager.self) private var userDefaults
-    @State private var videoLoader = VideoLoader()
+    @Environment(VideoLoader.self) private var videoLoader
     
     private var historyVideos: [Video] {
         videoLoader.videos.filter { userDefaults.isInHistory($0.id) }
@@ -45,9 +45,6 @@ struct HistoryView: View {
             .navigationLinkIndicatorVisibility(.hidden)
         } header: {
             Text("History")
-        }
-        .task {
-            await videoLoader.loadAllChannelVideos()
         }
     }
 }

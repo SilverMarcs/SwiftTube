@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct WatchLaterView: View {
+    @Environment(VideoLoader.self) private var videoLoader
     @Environment(UserDefaultsManager.self) private var userDefaults
-    @State private var videoLoader = VideoLoader()
     
     private var watchLaterVideos: [Video] {
         videoLoader.videos.filter { userDefaults.isWatchLater($0.id) }
@@ -48,9 +48,6 @@ struct WatchLaterView: View {
             .navigationLinkIndicatorVisibility(.hidden)
         } header: {
             Text("Watch Later")
-        }
-        .task {
-            await videoLoader.loadAllChannelVideos()
         }
     }
 }

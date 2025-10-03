@@ -7,7 +7,7 @@
 
 import Foundation
 
-class FeedParser: NSObject, XMLParserDelegate {
+class FeedParser: NSObject, XMLParserDelegate, Sendable {
     private static let isoFormatter = ISO8601DateFormatter()
     
     // Struct to hold temporary entry data with efficient string building
@@ -126,26 +126,29 @@ class FeedParser: NSObject, XMLParserDelegate {
     static func fetchChannelVideosFromRSS(channel: Channel) async throws -> [Video] {
         let url = URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channel.id)")!
         let (data, _) = try await URLSession.shared.data(from: url)
-        // Explicitly perform parsing on a background task to ensure it doesn't block
-        return try await Task.detached(priority: .userInitiated) {
-            let parser = await FeedParser()
-            await parser.parse(data: data)
-            guard let feed = await parser.feed else {
+        
+        // Parse on background thread
+        let entries = try await Task.detached(priority: .userInitiated) {
+            let parser = FeedParser()
+            parser.parse(data: data)
+            guard let feed = parser.feed else {
                 throw APIError.invalidResponse
             }
-            return feed.entries.map { entry in
-                Video(
-                    id: entry.mediaGroup.videoId,
-                    title: entry.title,
-                    videoDescription: entry.mediaGroup.description,
-                    thumbnailURL: entry.mediaGroup.thumbnail.url,
-                    publishedAt: entry.published,
-                    url: entry.link,
-                    channel: channel,
-                    viewCount: entry.mediaGroup.views ?? "0",
-                    isShort: entry.link.contains("/shorts/")
-                )
-            }
+            return feed.entries
         }.value
+        
+        return entries.map { entry in
+            Video(
+                id: entry.mediaGroup.videoId,
+                title: entry.title,
+                videoDescription: entry.mediaGroup.description,
+                thumbnailURL: entry.mediaGroup.thumbnail.url,
+                publishedAt: entry.published,
+                url: entry.link,
+                channel: channel,
+                viewCount: entry.mediaGroup.views ?? "0",
+                isShort: entry.link.contains("/shorts/")
+            )
+        }
     }
 }
