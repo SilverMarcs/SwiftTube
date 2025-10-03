@@ -8,7 +8,11 @@ struct VideoCard: View {
     
     var body: some View {
         Button {
-            manager.playOrExpand(video)
+            if manager.currentVideo?.id == video.id {
+                manager.isExpanded = true
+            } else {
+                manager.currentVideo = video
+            }
         } label: {
             VStack(alignment: .leading) {
                 CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 500)

@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(VideoManager.self) var manager
     @Environment(VideoLoader.self) private var videoLoader
+    @Environment(UserDefaultsManager.self) private var userDefaults
     @Namespace private var animation
     @State var selection: AppTab = .feed
     
@@ -32,6 +33,20 @@ struct ContentView: View {
             }
             .task {
                 await videoLoader.loadAllChannelVideos()
+                
+                // Restore most recently watched video from history without autoplay
+                if manager.currentVideo == nil {
+                    let historyVideos = videoLoader.videos.filter { userDefaults.isInHistory($0.id) }
+                        .sorted {
+                            let time1 = userDefaults.getWatchTime($0.id) ?? .distantPast
+                            let time2 = userDefaults.getWatchTime($1.id) ?? .distantPast
+                            return time1 > time2
+                        }
+                    
+                    if let mostRecentVideo = historyVideos.first {
+                        manager.setVideoWithoutAutoplay(mostRecentVideo)
+                    }
+                }
             }
             .tabViewStyle(.sidebarAdaptable)
             #if os(macOS)
@@ -69,9 +84,7 @@ struct ContentView: View {
                 Task {
                     do {
                         let video = try await YTService.fetchVideo(byId: videoId)
-                        
-                        manager.startPlaying(video)
-                        manager.isExpanded = true
+                        manager.currentVideo = video
                     } catch {
                         print("Failed to fetch video: \(error)")
                     }

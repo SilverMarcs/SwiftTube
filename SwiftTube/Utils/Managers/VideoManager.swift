@@ -2,52 +2,56 @@ import SwiftUI
 
 @Observable
 class VideoManager {
-    var player: YTPlayer?
+    private(set) var player: YTPlayer?
     private(set) var isPlaying: Bool = false
     
     var isExpanded: Bool = false
-    var currentVideo: Video? = nil
+    var currentVideo: Video? = nil {
+        didSet {
+            if !isSettingVideoWithoutAutoplay {
+                handleVideoChange(from: oldValue, to: currentVideo, autoPlay: true)
+            }
+        }
+    }
     var isMiniPlayerVisible: Bool = true
     
     private var timeUpdateTask: Task<Void, Never>?
     private let userDefaults = UserDefaultsManager.shared
+    private var isSettingVideoWithoutAutoplay = false
     
-    /// Start playing a video
-    func startPlaying(_ video: Video) {
-        guard currentVideo?.id != video.id else { return }
-        isPlaying = true
-
-        // Update to new video
-        currentVideo = video
-        userDefaults.addToHistory(video.id)
-        isExpanded = true
+    /// Set video without autoplay (useful for restoring from history)
+    func setVideoWithoutAutoplay(_ video: Video) {
+        isSettingVideoWithoutAutoplay = true
+        defer { isSettingVideoWithoutAutoplay = false }
         
-        // Create player if needed and load video
-        createPlayerIfNeeded(id: video.id)
-        loadVideo(video)
+        let oldValue = currentVideo
+        currentVideo = video
+        handleVideoChange(from: oldValue, to: video, autoPlay: false)
     }
     
-    /// Check if a specific video is currently playing
-    func isPlaying(_ video: Video) -> Bool {
-        currentVideo?.id == video.id
-    }
-    
-    /// Play a video or expand the player if it's already playing
-    func playOrExpand(_ video: Video) {
-        if isPlaying(video) {
-            isExpanded = true
+    /// Handle video change - automatically sets up player and loads video
+    private func handleVideoChange(from oldVideo: Video?, to newVideo: Video?, autoPlay: Bool) {
+        guard oldVideo?.id != newVideo?.id else { return }
+        
+        if let newVideo {
+            // New video selected
+            isPlaying = autoPlay
+            isExpanded = autoPlay // Auto-expand only if autoplaying
+            userDefaults.addToHistory(newVideo.id)
+            createPlayerIfNeeded(autoPlay: autoPlay)
+            loadVideo(newVideo)
         } else {
-            startPlaying(video)
+            // Video cleared (dismissed)
+            timeUpdateTask?.cancel()
+            Task {
+                try? await player?.pause()
+            }
         }
     }
 
     func dismiss() {
-        currentVideo = nil
         isExpanded = false
-        timeUpdateTask?.cancel()
-        Task {
-            try? await player?.pause()
-        }
+        currentVideo = nil // This will trigger didSet and handle cleanup
     }
     
     @MainActor
@@ -69,10 +73,11 @@ class VideoManager {
         }
     }
     
-    private func createPlayerIfNeeded(id: String) {
+    private func createPlayerIfNeeded(autoPlay: Bool) {
         guard player == nil else { return }
         
-        let newPlayer = YTPlayer()
+        let config = YTPlayer.Configuration(autoPlay: autoPlay)
+        let newPlayer = YTPlayer(configuration: config)
         player = newPlayer
         setupPlayerObserver()
     }
