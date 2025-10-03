@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 struct MediaPlayerWindowView: View {
     @Environment(VideoManager.self) var videoManager
