@@ -36,14 +36,7 @@ struct ContentView: View {
                 
                 // Restore most recently watched video from history without autoplay
                 if manager.currentVideo == nil {
-                    let historyVideos = videoLoader.videos.filter { userDefaults.isInHistory($0.id) }
-                        .sorted {
-                            let time1 = userDefaults.getWatchTime($0.id) ?? .distantPast
-                            let time2 = userDefaults.getWatchTime($1.id) ?? .distantPast
-                            return time1 > time2
-                        }
-                    
-                    if let mostRecentVideo = historyVideos.first {
+                    if let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
                         manager.setVideoWithoutAutoplay(mostRecentVideo)
                     }
                 }

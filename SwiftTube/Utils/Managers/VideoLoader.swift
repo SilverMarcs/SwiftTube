@@ -64,4 +64,14 @@ final class VideoLoader {
         }
         // #endif
     }
+    
+    func getMostRecentHistoryVideo() -> Video? {
+        let historyVideos = videos.filter { userDefaults.isInHistory($0.id) }
+            .sorted {
+                let time1 = userDefaults.getWatchTime($0.id) ?? .distantPast
+                let time2 = userDefaults.getWatchTime($1.id) ?? .distantPast
+                return time1 > time2
+            }
+        return historyVideos.first
+    }
 }
