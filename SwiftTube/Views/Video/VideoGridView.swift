@@ -29,5 +29,10 @@ struct VideoGridView: View {
             .listStyle(.plain)
 #endif
         }
+        .overlay {
+            if videos.isEmpty {
+                UniversalProgressView()
+            }
+        }
     }
 }

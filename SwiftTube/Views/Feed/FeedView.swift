@@ -17,11 +17,6 @@ struct FeedView: View {
                 .refreshable {
                     await videoLoader.loadAllChannelVideos()
                 }
-                .overlay {
-                    if videoLoader.isLoading {
-                        UniversalProgressView()
-                    }
-                }
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         CachedAsyncImage(url: URL(string: authmanager.avatarUrl), targetSize: 100)

@@ -13,10 +13,7 @@ final class VideoLoader {
     private(set) var isLoading: Bool = false
     private let userDefaults = UserDefaultsManager.shared
     
-    func loadAllChannelVideos() async {
-        isLoading = true
-        defer { isLoading = false }
-        
+    func loadAllChannelVideos() async {        
         let channels = userDefaults.savedChannels
         guard !channels.isEmpty else {
             videos = []
