@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(VideoManager.self) var manager
+    @Environment(VideoLoader.self) private var videoLoader
     @Namespace private var animation
     @State var selection: AppTab = .feed
     
@@ -28,6 +29,9 @@ struct ContentView: View {
                 Tab("Profile", systemImage: "person", value: .profile, role: .search) {
                     ProfileView()
                 }
+            }
+            .task {
+                await videoLoader.loadAllChannelVideos()
             }
             .tabViewStyle(.sidebarAdaptable)
             #if os(macOS)

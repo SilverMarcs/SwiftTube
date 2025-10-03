@@ -36,12 +36,6 @@ struct FeedView: View {
             .listStyle(.plain)
             .navigationTitle("Feed")
             .toolbarTitleDisplayMode(.inlineLarge)
-            .task {
-                // Load videos on launch
-                if videos.isEmpty {
-                    await videoLoader.loadAllChannelVideos()
-                }
-            }
             .refreshable {
                 await videoLoader.loadAllChannelVideos()
             }
