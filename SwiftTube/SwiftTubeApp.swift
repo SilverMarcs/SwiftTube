@@ -58,10 +58,12 @@ struct SwiftTubeApp: App {
             VideoPlayerView()
                 .background(.black, ignoresSafeAreaEdges: .all)
                 .gesture(WindowDragGesture())
-                .ignoresSafeArea(edges: .top)
                 .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
                 .navigationTitle(videoManager.currentVideo?.title ?? "Loading")
                 .preferredColorScheme(.dark)
+                .onDisappear {
+                    videoManager.dismiss()
+                }
         }
         .restorationBehavior(.disabled)
         .windowResizability(.contentSize)

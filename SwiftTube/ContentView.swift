@@ -27,8 +27,12 @@ struct ContentView: View {
                 ProfileView()
             }
         }
-        .tabViewSidebarBottomBar {
+//        .tabViewSidebarBottomBar {
+        .overlay(alignment: .bottom) {
             MiniPlayerAccessoryView()
+                .frame(maxWidth: 400)
+                .glassEffect()
+                .padding(10)
         }
         #else
         ZStack(alignment: .top) {
