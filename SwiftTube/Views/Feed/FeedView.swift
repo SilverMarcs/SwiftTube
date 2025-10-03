@@ -18,11 +18,24 @@ struct FeedView: View {
                     await videoLoader.loadAllChannelVideos()
                 }
                 .toolbar {
+                    #if os(macOS)
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            Task {
+                                await videoLoader.loadAllChannelVideos()
+                            }
+                        } label: {
+                            Label("Refresh", systemImage: "arrow.clockwise")
+                        }
+                        .keyboardShortcut("r")
+                    }
+                    #else
                     ToolbarItem(placement: .primaryAction) {
                         CachedAsyncImage(url: URL(string: authmanager.avatarUrl), targetSize: 100)
                             .frame(width: 30, height: 30)
                     }
                     .sharedBackgroundVisibility(.hidden)
+                    #endif
                 }
         }
     }

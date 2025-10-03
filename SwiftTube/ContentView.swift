@@ -9,8 +9,6 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(VideoManager.self) var manager
-    @Environment(VideoLoader.self) private var videoLoader
-    @Environment(UserDefaultsManager.self) private var userDefaults
     @Namespace private var animation
     @State var selection: AppTab = .feed
     

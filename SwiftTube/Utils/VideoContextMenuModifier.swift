@@ -8,14 +8,6 @@ struct VideoContextMenuModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .contextMenu {
-                if showChannelLink {
-                    NavigationLink {
-                        ChannelVideoList(channel: video.channel)
-                    } label: {
-                        Label(video.channel.title, systemImage: "person.circle")
-                    }
-                }
-                
                 Button {
                     userDefaults.toggleWatchLater(video.id)
                 } label: {
@@ -25,6 +17,14 @@ struct VideoContextMenuModifier: ViewModifier {
                     )
                 }
                 
+                if showChannelLink {
+                    NavigationLink {
+                        ChannelVideoList(channel: video.channel)
+                    } label: {
+                        Label(video.channel.title, systemImage: "person.circle")
+                    }
+                }
+
                 Section {
                     ShareLink(item: URL(string: video.url)!) {
                         Label("Share Video", systemImage: "square.and.arrow.up")
