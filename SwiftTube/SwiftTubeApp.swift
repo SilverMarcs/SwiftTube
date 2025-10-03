@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SwiftData
 
 @main
 struct SwiftTubeApp: App {
@@ -14,15 +13,18 @@ struct SwiftTubeApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
     
+    @State var videoLoader = VideoLoader()
     @State var videoManager = VideoManager()
     @State var shortsManager = ShortsManager()
+    @State var userDefaultsManager = UserDefaultsManager.shared
     
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(videoLoader)
                 .environment(videoManager)
                 .environment(shortsManager)
+                .environment(userDefaultsManager)
         }
-        .modelContainer(for: [Channel.self, Video.self, Comment.self])
     }
 }

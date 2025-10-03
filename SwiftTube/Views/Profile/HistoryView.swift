@@ -5,14 +5,15 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct HistoryView: View {
-    @Query(
-        filter: #Predicate<Video> { $0.lastWatchedAt != nil },
-        sort: \Video.lastWatchedAt,
-        order: .reverse
-    ) private var historyVideos: [Video]
+    @Environment(UserDefaultsManager.self) private var userDefaults
+    @State private var videoLoader = VideoLoader()
+    
+    private var historyVideos: [Video] {
+        videoLoader.videos.filter { userDefaults.isInHistory($0.id) }
+            .sorted { $0.publishedAt > $1.publishedAt }
+    }
     
     var body: some View {
         Section {
@@ -26,7 +27,7 @@ struct HistoryView: View {
                         CompactVideoCard(video: video)
                             .swipeActions {
                                 Button {
-                                    video.lastWatchedAt = nil
+                                    userDefaults.removeFromHistory(video.id)
                                 } label: {
                                     Label("Remove", systemImage: "trash")
                                 }
@@ -45,9 +46,13 @@ struct HistoryView: View {
         } header: {
             Text("History")
         }
+        .task {
+            await videoLoader.loadAllChannelVideos()
+        }
     }
 }
 
 #Preview {
     HistoryView()
+        .environment(UserDefaultsManager.shared)
 }

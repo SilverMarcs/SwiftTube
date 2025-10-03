@@ -7,7 +7,6 @@
 
 import SwiftUI
 import SwiftMediaViewer
-import SwiftData
 
 struct ProfileView: View {
     @State private var authManager = GoogleAuthManager.shared

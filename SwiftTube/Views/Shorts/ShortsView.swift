@@ -7,17 +7,18 @@
 
 import SwiftUI
 import SwiftMediaViewer
-import SwiftData
 
 struct ShortsView: View {
-    @Query(filter: #Predicate<Video> { $0.isShort == true }) private var shortVideos: [Video]
-    
+    @Environment(VideoLoader.self) private var videoLoader
     @Environment(VideoManager.self) var videoManager
     @Environment(ShortsManager.self) var shortsManager
-    @Environment(\.colorScheme) var colorScheme
 
     @State private var currentIndex = 0
     @State private var shuffledVideos: [Video] = []
+    
+    private var shortVideos: [Video] {
+        videoLoader.videos.filter { $0.isShort }
+    }
     
     var body: some View {
         NavigationStack {

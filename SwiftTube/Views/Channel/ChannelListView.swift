@@ -1,12 +1,10 @@
 // ChannelListView.swift
 import SwiftUI
-import SwiftData
 import SwiftMediaViewer
 
 struct ChannelListView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(UserDefaultsManager.self) private var userDefaults
 
-    @Query(sort: \Channel.title) private var allChannels: [Channel]
     @State private var showingAddChannel = false
     @State private var subscriptions: [Channel] = []
     @State private var isLoadingSubscriptions = false
@@ -21,10 +19,11 @@ struct ChannelListView: View {
     }
     
     private var channels: [Channel] {
+        let allChannels = userDefaults.savedChannels
         if searchText.isEmpty {
-            allChannels
+            return allChannels
         } else {
-            allChannels.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+            return allChannels.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
         }
     }
     
@@ -99,9 +98,8 @@ struct ChannelListView: View {
     
     private func deleteChannels(offsets: IndexSet) {
         for index in offsets {
-            modelContext.delete(channels[index])
+            userDefaults.removeChannel(channels[index])
         }
-        try? modelContext.save()
     }
     
     private func loadSubscriptions() async {
@@ -117,25 +115,18 @@ struct ChannelListView: View {
     }
     
     private func addSubscriptionAsChannel(_ subscription: Channel) {
-        let channel = Channel(
-            id: subscription.id,
-            title: subscription.title,
-            channelDescription: subscription.channelDescription,
-            thumbnailURL: subscription.thumbnailURL
-        )
-        
-        modelContext.insert(channel)
-        try? modelContext.save()
+        userDefaults.addChannel(subscription)
     }
 
     @MainActor
     private func refreshChannels() async {
+        let allChannels = userDefaults.savedChannels
         guard !allChannels.isEmpty else { return }
 
         do {
             let updatedChannels = try await YTService.fetchChannels(byIds: allChannels.map { $0.id })
             for channel in updatedChannels {
-                modelContext.upsertChannel(channel)
+                userDefaults.updateChannel(channel)
             }
         } catch {
             print("Error refreshing channels: \(error.localizedDescription)")

@@ -10,7 +10,6 @@ import SwiftMediaViewer
 
 struct CompactVideoCard: View {
     @Environment(VideoManager.self) var manager
-    @Environment(\.modelContext) private var modelContext
     let video: Video
     
     var body: some View {

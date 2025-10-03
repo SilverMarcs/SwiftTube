@@ -1,10 +1,9 @@
 // AddChannelView.swift
 import SwiftUI
-import SwiftData
 
 struct AddChannelView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(UserDefaultsManager.self) private var userDefaults
     
     @State private var channelInput = ""
     @State private var isLoading = false
@@ -54,7 +53,7 @@ struct AddChannelView: View {
         Task {
             do {
                 let channel = try await fetchChannel(channelId: channelId)
-                modelContext.upsertChannel(channel)
+                userDefaults.addChannel(channel)
                 dismiss()
             } catch {
                 print("Error adding channel: \(error)")

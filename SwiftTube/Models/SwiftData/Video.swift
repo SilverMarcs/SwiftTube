@@ -1,10 +1,8 @@
 // Video.swift
 import Foundation
-import SwiftData
 
-@Model
-final class Video {
-    @Attribute(.unique) var id: String          // videoId
+struct Video: Codable, Identifiable, Hashable {
+    var id: String          // videoId
     var title: String
     var videoDescription: String
     var thumbnailURL: String
@@ -14,14 +12,11 @@ final class Video {
     var likeCount: String?          // optional; filled on detail fetch
     var duration: Int?           // total seconds
     var isShort: Bool   // determined by duration <= 60 seconds
-    var isWatchLater: Bool = false  // user's watch later list
-    var watchProgressSeconds: Double = 0
-    var lastWatchedAt: Date? = nil  // for history tracking
+    
+    // Embedded channel data instead of separate relationship
+    var channel: Channel?
 
-    @Relationship var channel: Channel?
-    @Relationship(inverse: \Comment.video) var comments: [Comment] = []
-
-    init(id: String, title: String, videoDescription: String, thumbnailURL: String, publishedAt: Date, url: String, channel: Channel?, viewCount: String = "0", isShort: Bool, isWatchLater: Bool = false) {
+    init(id: String, title: String, videoDescription: String, thumbnailURL: String, publishedAt: Date, url: String, channel: Channel?, viewCount: String = "0", isShort: Bool) {
         self.id = id
         self.title = title
         self.videoDescription = videoDescription
@@ -31,24 +26,25 @@ final class Video {
         self.channel = channel
         self.viewCount = viewCount
         self.isShort = isShort
-        self.isWatchLater = isWatchLater
-        self.watchProgressSeconds = 0
-        self.lastWatchedAt = nil
     }
 }
 
 extension Video {
     var watchProgressRatio: Double? {
-        guard let duration = duration, duration > 0, watchProgressSeconds > 0 else { return nil }
-        return min(watchProgressSeconds / Double(duration), 1.0)
+        guard let duration = duration, duration > 0 else { return nil }
+        let progress = UserDefaultsManager.shared.getWatchProgress(videoId: id)
+        guard progress > 0 else { return nil }
+        return min(progress / Double(duration), 1.0)
     }
     
     func updateWatchProgress(_ seconds: Double) {
         let sanitized = max(0, seconds)
+        let finalProgress: Double
         if let duration = duration {
-            watchProgressSeconds = min(sanitized, Double(duration))
+            finalProgress = min(sanitized, Double(duration))
         } else {
-            watchProgressSeconds = sanitized
+            finalProgress = sanitized
         }
+        UserDefaultsManager.shared.setWatchProgress(videoId: id, progress: finalProgress)
     }
 }

@@ -1,17 +1,14 @@
-// VideoListView.swift
+// FeedView.swift
 import SwiftUI
-import SwiftData
 
 struct FeedView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(
-        filter: #Predicate<Video> { $0.isShort == false },
-        sort: \Video.publishedAt,
-        order: .reverse
-    ) private var videos: [Video]
-    
+    @Environment(UserDefaultsManager.self) private var userDefaults
+    @Environment(VideoLoader.self) private var videoLoader
     @State private var showSettings = false
-    @State private var videoLoader: VideoLoader?
+
+    private var videos: [Video] {
+        videoLoader.videos.filter { !$0.isShort }
+    }
     
     var body: some View {
         NavigationStack {
@@ -22,11 +19,11 @@ struct FeedView: View {
                     .listRowInsets(.horizontal, 10)
                     .contextMenu {
                         Button {
-                            video.isWatchLater.toggle()
+                            userDefaults.toggleWatchLater(video.id)
                         } label: {
                             Label(
-                                video.isWatchLater ? "Remove from Watch Later" : "Add to Watch Later",
-                                systemImage: video.isWatchLater ? "bookmark.fill" : "bookmark"
+                                userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
+                                systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
                             )
                         }
                     }
@@ -35,14 +32,13 @@ struct FeedView: View {
             .navigationTitle("Feed")
             .toolbarTitleDisplayMode(.inlineLarge)
             .task {
-                // Initialize video loader and load videos on launch
-                if videoLoader == nil {
-                    videoLoader = VideoLoader(modelContainer: modelContext.container)
-                    await videoLoader?.loadAllChannelVideos()
+                // Load videos on launch
+                if videos.isEmpty {
+                    await videoLoader.loadAllChannelVideos()
                 }
             }
             .refreshable {
-                await videoLoader?.loadAllChannelVideos()
+                await videoLoader.loadAllChannelVideos()
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -56,6 +52,11 @@ struct FeedView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
                     .presentationDetents([.medium])
+            }
+            .overlay {
+                if videoLoader.isLoading && videos.isEmpty {
+                    ProgressView("Loading videos...")
+                }
             }
         }
     }

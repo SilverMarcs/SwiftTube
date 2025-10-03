@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 @Observable
 class ShortsManager {
@@ -7,12 +6,16 @@ class ShortsManager {
     var currentVideo: Video?
     var currentIndex: Int = 0
     
+    private let userDefaults = UserDefaultsManager.shared
+    
+    // TODO: switch to n start plahing too similar
     /// Start playing a short video
     func startPlaying(_ video: Video, at index: Int) {
         guard currentVideo?.id != video.id else { return }
         
         currentVideo = video
         currentIndex = index
+//        userDefaults.addToHistory(video.id)
         
         createPlayerIfNeeded(id: video.id)
         loadVideo(video)
@@ -20,9 +23,9 @@ class ShortsManager {
     
     /// Switch to a different short video
     func switchTo(_ video: Video, at index: Int) {
-        if let currentVideo {
-            currentVideo.lastWatchedAt = Date()
-        }
+//        if let currentVideo {
+//            userDefaults.addToHistory(currentVideo.id)
+//        }
         currentVideo = video
         currentIndex = index
         loadVideo(video)

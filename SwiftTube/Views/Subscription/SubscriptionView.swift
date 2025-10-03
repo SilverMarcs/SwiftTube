@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct SubscriptionView: View {
     @State private var subscriptions: [Channel] = []

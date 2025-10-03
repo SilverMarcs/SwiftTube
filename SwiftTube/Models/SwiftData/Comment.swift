@@ -1,10 +1,9 @@
 // Comment.swift
 import Foundation
-import SwiftData
 
-@Model
-final class Comment {
-    @Attribute(.unique) var id: String
+// TODO: simplify dont need all this
+struct Comment: Codable, Identifiable, Hashable {
+    var id: String
     var authorDisplayName: String
     var authorProfileImageUrl: String?
     var authorChannelUrl: String?
@@ -17,10 +16,7 @@ final class Comment {
     var totalReplyCount: Int
     var isTopLevel: Bool         // true for top-level comments, false for replies
     var parentCommentId: String? // nil for top-level, contains parent ID for replies
-    
-    @Relationship var video: Video?
-    @Relationship(inverse: \Comment.parentComment) var replies: [Comment] = []
-    @Relationship var parentComment: Comment?
+    var replies: [Comment] = []
     
     init(
         id: String,
@@ -35,8 +31,7 @@ final class Comment {
         updatedAt: Date? = nil,
         totalReplyCount: Int = 0,
         isTopLevel: Bool = true,
-        parentCommentId: String? = nil,
-        video: Video? = nil
+        parentCommentId: String? = nil
     ) {
         self.id = id
         self.authorDisplayName = authorDisplayName
@@ -51,6 +46,5 @@ final class Comment {
         self.totalReplyCount = totalReplyCount
         self.isTopLevel = isTopLevel
         self.parentCommentId = parentCommentId
-        self.video = video
     }
 }

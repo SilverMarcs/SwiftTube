@@ -3,7 +3,7 @@ import SwiftMediaViewer
 
 struct VideoCard: View {
     @Environment(VideoManager.self) var manager
-    @Environment(\.modelContext) private var modelContext
+    @Environment(UserDefaultsManager.self) private var userDefaults
     let video: Video
     
     var body: some View {
@@ -73,7 +73,7 @@ struct VideoCard: View {
                             }
                             .labelIconToTitleSpacing(0)
                             
-                            if video.isWatchLater {
+                            if userDefaults.isWatchLater(video.id) {
                                 Image(systemName: "bookmark.fill")
                                     .foregroundStyle(.green)
                                     .font(.system(size: 10))

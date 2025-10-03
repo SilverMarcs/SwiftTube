@@ -1,17 +1,20 @@
 import SwiftUI
-import SwiftData
 
 struct VideoCommentsView: View {
     @Environment(VideoManager.self) var manager
-    @Environment(\.modelContext) private var modelContext
     
     let video: Video
     
     @State private var isLoading = false
+    @State private var comments: [Comment] = []
+    
+    private var topLevelComments: [Comment] {
+        comments.filter { $0.isTopLevel }.sorted { $0.publishedAt > $1.publishedAt }
+    }
     
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 8) {
-            ForEach(video.comments.filter { $0.isTopLevel }.sorted { $0.publishedAt > $1.publishedAt }) { comment in
+            ForEach(topLevelComments) { comment in
                 CommentRowView(comment: comment)
             }
         }
@@ -22,7 +25,7 @@ struct VideoCommentsView: View {
             }
         }
         .task {
-            if video.comments.isEmpty {
+            if comments.isEmpty {
                 await loadComments()
             }
         }
@@ -33,46 +36,28 @@ struct VideoCommentsView: View {
         defer { isLoading = false }
         
         do {
-            let id = video.id
-            // Get the managed video object
-            let fetchDescriptor = FetchDescriptor<Video>(predicate: #Predicate { $0.id == id })
-            guard let managedVideo = try modelContext.fetch(fetchDescriptor).first else {
-                return
-            }
-            
-            let fetchedComments = try await YTService.fetchComments(for: managedVideo)
-            
-            // Clear existing comments for this video
-            let existingComments = managedVideo.comments
-            for comment in existingComments {
-                modelContext.delete(comment)
-            }
+            var fetchedComments = try await YTService.fetchComments(for: video)
             
             // Create a dictionary to track top-level comments for reply relationships
-            var topLevelComments: [String: Comment] = [:]
+            var topLevelCommentsDict: [String: Int] = [:]
             
-            // Add new comments
-            for comment in fetchedComments {
-                comment.video = managedVideo
-                modelContext.insert(comment)
-                managedVideo.comments.append(comment)
-                
+            // Find indices of top-level comments
+            for (index, comment) in fetchedComments.enumerated() {
                 if comment.isTopLevel {
-                    topLevelComments[comment.id] = comment
+                    topLevelCommentsDict[comment.id] = index
                 }
             }
             
             // Set up parent-child relationships for replies
-            for comment in fetchedComments {
-                if !comment.isTopLevel, let parentId = comment.parentCommentId {
-                    if let parentComment = topLevelComments[parentId] {
-                        comment.parentComment = parentComment
-                        parentComment.replies.append(comment)
+            for i in 0..<fetchedComments.count {
+                if !fetchedComments[i].isTopLevel, let parentId = fetchedComments[i].parentCommentId {
+                    if let parentIndex = topLevelCommentsDict[parentId] {
+                        fetchedComments[parentIndex].replies.append(fetchedComments[i])
                     }
                 }
             }
             
-            try modelContext.save()
+            comments = fetchedComments
         } catch APIError.commentsDisabled {
             // Comments are disabled for this video
         } catch {

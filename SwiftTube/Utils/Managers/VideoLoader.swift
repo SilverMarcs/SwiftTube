@@ -5,123 +5,83 @@
 //  Created by Zabir Raihan on 28/09/2025.
 //
 
-import SwiftData
 import Foundation
 
+// TODO: probably dotesnt need to be in the env
 
-@ModelActor
-actor VideoLoader {
-    static let oneWeekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+@Observable
+final class VideoLoader {
+    var videos: [Video] = []
+    var isLoading = false
     
-    private var newVideos: [Video] = []
-
+    private let userDefaults = UserDefaultsManager.shared
+    
+    @MainActor
     func loadAllChannelVideos() async {
-        // First, clean up old videos
-        await cleanupOldVideos()
+        isLoading = true
+        defer { isLoading = false }
         
-        newVideos = [] // Reset the array
-        
-        guard let channels = try? modelExecutor.modelContext.fetch(FetchDescriptor<Channel>()) else {
-            print("Error fetching channels")
+        let channels = userDefaults.savedChannels
+        guard !channels.isEmpty else {
+            videos = []
             return
         }
         
-        // Fetch basic video data from RSS (without max results limit)
-        await withTaskGroup(of: Void.self) { group in
+        videos = []
+        
+        // Fetch videos from RSS for all channels
+        await withTaskGroup(of: [Video].self) { group in
             for channel in channels {
                 group.addTask {
                     do {
                         let rssVideoData = try await FeedParser.fetchChannelVideosFromRSS(channelId: channel.id)
-                        let filteredData = await self.filterRSSVideoData(rssVideoData)
-                        for data in filteredData {
-                            // Check against the pre-fetched set (O(1) lookup)
-//                            if !existingVideoIds.contains(data.id) {
-                                let video = Video(
-                                    id: data.id,
-                                    title: data.title,
-                                    videoDescription: data.videoDescription,
-                                    thumbnailURL: data.thumbnailURL,
-                                    publishedAt: data.publishedAt,
-                                    url: data.url,
-                                    channel: channel,
-                                    viewCount: data.viewCount,
-                                    isShort: data.isShort
-                                )
-                                // Instead of inserting here, collect the video
-                                await self.addVideo(video)
-//                            }
+                        return rssVideoData.map { data in
+                            Video(
+                                id: data.id,
+                                title: data.title,
+                                videoDescription: data.videoDescription,
+                                thumbnailURL: data.thumbnailURL,
+                                publishedAt: data.publishedAt,
+                                url: data.url,
+                                channel: channel,
+                                viewCount: data.viewCount,
+                                isShort: data.isShort
+                            )
                         }
                     } catch {
                         print("Error fetching videos for \(channel.title): \(error)")
+                        return []
                     }
                 }
             }
+            
+            for await channelVideos in group {
+                videos.append(contentsOf: channelVideos)
+            }
         }
         
-        // Insert all new videos serially
-        for video in self.newVideos {
-            self.modelExecutor.modelContext.insert(video)
-        }
+        // Sort by published date
+        videos.sort { $0.publishedAt > $1.publishedAt }
         
-        newVideos = [] // Clear after insert
-        
-        
-        #if !DEBUG // dont fetch details on debug due to many app launches
-        var descriptor = FetchDescriptor<Video>(
-            predicate: #Predicate<Video> { video in
-                !video.isShort
-            },
-            sortBy: [SortDescriptor(\.publishedAt, order: .reverse)]
-        )
-        descriptor.fetchLimit = 50
-        
-        if let videos = try? modelExecutor.modelContext.fetch(descriptor) {
+        #if !DEBUG
+        // Fetch details for the first 50 non-short videos
+        let videosForDetails = videos.filter { !$0.isShort }.prefix(50)
+        if !videosForDetails.isEmpty {
             do {
-                try await YTService.fetchVideoDetails(for: videos)
-                print("Fetched details for \(videos.count) videos")
+                var mutableVideos = Array(videosForDetails)
+                try await YTService.fetchVideoDetails(for: &mutableVideos)
+                
+                // Update the videos in the main array
+                for updatedVideo in mutableVideos {
+                    if let index = videos.firstIndex(where: { $0.id == updatedVideo.id }) {
+                        videos[index] = updatedVideo
+                    }
+                }
+                print("Fetched details for \(mutableVideos.count) videos")
             } catch {
                 print("Error updating video rich data: \(error)")
             }
         }
         #endif
-        
-        do {
-            try modelExecutor.modelContext.save()
-        } catch {
-            print("Error saving video loader: \(error)")
-        }
-    }
-    
-    private func filterRSSVideoData(_ rssData: [RSSVideoData]) -> [RSSVideoData] {
-        // Keep only videos from the last 7 days
-        return rssData.filter { data in
-            data.publishedAt >= Self.oneWeekAgo
-        }
-    }
-    
-    private func cleanupOldVideos() async {
-        let cutoffDate = Self.oneWeekAgo
-        let descriptor = FetchDescriptor<Video>(predicate: #Predicate<Video> { video in
-            video.publishedAt < cutoffDate
-        })
-        
-        do {
-            let oldVideos = try modelExecutor.modelContext.fetch(descriptor)
-            let count = oldVideos.count
-            
-            for video in oldVideos {
-                modelExecutor.modelContext.delete(video)
-            }
-            
-            if count > 0 {
-                print("Cleaned up \(count) videos older than 7 days")
-            }
-        } catch {
-            print("Error cleaning up old videos: \(error)")
-        }
-    }
-    
-    private func addVideo(_ video: Video) {
-        newVideos.append(video)
     }
 }

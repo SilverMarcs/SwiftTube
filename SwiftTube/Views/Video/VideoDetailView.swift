@@ -1,12 +1,11 @@
 import SwiftUI
-import SwiftData
 import SwiftMediaViewer
 
 struct VideoDetailView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(UserDefaultsManager.self) private var userDefaults
     @Environment(VideoManager.self) var manager
     
-    let video: Video    
+    @State var video: Video    
     
     @State private var isLoading = false
     @State var showDetail: Bool = false
@@ -36,16 +35,15 @@ struct VideoDetailView: View {
                         }
                         
                         Button {
-                            video.isWatchLater.toggle()
-                            try? modelContext.save()
+                            userDefaults.toggleWatchLater(video.id)
                         } label: {
                             Label(
-                                video.isWatchLater ? "Remove from Watch Later" : "Add to Watch Later",
-                                systemImage: video.isWatchLater ? "bookmark.fill" : "bookmark"
+                                userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
+                                systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
                             )
                             .labelStyle(.iconOnly)
                         }
-                        .foregroundStyle(video.isWatchLater ? .green : .secondary)
+                        .foregroundStyle(userDefaults.isWatchLater(video.id) ? .green : .secondary)
                         .buttonStyle(.glass)
                         .controlSize(.mini)
                     }
@@ -91,15 +89,14 @@ struct VideoDetailView: View {
         }
     }
 
-    private func loadVideoDetail() async {
-        isLoading = true
-        defer { isLoading = false }
-        
-        do {
-            try await YTService.fetchVideoDetails(for: video)
-            try? modelContext.save()
-        } catch {
-            print(error.localizedDescription)
-        }
-    }
+//    private func loadVideoDetail() async {
+//        isLoading = true
+//        defer { isLoading = false }
+//        
+//        do {
+//            try await YTService.fetchVideoDetails(for: &video)
+//        } catch {
+//            print(error.localizedDescription)
+//        }
+//    }
 }

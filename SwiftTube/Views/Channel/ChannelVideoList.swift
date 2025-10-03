@@ -1,19 +1,15 @@
 import SwiftUI
-import SwiftData
 
 struct ChannelVideoList: View {
     let channel: Channel
-    @Environment(\.modelContext) private var modelContext
+    @Environment(UserDefaultsManager.self) private var userDefaults
     @State private var videos: [Video] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var showingDetails = false
     
     private var isSavedChannel: Bool {
-        let channelId = channel.id
-        var descriptor = FetchDescriptor<Channel>(predicate: #Predicate { $0.id == channelId })
-        descriptor.fetchLimit = 1
-        return (try? modelContext.fetch(descriptor).first) != nil
+        userDefaults.savedChannels.contains { $0.id == channel.id }
     }
     
     var body: some View {
@@ -47,26 +43,13 @@ struct ChannelVideoList: View {
                 ToolbarItem(placement: .destructiveAction) {
                     if isSavedChannel {
                         Button(role: .confirm) {
-                            let channelId = channel.id
-                            var descriptor = FetchDescriptor<Channel>(predicate: #Predicate { $0.id == channelId })
-                            descriptor.fetchLimit = 1
-                            if let channel = try? modelContext.fetch(descriptor).first {
-                                modelContext.delete(channel)
-                                try? modelContext.save()
-                            }
+                            userDefaults.removeChannel(channel)
                         } label: {
                             Label("Remove Channel", systemImage: "minus")
                         }
                     } else {
                         Button(role: .confirm) {
-                            let newChannel = Channel(
-                                id: channel.id,
-                                title: channel.title,
-                                channelDescription: channel.channelDescription,
-                                thumbnailURL: channel.thumbnailURL
-                            )
-                            modelContext.insert(newChannel)
-                            try? modelContext.save()
+                            userDefaults.addChannel(channel)
                         } label: {
                             Label("Add Channel", systemImage: "plus")
                         }

@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 
 @Observable
 class VideoManager {
@@ -11,6 +10,7 @@ class VideoManager {
     var isMiniPlayerVisible: Bool = true
     
     private var timeUpdateTask: Task<Void, Never>?
+    private let userDefaults = UserDefaultsManager.shared
     
     /// Start playing a video
     func startPlaying(_ video: Video) {
@@ -19,7 +19,7 @@ class VideoManager {
 
         // Update to new video
         currentVideo = video
-        video.lastWatchedAt = Date()
+        userDefaults.addToHistory(video.id)
         isExpanded = true
         
         // Create player if needed and load video
@@ -81,15 +81,16 @@ class VideoManager {
         guard let player else { return }
         
         // Load video with current progress directly
-        let startTime = video.watchProgressSeconds > 5 ? video.watchProgressSeconds : nil
+        let currentProgress = userDefaults.getWatchProgress(videoId: video.id)
+        let startTime = currentProgress > 5 ? currentProgress : nil
             
         Task {
             try? await player.load(videoId: video.id, startTime: startTime)
             
             // Fetch and set duration if not already set
-            if video.duration == nil, let duration = try? await player.duration {
-                video.duration = Int(duration)
-            }
+//            if video.duration == nil, let duration = try? await player.duration {
+//                video.duration = Int(duration)
+//            }
         }
     }
     

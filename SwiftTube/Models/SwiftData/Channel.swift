@@ -1,10 +1,8 @@
 // Channel.swift
 import Foundation
-import SwiftData
 
-@Model
-final class Channel {
-    @Attribute(.unique) var id: String          // UC...
+struct Channel: Codable, Identifiable, Hashable {
+    var id: String          // UC...
     var title: String
     var channelDescription: String
     var thumbnailURL: String

@@ -7,11 +7,10 @@
 
 import SwiftUI
 import SwiftMediaViewer
-import SwiftData
 
 struct SettingsView: View {
     @State private var deleteAlertPresented = false
-    @Environment(\.modelContext) var modelContext
+    @Environment(UserDefaultsManager.self) var userDefaults
     @AppStorage("youtubeAPIKey") private var apiKey = ""
     
     var body: some View {
@@ -52,28 +51,6 @@ struct SettingsView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
-                
-                #if DEBUG
-                Section("Data Management") {
-                    Button("Delete All Videos") {
-                        if let videos = try? modelContext.fetch(FetchDescriptor<Video>()) {
-                            videos.forEach { modelContext.delete($0) }
-                        }
-                    }
-                    
-                    Button("Delete All Channels") {
-                        if let channels = try? modelContext.fetch(FetchDescriptor<Channel>()) {
-                            channels.forEach { modelContext.delete($0) }
-                        }
-                    }
-                    
-                    Button("Delete All Comments") {
-                        if let comments = try? modelContext.fetch(FetchDescriptor<Comment>()) {
-                            comments.forEach { modelContext.delete($0) }
-                        }
-                    }
-                }
-                #endif
             }
             .formStyle(.grouped)
             .navigationTitle("Settings")

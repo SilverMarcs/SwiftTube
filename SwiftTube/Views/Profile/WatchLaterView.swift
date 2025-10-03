@@ -6,16 +6,15 @@
 //
 
 import SwiftUI
-import SwiftData
 
 struct WatchLaterView: View {
-    @Query(
-        filter: #Predicate<Video> { $0.isWatchLater == true },
-        sort: \Video.publishedAt,
-        order: .reverse
-    ) private var watchLaterVideos: [Video]
+    @Environment(UserDefaultsManager.self) private var userDefaults
+    @State private var videoLoader = VideoLoader()
     
-    @State private var showingAllVideos = false
+    private var watchLaterVideos: [Video] {
+        videoLoader.videos.filter { userDefaults.isWatchLater($0.id) }
+            .sorted { $0.publishedAt > $1.publishedAt }
+    }
     
     var body: some View {
         Section {
@@ -32,7 +31,7 @@ struct WatchLaterView: View {
                         CompactVideoCard(video: video)
                             .swipeActions {
                                 Button {
-                                    video.isWatchLater = false
+                                    userDefaults.removeFromWatchLater(video.id)
                                 } label: {
                                     Label("Remove", systemImage: "bookmark.slash")
                                 }
@@ -50,9 +49,13 @@ struct WatchLaterView: View {
         } header: {
             Text("Watch Later")
         }
+        .task {
+            await videoLoader.loadAllChannelVideos()
+        }
     }
 }
 
 #Preview {
     WatchLaterView()
+        .environment(UserDefaultsManager.shared)
 }
