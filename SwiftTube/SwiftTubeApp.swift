@@ -55,20 +55,13 @@ struct SwiftTubeApp: App {
         
         #if os(macOS)
         WindowGroup(id: "media-player") {
-            VideoPlayerView()
-                .background(.black, ignoresSafeAreaEdges: .all)
-                .gesture(WindowDragGesture())
-                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-                .navigationTitle(videoManager.currentVideo?.title ?? "Loading")
-                .preferredColorScheme(.dark)
-                .onDisappear {
-                    videoManager.dismiss()
-                }
+            MediaPlayerWindowView()
         }
         .restorationBehavior(.disabled)
         .windowResizability(.contentSize)
 //        .defaultSize(width: 1280, height: 720)
         .environment(videoManager)
+        .environment(userDefaultsManager)
         #endif
     }
 }
