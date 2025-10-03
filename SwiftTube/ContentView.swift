@@ -17,17 +17,26 @@ struct ContentView: View {
     var body: some View {
         @Bindable var manager = manager
         
+        #if os(macOS)
+        TabView(selection: $selection) {
+            Tab("Videos", systemImage: "video", value: .feed) {
+                FeedView()
+            }
+
+            Tab("Profile", systemImage: "person", value: .profile) {
+                ProfileView()
+            }
+        }
+        .tabViewSidebarBottomBar {
+            MiniPlayerAccessoryView()
+        }
+        #else
         ZStack(alignment: .top) {
             TabView(selection: $selection) {
                 Tab("Videos", systemImage: "video", value: .feed) {
                     FeedView()
                 }
-
-                #if os(macOS)
-                Tab("Profile", systemImage: "person", value: .profile) {
-                    ProfileView()
-                }
-                #else
+                
                 Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
                     ShortsView()
                 }
@@ -35,14 +44,7 @@ struct ContentView: View {
                 Tab("Profile", systemImage: "person", value: .profile, role: .search) {
                     ProfileView()
                 }
-                #endif
             }
-//            .tabViewStyle(.sidebarAdaptable)
-            #if os(macOS)
-            .tabViewSidebarBottomBar {
-                MiniPlayerAccessoryView()
-            }
-            #else
             .tabBarMinimizeBehavior(.onScrollDown)
             .tabViewBottomAccessory {
                 MiniPlayerAccessoryView()
@@ -58,30 +60,15 @@ struct ContentView: View {
                         .presentationBackgroundInteraction(.enabled)
                 }
             }
-            #endif
             
             // Persistent Video Player Overlay
             if manager.currentVideo != nil {
-                PersistentVideoPlayerOverlay()
+                VideoPlayerView()
                     .zIndex(manager.isExpanded ? 1000 : -1)
                     .allowsHitTesting(manager.isExpanded)
             }
         }
-        .environment(\.openURL, OpenURLAction { url in
-            if let videoId = url.youtubeVideoID {
-                manager.dismiss()
-                Task {
-                    do {
-                        let video = try await YTService.fetchVideo(byId: videoId)
-                        manager.currentVideo = video
-                    } catch {
-                        print("Failed to fetch video: \(error)")
-                    }
-                }
-                return .handled
-            }
-            return .systemAction
-        })
+        #endif
     }
 }
 

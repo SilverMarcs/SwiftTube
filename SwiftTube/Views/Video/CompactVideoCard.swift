@@ -10,15 +10,23 @@ import SwiftMediaViewer
 
 struct CompactVideoCard: View {
     @Environment(VideoManager.self) var manager
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
     let video: Video
     
     var body: some View {
         Button {
+            #if os(macOS)
+            manager.currentVideo = video
+            openWindow(id: "media-player")
+            #else
             if manager.currentVideo?.id == video.id {
                 manager.isExpanded = true
             } else {
                 manager.currentVideo = video
             }
+            #endif
         } label: {
             HStack {
                 CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)

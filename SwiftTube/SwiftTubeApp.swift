@@ -25,6 +25,22 @@ struct SwiftTubeApp: App {
                 .environment(videoManager)
                 .environment(shortsManager)
                 .environment(userDefaultsManager)
+                .environment(\.openURL, OpenURLAction { url in
+                    if let videoId = url.youtubeVideoID {
+                        // TODO: remove teh dismiss function
+                        videoManager.dismiss()
+                        Task {
+                            do {
+                                let video = try await YTService.fetchVideo(byId: videoId)
+                                videoManager.currentVideo = video
+                            } catch {
+                                print("Failed to fetch video: \(error)")
+                            }
+                        }
+                        return .handled
+                    }
+                    return .systemAction
+                })
                 .task {
                     await videoLoader.loadAllChannelVideos()
                     
@@ -36,5 +52,21 @@ struct SwiftTubeApp: App {
                     }
                 }
         }
+        
+        #if os(macOS)
+        WindowGroup(id: "media-player") {
+            VideoPlayerView()
+                .background(.black, ignoresSafeAreaEdges: .all)
+                .gesture(WindowDragGesture())
+                .ignoresSafeArea(edges: .top)
+                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+                .navigationTitle(videoManager.currentVideo?.title ?? "Loading")
+                .preferredColorScheme(.dark)
+        }
+        .restorationBehavior(.disabled)
+        .windowResizability(.contentSize)
+//        .defaultSize(width: 1280, height: 720)
+        .environment(videoManager)
+        #endif
     }
 }

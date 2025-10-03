@@ -17,6 +17,7 @@ struct YTPlayerView<Overlay: View>: View {
             .webViewMagnificationGestures(.disabled)
             .webViewTextSelection(.disabled)
             .webViewContentBackground(.hidden)
+//            .webViewElementFullscreenBehavior(.enabled)
             .overlay {
                 switch player.state {
                 case .idle:

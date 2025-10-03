@@ -36,7 +36,9 @@ class VideoManager {
         if let newVideo {
             // New video selected
             isPlaying = autoPlay
-            isExpanded = autoPlay // Auto-expand only if autoplaying
+            #if !os(macOS)
+            isExpanded = autoPlay // Auto-expand only if autoplaying (iOS only)
+            #endif
             userDefaults.addToHistory(newVideo.id)
             createPlayerIfNeeded(autoPlay: autoPlay)
             loadVideo(newVideo)

@@ -1,13 +1,14 @@
 import SwiftUI
 import SwiftMediaViewer
 
-struct PersistentVideoPlayerOverlay: View {
+struct VideoPlayerView: View {
     @Environment(VideoManager.self) var manager
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         if let video = manager.currentVideo, let player = manager.player {
             YTPlayerView(player: player)
+                .aspectRatio(16/9, contentMode: .fit)
                 #if !os(macOS)
                 .onChange(of: player.isFullscreen) { exited, entered in
                     if entered {
@@ -21,8 +22,6 @@ struct PersistentVideoPlayerOverlay: View {
                        }
                     }
                }
-                #endif
-                .aspectRatio(16/9, contentMode: .fit)
                 .background {
                     CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
                         .blur(radius: 10)
@@ -36,6 +35,7 @@ struct PersistentVideoPlayerOverlay: View {
                         .clipped()
                         .ignoresSafeArea()
                 }
+            #endif
         }
     }
 }

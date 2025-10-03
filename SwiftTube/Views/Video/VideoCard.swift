@@ -4,15 +4,23 @@ import SwiftMediaViewer
 struct VideoCard: View {
     @Environment(VideoManager.self) var manager
     @Environment(UserDefaultsManager.self) private var userDefaults
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
     let video: Video
     
     var body: some View {
         Button {
+            #if os(macOS)
+            manager.currentVideo = video
+            openWindow(id: "media-player")
+            #else
             if manager.currentVideo?.id == video.id {
                 manager.isExpanded = true
             } else {
                 manager.currentVideo = video
             }
+            #endif
         } label: {
             VStack(alignment: .leading) {
                 CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 500)
@@ -41,7 +49,11 @@ struct VideoCard: View {
                 VStack(alignment: .leading) {
                     Text(video.title)
                         .font(.headline)
+                        #if os(macOS)
+                        .lineLimit(2, reservesSpace: true)
+                        #else
                         .lineLimit(2)
+                        #endif
                     
                     HStack(alignment: .center, spacing: 4) {
                         if let url = URL(string: video.channel.thumbnailURL) {
