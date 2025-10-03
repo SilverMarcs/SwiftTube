@@ -7,11 +7,9 @@
 
 import Foundation
 
-// TODO: probably dotesnt need to be in the env
-
 @Observable
 final class VideoLoader {
-    var videos: [Video] = []
+    public var videos: [Video] = []
     private let userDefaults = UserDefaultsManager.shared
     
     func loadAllChannelVideos() async {
@@ -21,10 +19,8 @@ final class VideoLoader {
             return
         }
         
-        videos = []
-        
-        // Fetch videos from RSS for all channels
-        await withTaskGroup(of: [Video].self) { group in
+        // Build locally to avoid partial UI updates
+        let aggregatedVideos: [Video] = await withTaskGroup(of: [Video].self, returning: [Video].self) { group in
             for channel in channels {
                 group.addTask {
                     do {
@@ -35,26 +31,33 @@ final class VideoLoader {
                     }
                 }
             }
+            
+            var all: [Video] = []
             for await channelVideos in group {
-                videos.append(contentsOf: channelVideos)
+                all.append(contentsOf: channelVideos)
             }
+            return all
         }
         
-        // Sort by published date
-        videos.sort { $0.publishedAt > $1.publishedAt }
+        // Sort locally
+        let sorted = aggregatedVideos.sorted { $0.publishedAt > $1.publishedAt }
+        
+        // Only now populate the observable array (one atomic update)
+        self.videos = sorted
         
         // #if !DEBUG
         // Fetch details for the first 50 non-short videos
-        let videosForDetails = videos.filter { !$0.isShort }.prefix(50)
+        let videosForDetails = self.videos.filter { !$0.isShort }.prefix(50)
         if !videosForDetails.isEmpty {
             do {
                 var mutableVideos = Array(videosForDetails)
                 try await YTService.fetchVideoDetails(for: &mutableVideos)
                 
-                // Update the videos in the main array
-                for updatedVideo in mutableVideos {
-                    if let index = videos.firstIndex(where: { $0.id == updatedVideo.id }) {
-                        videos[index] = updatedVideo
+                // Update the corresponding entries in self.videos
+                var lookup = Dictionary(uniqueKeysWithValues: mutableVideos.map { ($0.id, $0) })
+                for i in self.videos.indices {
+                    if let updated = lookup[self.videos[i].id] {
+                        self.videos[i] = updated
                     }
                 }
                 print("Fetched details for \(mutableVideos.count) videos")
