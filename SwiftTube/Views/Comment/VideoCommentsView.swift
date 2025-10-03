@@ -13,21 +13,18 @@ struct VideoCommentsView: View {
     }
     
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 8) {
-            ForEach(topLevelComments) { comment in
-                CommentRowView(comment: comment)
-            }
+        ForEach(topLevelComments) { comment in
+            CommentRowView(comment: comment)
         }
-        .padding(.top, 5)
-        .overlay {
-            if isLoading {
-                UniversalProgressView()
-            }
-        }
-        .task {
-            if comments.isEmpty {
-                await loadComments()
-            }
+        
+        if comments.isEmpty {
+            Color.clear.frame(height: 1)
+                .overlay {
+                    UniversalProgressView()
+                }
+                .task {
+                    await loadComments()
+                }
         }
     }
     

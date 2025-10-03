@@ -26,20 +26,9 @@ struct ChannelVideoList: View {
                     UniversalProgressView()
                 }
             }
+            .navigationTitle(channel.title)
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Button {
-                        showingDetails = true
-                    } label: {
-                        ChannelRowView(channel: channel)
-                            .allowsHitTesting(false)
-                            .contentShape(.rect)
-                    }
-                    .frame(maxWidth: 40)
-                }
-                .sharedBackgroundVisibility(.visible)
-                
                 ToolbarItem(placement: .destructiveAction) {
                     if isSavedChannel {
                         Button(role: .confirm) {

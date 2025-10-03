@@ -33,6 +33,11 @@ struct MiniPlayerAccessoryView: View {
                         Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
                             .contentTransition(.symbolEffect(.replace))
                     }
+                    #if os(macOS)
+                    .buttonStyle(.glassProminent)
+                    .controlSize(.extraLarge)
+                    .buttonBorderShape(.circle)
+                    #endif
                 }
                 .padding()
                 .contentShape(.rect)

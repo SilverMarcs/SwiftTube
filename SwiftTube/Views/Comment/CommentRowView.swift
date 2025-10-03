@@ -43,9 +43,7 @@ struct CommentRowView: View {
                         
                         if comment.totalReplyCount > 0 {
                             Button {
-                                withAnimation {
-                                    showReplies.toggle()
-                                }
+                                showReplies.toggle()
                             } label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: showReplies ? "chevron.up" : "chevron.down")

@@ -56,10 +56,6 @@ struct FeedView: View {
             }
             .padding(16)
         }
-        // Pull-to-refresh isn't native on macOS; keep explicit refresh if desired
-        .refreshable {
-            await videoLoader.loadAllChannelVideos()
-        }
         #else
         List(videos) { video in
             VideoCard(video: video)

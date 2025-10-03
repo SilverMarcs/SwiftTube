@@ -12,8 +12,8 @@ struct VideoDetailView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading) {
+            List {
+                Section {
                     // Video Title
                     Text(video.title)
                         .font(.title3)
@@ -23,7 +23,8 @@ struct VideoDetailView: View {
                     // Video Stats (Views, Likes, Published)
                     HStack(spacing: 5) {
                         Label(video.viewCount.formatNumber(), systemImage: "eye")
-                            .labelIconToTitleSpacing(2)
+                            .labelIconToTitleSpacing(3)
+                            .font(.system(size: 11))
                         
                         Text("•")
                         Text(video.publishedAt, style: .date)
@@ -32,66 +33,67 @@ struct VideoDetailView: View {
                         
                         if let likesText = video.likeCount?.formatNumber() {
                             Label(likesText, systemImage: "hand.thumbsup.fill")
+                                .labelIconToTitleSpacing(3)
+                                .font(.system(size: 11))
                         }
                         
-                        
-                        ShareLink(item: URL(string: video.url)!) {
-                            Label("Share Video", systemImage: "square.and.arrow.up")
-                        }
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.glass)
-                        .controlSize(.mini)
-                        
-                        Button {
-                            userDefaults.toggleWatchLater(video.id)
-                        } label: {
-                            Label(
-                                userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
-                                systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
-                            )
+                        GlassEffectContainer {
+                            ShareLink(item: URL(string: video.url)!) {
+                                Label("Share Video", systemImage: "square.and.arrow.up")
+                            }
                             .labelStyle(.iconOnly)
+                            .buttonStyle(.glass)
+                            .controlSize(.mini)
+                            
+                            Button {
+                                userDefaults.toggleWatchLater(video.id)
+                            } label: {
+                                Label(
+                                    userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
+                                    systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
+                                )
+                                .labelStyle(.iconOnly)
+                            }
+                            .foregroundStyle(userDefaults.isWatchLater(video.id) ? .green : .secondary)
+                            .buttonStyle(.glass)
+                            .controlSize(.mini)
                         }
-                        .foregroundStyle(userDefaults.isWatchLater(video.id) ? .green : .secondary)
-                        .buttonStyle(.glass)
-                        .controlSize(.mini)
                     }
                     .font(.system(size: 14))
                     .foregroundStyle(.secondary)
-                    .padding(.top, 1)
-                    
-                    // Channel Info
+                    .listRowSeparator(.hidden, edges: .bottom)
+                    .listRowInsets([.vertical], 0)
+                }
+                .listRowBackground(Color.clear)
+                #if !os(macOS)
+                .listSectionMargins(.all, 0)
+                #endif
+                
+                // Channel Info
+                Section {
                     ChannelRowView(channel: video.channel)
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(.background.secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .foregroundStyle(.primary)
-                    
-                    // Description
-                    if !video.videoDescription.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Description")
-                                .font(.headline)
-                            
-                            ExpandableText(text: video.videoDescription, maxCharacters: 200)
-                                .font(.subheadline)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading) // Add this line
-                        .padding(.vertical, 12)
-                        .padding(.horizontal, 12)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(.background.secondary))
+                }
+                
+                // Description
+                if !video.videoDescription.isEmpty {
+
+                Section("Description") {
+                    ExpandableText(text: video.videoDescription, maxCharacters: 200)
+                        .font(.subheadline)
                     }
-                    
-                    // Comments Section
+                }
+                 
+                // Comments Section
+                Section("Comments") {
                     VideoCommentsView(video: video)
                 }
-                .padding(10)
-                .overlay {
-                    if isLoading {
-                        UniversalProgressView()
-                    }
+            }
+            .overlay {
+                if isLoading {
+                    UniversalProgressView()
                 }
             }
+            .formStyle(.grouped)
         }
     }
 
