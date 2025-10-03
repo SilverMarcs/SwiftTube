@@ -8,18 +8,20 @@ struct PersistentVideoPlayerOverlay: View {
     var body: some View {
         if let video = manager.currentVideo, let player = manager.player {
             YTPlayerView(player: player)
+                #if !os(macOS)
                 .onChange(of: player.isFullscreen) { exited, entered in
-                       if entered {
-                           OrientationManager.shared.lockOrientation(.landscape, andRotateTo: .landscapeRight)
-                       } else {
-                           OrientationManager.shared.lockOrientation(.all)
-                           DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                               Task { @MainActor in
-                                   await manager.togglePlayPause()
-                               }
+                    if entered {
+                       OrientationManager.shared.lockOrientation(.landscape, andRotateTo: .landscapeRight)
+                    } else {
+                       OrientationManager.shared.lockOrientation(.all)
+                       DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                           Task { @MainActor in
+                               await manager.togglePlayPause()
                            }
                        }
-                   }
+                    }
+               }
+                #endif
                 .aspectRatio(16/9, contentMode: .fit)
                 .background {
                     CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)

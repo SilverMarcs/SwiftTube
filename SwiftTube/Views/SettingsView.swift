@@ -48,7 +48,6 @@ struct SettingsView: View {
                 
                 Section("API") {
                     TextField("YouTube API Key", text: $apiKey)
-                        .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
             }

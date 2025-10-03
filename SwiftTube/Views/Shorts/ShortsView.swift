@@ -40,7 +40,7 @@ struct ShortsView: View {
                 }
             }
             .ignoresSafeArea()
-            .tabViewStyle(.page(indexDisplayMode: .never))
+//            .tabViewStyle(.page(indexDisplayMode: .never))
             .onChange(of: currentIndex) { oldIndex, newIndex in
                 if !shuffledVideos.isEmpty && newIndex < shuffledVideos.count {
                     let video = shuffledVideos[newIndex]

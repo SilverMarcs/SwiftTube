@@ -77,7 +77,9 @@ final class YTPlayer {
         self.configuration = configuration
         
         var config = WebPage.Configuration()
+        #if !os(macOS)
         config.mediaPlaybackBehavior = .allowsInlinePlayback
+        #endif
         config.websiteDataStore = .default()
         
         // Set up message handler for fullscreen changes

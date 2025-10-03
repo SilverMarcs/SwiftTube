@@ -40,7 +40,7 @@ struct FeedView: View {
                 await videoLoader.loadAllChannelVideos()
             }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Button {
                         showSettings = true
                     } label: {
