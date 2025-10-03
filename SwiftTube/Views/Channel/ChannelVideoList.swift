@@ -14,7 +14,7 @@ struct ChannelVideoList: View {
     
     var body: some View {
         NavigationStack {
-            VideoGridView(videos: videos)
+            VideoGridView(videos: videos, showChannelLinkInContextMenu: false)
             .navigationTitle(channel.title)
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
