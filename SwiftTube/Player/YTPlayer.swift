@@ -80,6 +80,7 @@ final class YTPlayer {
         #if !os(macOS)
         config.mediaPlaybackBehavior = .allowsInlinePlayback
         #endif
+        config.allowsAirPlayForMediaPlayback = true
         config.websiteDataStore = .default()
         
         // Set up message handler for fullscreen changes

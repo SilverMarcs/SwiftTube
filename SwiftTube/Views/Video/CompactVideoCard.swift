@@ -28,6 +28,9 @@ struct CompactVideoCard: View {
                         if let progress = video.watchProgressRatio {
                             ProgressView(value: progress)
                                 .tint(.accent)
+                                #if os(macOS)
+                                .controlSize(.mini)
+                                #endif
                         }
                     }
                     .overlay(alignment: .bottomTrailing) {

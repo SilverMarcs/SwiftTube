@@ -10,6 +10,15 @@
   ],
   "groups" : [
     {
+      "blend-mode-specializations" : [
+        {
+          "value" : "normal"
+        },
+        {
+          "appearance" : "dark",
+          "value" : "plus-lighter"
+        }
+      ],
       "blur-material" : null,
       "hidden" : false,
       "layers" : [
@@ -21,9 +30,13 @@
             }
           ],
           "glass" : true,
+          "hidden" : false,
           "image-name" : "video-play-512.png",
           "name" : "video-play-512",
           "opacity-specializations" : [
+            {
+              "value" : 1
+            },
             {
               "appearance" : "dark",
               "value" : 1
@@ -60,7 +73,7 @@
       "opacity-specializations" : [
         {
           "appearance" : "dark",
-          "value" : 0.9
+          "value" : 0.75
         }
       ],
       "shadow" : {

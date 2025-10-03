@@ -1,10 +1,11 @@
 // FeedView.swift
 import SwiftUI
+import SwiftMediaViewer
 
 struct FeedView: View {
     @Environment(UserDefaultsManager.self) private var userDefaults
     @Environment(VideoLoader.self) private var videoLoader
-    @State private var showSettings = false
+    var authmanager = GoogleAuthManager.shared
 
     private var videos: [Video] {
         videoLoader.videos.filter { !$0.isShort }
@@ -41,16 +42,10 @@ struct FeedView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gear")
-                    }
+                    CachedAsyncImage(url: URL(string: authmanager.avatarUrl), targetSize: 100)
+                        .frame(width: 30, height: 30)
                 }
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
-                    .presentationDetents([.medium])
+                .sharedBackgroundVisibility(.hidden)
             }
             .overlay {
                 if videos.isEmpty {

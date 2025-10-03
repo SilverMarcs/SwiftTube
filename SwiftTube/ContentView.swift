@@ -27,25 +27,20 @@ struct ContentView: View {
                     ShortsView()
                 }
 
+                #if os(macOS)
+                Tab("Profile", systemImage: "person", value: .profile) {
+                    ProfileView()
+                }
+                #else
                 Tab("Profile", systemImage: "person", value: .profile, role: .search) {
                     ProfileView()
                 }
+                #endif
             }
-            .task {
-                await videoLoader.loadAllChannelVideos()
-                
-                // Restore most recently watched video from history without autoplay
-                if manager.currentVideo == nil {
-                    if let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
-                        manager.setVideoWithoutAutoplay(mostRecentVideo)
-                    }
-                }
-            }
-            .tabViewStyle(.sidebarAdaptable)
+//            .tabViewStyle(.sidebarAdaptable)
             #if os(macOS)
             .tabViewSidebarBottomBar {
                 MiniPlayerAccessoryView()
-                    .padding(10)
             }
             #else
             .tabBarMinimizeBehavior(.onScrollDown)

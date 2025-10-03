@@ -32,6 +32,9 @@ struct VideoCard: View {
                         if let progress = video.watchProgressRatio {
                             ProgressView(value: progress)
                                 .tint(.accent)
+                                #if os(macOS)
+                                .controlSize(.small)
+                                #endif
                         }
                     }
                 

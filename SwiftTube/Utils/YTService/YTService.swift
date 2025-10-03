@@ -17,8 +17,8 @@ enum YTService {
     
     // MARK: - Core Request Methods
     
-    static func fetchResponse<T: Decodable>(from url: URL) async throws -> T {
-        if let apiKey = apiKey, !apiKey.isEmpty {
+    static func fetchResponse<T: Decodable>(from url: URL, forceOAuth: Bool = false) async throws -> T {
+        if let apiKey = apiKey, !apiKey.isEmpty && !forceOAuth {
             return try await fetchWithAPIKey(from: url)
         } else {
             return try await fetchOAuthResponse(from: url)

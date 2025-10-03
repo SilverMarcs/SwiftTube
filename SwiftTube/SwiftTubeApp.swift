@@ -25,6 +25,16 @@ struct SwiftTubeApp: App {
                 .environment(videoManager)
                 .environment(shortsManager)
                 .environment(userDefaultsManager)
+                .task {
+                    await videoLoader.loadAllChannelVideos()
+                    
+                    // Restore most recently watched video from history without autoplay
+                    if videoManager.currentVideo == nil {
+                        if let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
+                            videoManager.setVideoWithoutAutoplay(mostRecentVideo)
+                        }
+                    }
+                }
         }
     }
 }
