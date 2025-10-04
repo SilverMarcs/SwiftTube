@@ -17,15 +17,21 @@ struct VideoContextMenuModifier: ViewModifier {
                     )
                 }
                 
-                if showChannelLink {
-                    NavigationLink {
-                        ChannelVideoList(channel: video.channel)
-                    } label: {
-                        Label(video.channel.title, systemImage: "person.circle")
-                    }
+                Button {
+                    video.updateWatchProgress(Double(video.duration ?? 0))
+                } label: {
+                    Label("Mark as Watched", systemImage: "checkmark.circle")
                 }
 
                 Section {
+                    if showChannelLink {
+                        NavigationLink {
+                            ChannelVideoList(channel: video.channel)
+                        } label: {
+                            Label(video.channel.title, systemImage: "person.circle")
+                        }
+                    }
+                    
                     ShareLink(item: URL(string: video.url)!) {
                         Label("Share Video", systemImage: "square.and.arrow.up")
                     }
