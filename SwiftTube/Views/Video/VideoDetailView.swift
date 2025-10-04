@@ -19,6 +19,8 @@ struct VideoDetailView: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                         .multilineTextAlignment(.leading)
+                        .listRowSeparator(.hidden, edges: .top)
+                        .listRowSeparator(.visible, edges: .bottom)
                     
                     // Video Stats (Views, Likes, Published)
                     HStack(spacing: 5) {
