@@ -15,7 +15,7 @@ class ShortsManager {
         
         currentVideo = video
         currentIndex = index
-//        userDefaults.addToHistory(video.id)
+        userDefaults.addToHistory(video.id)
         
         createPlayerIfNeeded(id: video.id)
         loadVideo(video)
@@ -24,9 +24,9 @@ class ShortsManager {
     
     /// Switch to a different short video
     func switchTo(_ video: Video, at index: Int) {
-//        if let currentVideo {
-//            userDefaults.addToHistory(currentVideo.id)
-//        }
+        if let currentVideo {
+            userDefaults.addToHistory(currentVideo.id)
+        }
         currentVideo = video
         currentIndex = index
         loadVideo(video)

@@ -12,12 +12,18 @@ struct ShortsView: View {
     @Environment(VideoLoader.self) private var videoLoader
     @Environment(VideoManager.self) var videoManager
     @Environment(ShortsManager.self) var shortsManager
+    @Environment(UserDefaultsManager.self) var userDefaults
 
     @State private var currentIndex = 0
     @State private var shuffledVideos: [Video] = []
     
     private var shortVideos: [Video] {
         videoLoader.videos.filter { $0.isShort }
+    }
+    
+    private func updateShuffledVideos() {
+        let shuffled = shortVideos.shuffled()
+        shuffledVideos = shuffled.filter { !userDefaults.isInHistory($0.id) } + shuffled.filter { userDefaults.isInHistory($0.id) }
     }
     
     var body: some View {
@@ -54,7 +60,7 @@ struct ShortsView: View {
                     videoManager.isMiniPlayerVisible = false
                 }
                 
-                shuffledVideos = shortVideos.shuffled()
+                updateShuffledVideos()
                 
                 if !shuffledVideos.isEmpty {
                     let video = shuffledVideos[currentIndex]
@@ -74,9 +80,9 @@ struct ShortsView: View {
                     await shortsManager.pause()
                 }
             }
-//            .onChange(of: shortVideos) {
-//                shuffledVideos = shortVideos.shuffled()
-//            }
+            .onChange(of: shortVideos) {
+                updateShuffledVideos()
+            }
         }
     }
 }
