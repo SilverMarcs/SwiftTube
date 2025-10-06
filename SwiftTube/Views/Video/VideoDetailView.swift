@@ -13,15 +13,7 @@ struct VideoDetailView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    // Video Title
-                    Text(video.title)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .multilineTextAlignment(.leading)
-                        .listRowSeparator(.hidden, edges: .top)
-                        .listRowSeparator(.visible, edges: .bottom)
-                    
+                Section(video.title) {
                     // Video Stats (Views, Likes, Published)
                     HStack(spacing: 5) {
                         Label(video.viewCount.formatNumber(), systemImage: "eye")
@@ -66,6 +58,7 @@ struct VideoDetailView: View {
                     .listRowSeparator(.hidden, edges: .bottom)
                     .listRowInsets([.vertical], 0)
                 }
+                .headerProminence(.increased)
                 .listRowBackground(Color.clear)
                 #if !os(macOS)
                 .listSectionMargins(.all, 0)
