@@ -15,73 +15,69 @@ struct ShortsView: View {
     @Environment(UserDefaultsManager.self) var userDefaults
 
     @State private var currentIndex = 0
-    @State private var shuffledVideos: [Video] = []
-    
-    private var shortVideos: [Video] {
-        videoLoader.videos.filter { $0.isShort }
-    }
-    
-    private func updateShuffledVideos() {
-        let shuffled = shortVideos.shuffled()
-        shuffledVideos = shuffled.filter { !userDefaults.isInHistory($0.id) } + shuffled.filter { userDefaults.isInHistory($0.id) }
-    }
-    
+    @State private var isReady = false
+
     var body: some View {
         NavigationStack {
-            TabView(selection: $currentIndex) {
-                ForEach(Array(shuffledVideos.enumerated()), id: \.element.id) { index, video in
-                    ShortVideoCard(video: video, isActive: currentIndex == index)
-                        .tag(index)
+            if isReady {
+                TabView(selection: $currentIndex) {
+                    ForEach(Array(videoLoader.shortVideos.enumerated()), id: \.element.id) { index, video in
+                        ShortVideoCard(video: video, isActive: currentIndex == index)
+                            .tag(index)
+                    }
                 }
-            }
-            .background {
-                if !shuffledVideos.isEmpty {
-                    CachedAsyncImage(url: URL(string: shuffledVideos[currentIndex].thumbnailURL), targetSize: 500)
-                        .blur(radius: 10)
-                        .overlay {
-                            Color.black.opacity(0.8)
-                        }
-                        .clipped()
-                        .ignoresSafeArea()
+                .background {
+                    if !videoLoader.shortVideos.isEmpty {
+                        CachedAsyncImage(url: URL(string: videoLoader.shortVideos[currentIndex].thumbnailURL), targetSize: 500)
+                            .blur(radius: 10)
+                            .overlay {
+                                Color.black.opacity(0.8)
+                            }
+                            .clipped()
+                            .ignoresSafeArea()
+                    }
                 }
-            }
-            .ignoresSafeArea()
-            #if !os(macOS)
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            #endif
-            .onChange(of: currentIndex) { oldIndex, newIndex in
-                if !shuffledVideos.isEmpty && newIndex < shuffledVideos.count {
-                    let video = shuffledVideos[newIndex]
-                    shortsManager.switchTo(video, at: newIndex)
+                #if !os(macOS)
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                #endif
+                .onChange(of: currentIndex) {
+                    if !videoLoader.shortVideos.isEmpty && currentIndex <  videoLoader.shortVideos.count {
+                        let video =  videoLoader.shortVideos[currentIndex]
+                        shortsManager.switchTo(video, at: currentIndex)
+                    }
                 }
-            }
-            .onAppear {
-                DispatchQueue.main.async {
-                    videoManager.isMiniPlayerVisible = false
-                }
-                
-                updateShuffledVideos()
-                
-                if !shuffledVideos.isEmpty {
-                    let video = shuffledVideos[currentIndex]
-                    shortsManager.startPlaying(video, at: currentIndex)
-                }
-                
-                Task {
-                    try? await videoManager.player?.pause()
-                }
-            }
-            .onDisappear {
-                DispatchQueue.main.async {
-                    videoManager.isMiniPlayerVisible = true
-                }
+                .onAppear {
+                    DispatchQueue.main.async {
+                        videoManager.isMiniPlayerVisible = false
+                    }
 
-                Task {
-                    await shortsManager.pause()
+                    Task {
+                        try? await videoManager.player?.pause()
+                    }
+                    
+                    if !videoLoader.shortVideos.isEmpty {
+                        let video =  videoLoader.shortVideos[currentIndex]
+                        shortsManager.startPlaying(video, at: currentIndex)
+                    }
                 }
+                .ignoresSafeArea()
+            } else {
+                ProgressView()
             }
-            .onChange(of: shortVideos) {
-                updateShuffledVideos()
+        }
+        .task {
+            try? await Task.sleep(nanoseconds: 1_000_000)
+            isReady = true
+        }
+        .onDisappear {
+            isReady = false
+            
+            DispatchQueue.main.async {
+                videoManager.isMiniPlayerVisible = true
+            }
+            
+            Task {
+                await shortsManager.pause()
             }
         }
     }
