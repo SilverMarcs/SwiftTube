@@ -15,10 +15,11 @@ final class VideoLoader {
     private(set) var isLoading: Bool = false
     private let userDefaults = UserDefaultsManager.shared
     
-    func loadAllChannelVideos() async {        
+    func loadAllChannelVideos() async {
         let channels = userDefaults.savedChannels
         guard !channels.isEmpty else {
             videos = []
+            shortVideos = []
             return
         }
         
@@ -42,17 +43,20 @@ final class VideoLoader {
             return all
         }
         
-        // Sort locally
-        let sorted = aggregatedVideos.sorted { $0.publishedAt > $1.publishedAt }
+        // Separate regular videos and shorts
+        let regularVideos = aggregatedVideos.filter { !$0.isShort }
+        let shorts = aggregatedVideos.filter { $0.isShort }
         
-        // Only now populate the observable array (one atomic update)
-        self.videos = sorted
+        // Sort regular videos by publish date
+        let sortedVideos = regularVideos.sorted { $0.publishedAt > $1.publishedAt }
         
-        self.shortVideos = self.videos.filter { $0.isShort }.shuffled()
+        // Update observable arrays (atomic updates)
+        self.videos = sortedVideos
+        self.shortVideos = shorts.shuffled()
         
         // #if !DEBUG
-        // Fetch details for the first 50 non-short videos
-        let videosForDetails = self.videos.filter { !$0.isShort }.prefix(50)
+        // Fetch details for the first 50 regular videos
+        let videosForDetails = self.videos.prefix(50)
         if !videosForDetails.isEmpty {
             do {
                 var mutableVideos = Array(videosForDetails)
@@ -74,7 +78,7 @@ final class VideoLoader {
     }
 
     func getMostRecentHistoryVideo() -> Video? {
-        let historyVideos = videos.filter { !$0.isShort && userDefaults.isInHistory($0.id) }
+        let historyVideos = videos.filter { userDefaults.isInHistory($0.id) }
             .sorted {
                 let time1 = userDefaults.getWatchTime($0.id) ?? .distantPast
                 let time2 = userDefaults.getWatchTime($1.id) ?? .distantPast
