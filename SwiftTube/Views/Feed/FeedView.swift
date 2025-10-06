@@ -5,13 +5,9 @@ struct FeedView: View {
     @Environment(VideoLoader.self) private var videoLoader
     var authmanager = GoogleAuthManager.shared
     
-    private var videos: [Video] {
-        videoLoader.videos.filter { !$0.isShort }
-    }
-    
     var body: some View {
         NavigationStack {
-            VideoGridView(videos: videos)
+            VideoGridView(videos: videoLoader.videos)
                 .navigationTitle("Feed")
                 .toolbarTitleDisplayMode(.inlineLarge)
                 .refreshable {

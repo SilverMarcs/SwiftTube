@@ -9,7 +9,9 @@ import Foundation
 
 @Observable
 final class VideoLoader {
-    public var videos: [Video] = []
+    private(set) var videos: [Video] = []
+    private(set) var shortVideos: [Video] = []
+    
     private(set) var isLoading: Bool = false
     private let userDefaults = UserDefaultsManager.shared
     
@@ -46,6 +48,8 @@ final class VideoLoader {
         // Only now populate the observable array (one atomic update)
         self.videos = sorted
         
+        self.shortVideos = self.videos.filter { $0.isShort }.shuffled()
+        
         // #if !DEBUG
         // Fetch details for the first 50 non-short videos
         let videosForDetails = self.videos.filter { !$0.isShort }.prefix(50)
@@ -68,7 +72,7 @@ final class VideoLoader {
         }
         // #endif
     }
-    
+
     func getMostRecentHistoryVideo() -> Video? {
         let historyVideos = videos.filter { userDefaults.isInHistory($0.id) }
             .sorted {
