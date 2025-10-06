@@ -14,6 +14,9 @@ class VideoManager {
         }
     }
     var isMiniPlayerVisible: Bool = true
+    #if os(macOS)
+    var isMediaPlayerWindowOpen: Bool = false
+    #endif
     
     private var timeUpdateTask: Task<Void, Never>?
     private let userDefaults = UserDefaultsManager.shared

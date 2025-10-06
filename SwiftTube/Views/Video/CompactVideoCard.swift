@@ -19,7 +19,9 @@ struct CompactVideoCard: View {
         Button {
             #if os(macOS)
             manager.currentVideo = video
-            openWindow(id: "media-player")
+            if !manager.isMediaPlayerWindowOpen {
+                openWindow(id: "media-player")
+            }
             #else
             if manager.currentVideo?.id == video.id {
                 manager.isExpanded = true

@@ -13,8 +13,16 @@ struct MediaPlayerWindowView: View {
                 .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
                 .navigationTitle(videoManager.currentVideo?.title ?? "Loading")
                 .preferredColorScheme(.dark)
+                .onAppear {
+                    #if os(macOS)
+                    videoManager.isMediaPlayerWindowOpen = true
+                    #endif
+                }
                 .onDisappear {
                     videoManager.dismiss()
+                    #if os(macOS)
+                    videoManager.isMediaPlayerWindowOpen = false
+                    #endif
                 }
                 .windowToolbarFullScreenVisibility(.onHover)
                 .toolbar {

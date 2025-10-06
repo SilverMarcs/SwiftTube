@@ -45,7 +45,9 @@ struct MiniPlayerAccessoryView: View {
                 .onTapGesture {
                     #if os(macOS)
                     manager.isMiniPlayerVisible = false
-                    openWindow(id: "media-player")
+                    if !manager.isMediaPlayerWindowOpen {
+                        openWindow(id: "media-player")
+                    }
                     #else
                     manager.isExpanded = true
                     #endif

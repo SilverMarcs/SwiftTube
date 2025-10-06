@@ -54,7 +54,7 @@ struct SwiftTubeApp: App {
         }
         
         #if os(macOS)
-        Window("media-player", id: "media-player") {
+        WindowGroup("media-player", id: "media-player") {
             MediaPlayerWindowView()
         }
         .windowToolbarStyle(.unifiedCompact)
