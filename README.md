@@ -4,7 +4,7 @@ Simple SwiftUI Youtube client with Liquid Glass.
 
 ## Features
 - Add Channels to see their videos
-- Watch Regular views and shorts
+- Watch regular videos and shorts
 - Sync watch history and watch later playlists over iCloud
 
 ## Requirements
