@@ -8,27 +8,27 @@ struct VideoPlayerView: View {
     @Binding var isCustomFullscreen: Bool
 
     var body: some View {
-            if isCustomFullscreen {
-                Color.black
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-            }
-        
-            else if manager.isExpanded, let video = manager.currentVideo {
-                CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
-                    .blur(radius: 10)
-                    .overlay {
-                        if colorScheme == .dark {
-                            Color.black.opacity(0.85)
-                        } else {
-                            Color.white.opacity(0.85)
-                        }
+        if isCustomFullscreen {
+            Color.black
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+        }
+    
+        else if manager.isExpanded, let video = manager.currentVideo {
+            CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
+                .blur(radius: 10)
+                .overlay {
+                    if colorScheme == .dark {
+                        Color.black.opacity(0.85)
+                    } else {
+                        Color.white.opacity(0.85)
                     }
-                    .clipped()
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                    .aspectRatio(16/9, contentMode: .fit)
-            }
+                }
+                .clipped()
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .aspectRatio(16/9, contentMode: .fit)
+        }
                 
         if let player = manager.player {
             YTPlayerView(player: player) {
