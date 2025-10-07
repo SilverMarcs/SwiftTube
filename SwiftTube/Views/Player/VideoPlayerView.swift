@@ -108,6 +108,17 @@ struct VideoPlayerView: View {
 }
 
 private extension VideoPlayerView {
+    func formatTime(_ seconds: Double) -> String {
+        let totalSeconds = Int(seconds)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let secs = totalSeconds % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, secs)
+        } else {
+            return String(format: "%02d:%02d", minutes, secs)
+        }
+    }
     var centerControls: some View {
         HStack {
             if showOverlays {
@@ -174,23 +185,33 @@ private extension VideoPlayerView {
         )
         
         return HStack(spacing: 5) {
-            Slider(
-                value: sliderBinding,
-                in: sliderRange,
-                onEditingChanged: { editing in
-                    if !editing {
-                        isScrubbing = false
-                        let target = pendingScrubTime
-                        Task {
-                            await manager.seek(to: target)
+            HStack {
+                Text(formatTime(manager.playbackPosition))
+                    .foregroundStyle(.white)
+                    .font(.caption)
+                
+                Slider(
+                    value: sliderBinding,
+                    in: sliderRange,
+                    onEditingChanged: { editing in
+                        if !editing {
+                            isScrubbing = false
+                            let target = pendingScrubTime
+                            Task {
+                                await manager.seek(to: target)
+                            }
                         }
                     }
-                }
-            )
-            .disabled(duration <= 0)
-            .frame(maxWidth: .infinity)
-            .controlSize(.small)
-            .sliderThumbVisibility(.hidden)
+                )
+                .disabled(duration <= 0)
+                .frame(maxWidth: .infinity)
+                .controlSize(.small)
+                .sliderThumbVisibility(.hidden)
+                
+                Text(formatTime(duration))
+                    .foregroundStyle(.white)
+                    .font(.caption)
+            }
             .padding(.horizontal, 15)
             .padding(.vertical, 4)
             .glassEffect()
