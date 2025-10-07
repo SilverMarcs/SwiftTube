@@ -8,6 +8,7 @@ struct VideoPlayerView: View {
     @Binding var isCustomFullscreen: Bool
     @State private var isScrubbing = false
     @State private var pendingScrubTime: TimeInterval = 0
+    @State private var showOverlays = true
 
     var body: some View {
         if isCustomFullscreen {
@@ -37,11 +38,20 @@ struct VideoPlayerView: View {
                 Color.clear
                     .allowsHitTesting(false)
                     .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showOverlays.toggle()
+                        }
+                    }
                     .overlay(alignment: .center) {
-                        centerControls
+                        if showOverlays {
+                            centerControls
+                        }
                     }
                     .overlay(alignment: .bottom) {
-                        playbackControls
+                        if showOverlays {
+                            playbackControls
+                        }
                     }
             }
             .aspectRatio(16/9, contentMode: .fit)
