@@ -9,6 +9,7 @@ struct VideoPlayerView: View {
     @State private var isScrubbing = false
     @State private var pendingScrubTime: TimeInterval = 0
     @State private var showOverlays = false
+    @State private var dragOffset: CGFloat = 0
 
     var body: some View {
         if isCustomFullscreen {
@@ -44,9 +45,7 @@ struct VideoPlayerView: View {
                         }
                     }
                     .overlay(alignment: .center) {
-                        if showOverlays {
-                            centerControls
-                        }
+                        centerControls
                     }
                     .overlay(alignment: .bottom) {
                         if showOverlays {
@@ -61,19 +60,30 @@ struct VideoPlayerView: View {
             .zIndex(manager.isExpanded ? 1000 : -1)
             .allowsHitTesting(manager.isExpanded)
             .gesture(
-                DragGesture(minimumDistance: 50)
+                DragGesture()
+                    .onChanged { value in
+                        dragOffset = value.translation.height
+                    }
                     .onEnded { value in
                         let vertical = value.translation.height
                         let horizontal = value.translation.width
                         if abs(horizontal) < 50 { // mostly vertical swipe
                             if vertical < -50 && !isCustomFullscreen { // swipe up to enter fullscreen
-                                isCustomFullscreen = true
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    isCustomFullscreen = true
+                                }
                             } else if vertical > 50 && isCustomFullscreen { // swipe down to exit fullscreen
-                                isCustomFullscreen = false
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    isCustomFullscreen = false
+                                }
                             }
                         }
+//                        withAnimation(.easeInOut(duration: 0.2)) {
+                            dragOffset = 0
+//                        }
                     }
             )
+            .offset(y: dragOffset)
             .onChange(of: isCustomFullscreen) {
                 if isCustomFullscreen {
                     OrientationManager.shared.lockOrientation(.landscape, andRotateTo: .landscapeRight)
@@ -100,21 +110,26 @@ struct VideoPlayerView: View {
 private extension VideoPlayerView {
     var centerControls: some View {
         HStack {
-            Button {
-                Task {
-                    await manager.seek(by: -10)
+            if showOverlays {
+                Button {
+                    Task {
+                        await manager.seek(by: -10)
+                    }
+                } label: {
+                    Image(systemName: "gobackward.10")
+                        .font(.system(size: 30))
+                        .padding(5)
                 }
-            } label: {
-                Image(systemName: "gobackward.10")
-                    .font(.system(size: 30))
-                    .padding(5)
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
             }
-            .buttonStyle(.glass)
-            .buttonBorderShape(.circle)
             
             Button {
                 Task {
                     await manager.togglePlayPause()
+                    if manager.isPlaying {
+                        showOverlays = false
+                    }
                 }
             } label: {
                 Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
@@ -123,18 +138,21 @@ private extension VideoPlayerView {
             }
             .buttonStyle(.glass)
             .buttonBorderShape(.circle)
+            .opacity(showOverlays ? 1 : 0.01)
             
-            Button {
-                Task {
-                    await manager.seek(by: 10)
+            if showOverlays {
+                Button {
+                    Task {
+                        await manager.seek(by: 10)
+                    }
+                } label: {
+                    Image(systemName: "goforward.10")
+                        .font(.system(size: 30))
+                        .padding(5)
                 }
-            } label: {
-                Image(systemName: "goforward.10")
-                    .font(.system(size: 30))
-                    .padding(5)
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
             }
-            .buttonStyle(.glass)
-            .buttonBorderShape(.circle)
         }
     }
     
