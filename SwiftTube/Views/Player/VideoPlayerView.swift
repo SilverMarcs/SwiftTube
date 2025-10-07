@@ -8,7 +8,7 @@ struct VideoPlayerView: View {
     @Binding var isCustomFullscreen: Bool
     @State private var isScrubbing = false
     @State private var pendingScrubTime: TimeInterval = 0
-    @State private var showOverlays = true
+    @State private var showOverlays = false
 
     var body: some View {
         if isCustomFullscreen {
@@ -60,6 +60,20 @@ struct VideoPlayerView: View {
             .ignoresSafeArea(edges: isCustomFullscreen ? .all : [])
             .zIndex(manager.isExpanded ? 1000 : -1)
             .allowsHitTesting(manager.isExpanded)
+            .gesture(
+                DragGesture(minimumDistance: 50)
+                    .onEnded { value in
+                        let vertical = value.translation.height
+                        let horizontal = value.translation.width
+                        if abs(horizontal) < 50 { // mostly vertical swipe
+                            if vertical < -50 && !isCustomFullscreen { // swipe up to enter fullscreen
+                                isCustomFullscreen = true
+                            } else if vertical > 50 && isCustomFullscreen { // swipe down to exit fullscreen
+                                isCustomFullscreen = false
+                            }
+                        }
+                    }
+            )
             .onChange(of: isCustomFullscreen) {
                 if isCustomFullscreen {
                     OrientationManager.shared.lockOrientation(.landscape, andRotateTo: .landscapeRight)
@@ -164,11 +178,12 @@ private extension VideoPlayerView {
             .glassEffect()
             
             Button {
+                showOverlays.toggle()
                 isCustomFullscreen.toggle()
             } label: {
                 Image(systemName: isCustomFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                    .contentShape(.rect)
                     .padding(4)
+                    .contentShape(.rect)
             }
             .tint(.white)
             .buttonStyle(.glass)
