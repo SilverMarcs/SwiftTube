@@ -7,7 +7,7 @@ struct MediaPlayerWindowView: View {
 
     var body: some View {
         ScrollView {
-            if let video = manager.currentVideo, let player = manager.player {
+            if let player = videoManager.player {
                 YTPlayerView(player: player)
                     .aspectRatio(16/9, contentMode: .fit)
                     .gesture(WindowDragGesture())

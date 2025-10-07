@@ -40,6 +40,7 @@ struct CompactVideoCard: View {
                                 .tint(.accent)
                                 #if os(macOS)
                                 .controlSize(.mini)
+                                .padding(.bottom, -3)
                                 #endif
                         }
                     }
@@ -54,7 +55,7 @@ struct CompactVideoCard: View {
                                 .padding(6)
                         }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 
                 VStack(alignment: .leading) {
                     VStack(alignment: .leading, spacing: 4) {

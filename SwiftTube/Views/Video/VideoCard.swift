@@ -42,7 +42,8 @@ struct VideoCard: View {
                             ProgressView(value: progress)
                                 .tint(.accent)
                                 #if os(macOS)
-                                .controlSize(.small)
+                                .controlSize(.mini)
+                                .padding(.bottom, -3)
                                 #endif
                         }
                     }
