@@ -7,37 +7,36 @@ struct MediaPlayerWindowView: View {
 
     var body: some View {
         ScrollView {
-            VideoPlayerView()
-                .gesture(WindowDragGesture())
-                .onTapGesture(count: 2, perform: toggleFullscreen)
-                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-                .navigationTitle(videoManager.currentVideo?.title ?? "Loading")
-                .preferredColorScheme(.dark)
-                .onAppear {
-                    #if os(macOS)
-                    videoManager.isMediaPlayerWindowOpen = true
-                    #endif
-                }
-                .onDisappear {
-                    videoManager.dismiss()
-                    #if os(macOS)
-                    videoManager.isMediaPlayerWindowOpen = false
-                    #endif
-                }
-                .windowToolbarFullScreenVisibility(.onHover)
-                .toolbar {
-                    Button {
-                        showDetail = true
-                    } label: {
-                        Image(systemName: "info")
+            if let video = manager.currentVideo, let player = manager.player {
+                YTPlayerView(player: player)
+                    .aspectRatio(16/9, contentMode: .fit)
+                    .gesture(WindowDragGesture())
+                    .onTapGesture(count: 2, perform: toggleFullscreen)
+                    .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+                    .navigationTitle(videoManager.currentVideo?.title ?? "Loading")
+                    .preferredColorScheme(.dark)
+                    .onAppear {
+                        videoManager.isMediaPlayerWindowOpen = true
                     }
-                }
-                .sheet(isPresented: $showDetail) {
-                    if let video = videoManager.currentVideo {
-                        VideoDetailView(video: video)
-                            .frame(height: 500)
+                    .onDisappear {
+                        videoManager.dismiss()
+                        videoManager.isMediaPlayerWindowOpen = false
                     }
-                }
+                    .windowToolbarFullScreenVisibility(.onHover)
+                    .toolbar {
+                        Button {
+                            showDetail = true
+                        } label: {
+                            Image(systemName: "info")
+                        }
+                    }
+                    .sheet(isPresented: $showDetail) {
+                        if let video = videoManager.currentVideo {
+                            VideoDetailView(video: video)
+                                .frame(height: 500)
+                        }
+                    }
+            }
         }
         .ignoresSafeArea(edges: .top)
         .background(.black, ignoresSafeAreaEdges: .all)

@@ -5,37 +5,40 @@ struct VideoPlayerView: View {
     @Environment(VideoManager.self) var manager
     @Environment(\.colorScheme) var colorScheme
     
+    @Binding var isCustomFullscreen: Bool
+
     var body: some View {
-        if let video = manager.currentVideo, let player = manager.player {
-            YTPlayerView(player: player)
-                .aspectRatio(16/9, contentMode: .fit)
-                #if !os(macOS)
-                .onChange(of: player.isFullscreen) { exited, entered in
-                    if entered {
-                       OrientationManager.shared.lockOrientation(.landscape, andRotateTo: .landscapeRight)
-                    } else {
-                       OrientationManager.shared.lockOrientation(.all)
-                       DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                           Task { @MainActor in
-                               await manager.togglePlayPause()
-                           }
-                       }
-                    }
-               }
-                .background {
-                    CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
-                        .blur(radius: 10)
-                        .overlay {
-                            if colorScheme == .dark {
-                                Color.black.opacity(0.85)
-                            } else {
-                                Color.white.opacity(0.85)
+        if let _ = manager.currentVideo, let player = manager.player {
+            YTPlayerView(player: player) {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .overlay(alignment: .center) {
+                        Button {
+                            Task {
+                                await manager.togglePlayPause()
                             }
+                        } label: {
+                            Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
                         }
-                        .clipped()
-                        .ignoresSafeArea()
-                }
-            #endif
+                        .buttonStyle(.glass)
+                        .buttonBorderShape(.circle)
+                        .controlSize(.extraLarge)
+                    }
+                    .overlay(alignment: .bottomTrailing) {
+                        Button {
+                            isCustomFullscreen.toggle()
+                        } label: {
+                            Image(systemName: isCustomFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                        }
+                        .buttonStyle(.glass)
+                        .buttonBorderShape(.circle)
+                        .padding()
+                    }
+            }
+            .aspectRatio(16/9, contentMode: .fit)
+            .frame(maxWidth: isCustomFullscreen ? .infinity : nil,
+                   maxHeight: isCustomFullscreen ? .infinity : nil)
+            .ignoresSafeArea(edges: isCustomFullscreen ? .all : [])
         }
     }
 }
