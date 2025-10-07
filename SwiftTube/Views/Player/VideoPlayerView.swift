@@ -8,7 +8,29 @@ struct VideoPlayerView: View {
     @Binding var isCustomFullscreen: Bool
 
     var body: some View {
-        if let _ = manager.currentVideo, let player = manager.player {
+            if isCustomFullscreen {
+                Color.black
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+            }
+        
+            else if manager.isExpanded, let video = manager.currentVideo {
+                CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
+                    .blur(radius: 10)
+                    .overlay {
+                        if colorScheme == .dark {
+                            Color.black.opacity(0.85)
+                        } else {
+                            Color.white.opacity(0.85)
+                        }
+                    }
+                    .clipped()
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .aspectRatio(16/9, contentMode: .fit)
+            }
+                
+        if let player = manager.player {
             YTPlayerView(player: player) {
                 Color.clear
                     .contentShape(Rectangle())
@@ -39,6 +61,15 @@ struct VideoPlayerView: View {
             .frame(maxWidth: isCustomFullscreen ? .infinity : nil,
                    maxHeight: isCustomFullscreen ? .infinity : nil)
             .ignoresSafeArea(edges: isCustomFullscreen ? .all : [])
+            .zIndex(manager.isExpanded ? 1000 : -1)
+            .allowsHitTesting(manager.isExpanded)
+            .onChange(of: isCustomFullscreen) {
+                if isCustomFullscreen {
+                    OrientationManager.shared.lockOrientation(.landscape, andRotateTo: .landscapeRight)
+                } else {
+                    OrientationManager.shared.lockOrientation(.all)
+                }
+            }
         }
     }
 }

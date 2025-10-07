@@ -34,7 +34,7 @@ final class YTPlayer {
     
     var state: State = .idle
     /// Local source of truth for fullscreen state - toggles whenever YouTube sends a fullscreen change event
-    var isFullscreen: Bool = false
+//    var isFullscreen: Bool = false
     private(set) var webPage: WebPage
 
     /// Get playback state as an async computed property
@@ -84,14 +84,14 @@ final class YTPlayer {
         config.websiteDataStore = .default()
         
         // Set up message handler for fullscreen changes
-        let handler = FullscreenMessageHandler(onChange: {})
-        config.userContentController.add(handler, name: "fullscreenChange")
+//        let handler = FullscreenMessageHandler(onChange: {})
+//        config.userContentController.add(handler, name: "fullscreenChange")
         
         self.webPage = WebPage(configuration: config)
         self.webPage.isInspectable = false
         
         // Set the callback after self is fully initialized
-        handler.onChange = { self.isFullscreen.toggle() }
+//        handler.onChange = { self.isFullscreen.toggle() }
     }
     
     // MARK: - Public API
@@ -210,8 +210,8 @@ final class YTPlayer {
                         events: {
                             'onReady': onPlayerReady,
                             'onStateChange': onPlayerStateChange,
-                            'onError': onPlayerError,
-                            'onFullscreenChange': onFullscreenChange
+                            'onError': onPlayerError
+                            // 'onFullscreenChange': onFullscreenChange
                         }
                     });
                 }
@@ -228,12 +228,12 @@ final class YTPlayer {
                     // Error occurred
                 }
                 
-                function onFullscreenChange(event) {
-                    const isFullscreen = event.data === 1;
-                    window.webkit.messageHandlers.fullscreenChange.postMessage({
-                        fullscreen: isFullscreen
-                    });
-                }
+                // function onFullscreenChange(event) {
+                //     const isFullscreen = event.data === 1;
+                //     window.webkit.messageHandlers.fullscreenChange.postMessage({
+                //         fullscreen: isFullscreen
+                //     });
+                // }
             </script>
         </body>
         </html>
@@ -250,15 +250,15 @@ enum YTPlayerError: Error {
 
 // MARK: - Fullscreen Message Handler
 
-private class FullscreenMessageHandler: NSObject, WKScriptMessageHandler {
-    var onChange: (() -> Void)
-    
-    init(onChange: @escaping () -> Void) {
-        self.onChange = onChange
-    }
-    
-    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        // Call the callback on fullscreen change
-        onChange()
-    }
-}
+//private class FullscreenMessageHandler: NSObject, WKScriptMessageHandler {
+//    var onChange: (() -> Void)
+//    
+//    init(onChange: @escaping () -> Void) {
+//        self.onChange = onChange
+//    }
+//    
+//    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+//        // Call the callback on fullscreen change
+//        onChange()
+//    }
+//}
