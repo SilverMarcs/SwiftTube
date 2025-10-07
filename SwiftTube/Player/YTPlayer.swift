@@ -36,6 +36,7 @@ final class YTPlayer {
     /// Local source of truth for fullscreen state - toggles whenever YouTube sends a fullscreen change event
 //    var isFullscreen: Bool = false
     private(set) var webPage: WebPage
+    private var cachedDuration: TimeInterval?
 
     /// Get playback state as an async computed property
     var playbackState: PlaybackState {
@@ -61,10 +62,14 @@ final class YTPlayer {
     /// Get video duration
     var duration: TimeInterval {
         get async throws {
+            if let cachedDuration {
+                return cachedDuration
+            }
             let result = try await webPage.callJavaScript("return player.getDuration();")
             guard let time = result as? Double else {
                 throw YTPlayerError.invalidResponse
             }
+            cachedDuration = time
             return time
         }
     }
@@ -99,6 +104,7 @@ final class YTPlayer {
     /// Load a video by ID with optional start time
     func load(videoId: String, startTime: TimeInterval? = nil) async throws {
         self.videoId = videoId
+        cachedDuration = nil
         
         // If already initialized, just change the video instead of reloading HTML
         if case .ready = state {
@@ -133,6 +139,7 @@ final class YTPlayer {
         """
         _ = try await webPage.callJavaScript(script)
         self.videoId = videoId
+        cachedDuration = nil
     }
     
     /// Play the video
