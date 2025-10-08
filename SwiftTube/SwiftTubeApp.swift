@@ -57,9 +57,8 @@ struct SwiftTubeApp: App {
         WindowGroup("media-player", id: "media-player") {
             MediaPlayerWindowView()
         }
-        .windowToolbarStyle(.unifiedCompact)
         .restorationBehavior(.disabled)
-//        .windowResizability(.contentSize)
+        .windowResizability(.contentSize)
         .defaultSize(width: 1024, height: 576)
         .environment(videoManager)
         .environment(userDefaultsManager)

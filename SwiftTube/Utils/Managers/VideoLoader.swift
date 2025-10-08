@@ -44,11 +44,17 @@ final class VideoLoader {
         }
         
         // Separate regular videos and shorts
-        let regularVideos = aggregatedVideos.filter { !$0.isShort }
+        let now = Date()
+        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: now) ?? now.addingTimeInterval(-7 * 24 * 60 * 60)
+        
+        // Keep ALL shorts
         let shorts = aggregatedVideos.filter { $0.isShort }
         
-        // Sort regular videos by publish date
-        let sortedVideos = regularVideos.sorted { $0.publishedAt > $1.publishedAt }
+        // For non-shorts, keep only those within last 7 days
+        let recentRegularVideos = aggregatedVideos.filter { !$0.isShort && $0.publishedAt >= sevenDaysAgo }
+        
+        // Sort recent regular videos by publish date (desc)
+        let sortedVideos = recentRegularVideos.sorted { $0.publishedAt > $1.publishedAt }
         
         // Update observable arrays (atomic updates)
         self.videos = sortedVideos

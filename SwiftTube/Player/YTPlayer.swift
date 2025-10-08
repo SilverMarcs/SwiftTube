@@ -177,11 +177,39 @@ final class YTPlayer {
         guard let videoId else { throw YTPlayerError.playerNotReady }
         try await load(videoId: videoId)
     }
+
+    /// Attempt to verify the underlying web content is still alive and restore if it was purged.
+    /// This is useful when the app returns from background and the WKWebView process was killed.
+    /// Keeps it very lightweight: a single JS ping; on failure we reload the current video.
+    func restoreIfNeeded() async {
+        // Only attempt when we think we're ready
+        guard case .ready = state else { return }
+        // Must have a video to restore
+        guard let videoId else { return }
+        do {
+            let result = try await webPage.callJavaScript("return (typeof player !== 'undefined') && !!player.getIframe();")
+            if let ok = result as? Bool, ok {
+                return // Player still present
+            }
+        } catch {
+            // Ignore and proceed to reload
+        }
+        await reloadCurrent(videoId: videoId)
+    }
     
     // MARK: - Private Methods
     
     private func executePlayerCommand(_ command: String) async throws {
         _ = try await webPage.callJavaScript("player.\(command);")
+    }
+
+    private func reloadCurrent(videoId: String) async {
+        state = .idle
+        do {
+            try await load(videoId: videoId)
+        } catch {
+            state = .error(error)
+        }
     }
     
     private func buildHTML(videoId: String, startTime: TimeInterval?) -> String {
