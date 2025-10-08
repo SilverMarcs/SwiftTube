@@ -105,18 +105,6 @@ struct VideoPlayerView: View {
                     OrientationManager.shared.lockOrientation(.all)
                 }
             }
-            .onAppear {
-                pendingScrubTime = manager.playbackPosition
-            }
-            .onChange(of: manager.playbackPosition) {
-                if !isScrubbing {
-                    pendingScrubTime = manager.playbackPosition
-                }
-            }
-            .onChange(of: manager.playbackDuration) {
-                guard let duration = manager.playbackDuration, isScrubbing else { return }
-                pendingScrubTime = min(max(pendingScrubTime, 0), duration)
-            }
         }
     }
 }
@@ -178,18 +166,18 @@ private extension VideoPlayerView {
     
     var playbackControls: some View {
         let duration = manager.playbackDuration ?? manager.currentVideo?.duration.map(Double.init) ?? 0
-        let sliderRange: ClosedRange<Double> = duration > 0 ? 0...duration : 0...1
-        let lowerBound = sliderRange.lowerBound
-        let upperBound = sliderRange.upperBound
-        let sliderBinding = Binding<Double>(
+        let progressBinding = Binding<Double>(
             get: {
-                let value = isScrubbing ? pendingScrubTime : manager.playbackPosition
-                return min(max(value, lowerBound), upperBound)
+                guard duration > 0 else { return 0 }
+                if isScrubbing {
+                    return min(max(pendingScrubTime / duration, 0), 1)
+                } else {
+                    return min(max(manager.playbackPosition / duration, 0), 1)
+                }
             },
-            set: { newValue in
-                isScrubbing = true
-                let clamped = min(max(newValue, lowerBound), upperBound)
-                pendingScrubTime = clamped
+            set: { newProgress in
+                let clampedProgress = min(max(newProgress, 0), 1)
+                pendingScrubTime = clampedProgress * duration
             }
         )
         
@@ -200,14 +188,18 @@ private extension VideoPlayerView {
                     .font(.caption)
                 
                 Slider(
-                    value: sliderBinding,
-                    in: sliderRange,
+                    value: progressBinding,
+                    in: 0...1,
                     onEditingChanged: { editing in
-                        if !editing {
-                            isScrubbing = false
+                        if editing {
+                            isScrubbing = true
+                        } else {
                             let target = pendingScrubTime
                             Task {
                                 await manager.seek(to: target)
+                                await MainActor.run {
+                                    isScrubbing = false
+                                }
                             }
                         }
                     }
@@ -229,7 +221,7 @@ private extension VideoPlayerView {
                             }
                         } label: {
                             HStack {
-                                Text("\(rate, specifier: "%.2g")x")
+                                Text("\(rate, specifier: "%.3g")x")
                                 if manager.playbackRate == rate {
                                     Image(systemName: "checkmark")
                                 }

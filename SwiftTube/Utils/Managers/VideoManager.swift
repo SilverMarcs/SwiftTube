@@ -102,12 +102,15 @@ class VideoManager {
     func seek(to time: TimeInterval) async {
         guard let player else { return }
         let clamped = clampTime(time)
+
+        playbackPosition = clamped
+
         do {
             try await player.seek(to: clamped)
         } catch {
-            // ignore seek errors for now
+            // If the seek ultimately fails, we'll leave playbackPosition as-is
+            // and the periodic playback monitor will correct the value shortly.
         }
-        playbackPosition = clamped
     }
     
     func setPlaybackRate(_ rate: Double) async {
@@ -150,7 +153,8 @@ class VideoManager {
         playbackLoopTask?.cancel()
         playbackLoopTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(500))
+                // increase frequency so UI updates (slider) feel smoother
+                try? await Task.sleep(for: .milliseconds(250))
                 guard let self, let player = self.player else { break }
                 guard let currentTime = try? await player.currentPlaybackTime else { continue }
                 await MainActor.run {
