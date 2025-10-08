@@ -6,7 +6,11 @@ struct MediaPlayerWindowView: View {
     @State private var showDetail = false
 
     var body: some View {
-        ScrollView {
+        ZStack(alignment: .leading) {
+            Color.black
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+
             if let player = videoManager.player {
                 YTPlayerView(player: player)
                     .aspectRatio(16/9, contentMode: .fit)
@@ -36,10 +40,9 @@ struct MediaPlayerWindowView: View {
                                 .frame(height: 500)
                         }
                     }
+                    .ignoresSafeArea(edges: .top)
             }
         }
-        .ignoresSafeArea(edges: .top)
-        .background(.black, ignoresSafeAreaEdges: .all)
     }
     
     private func toggleFullscreen() {

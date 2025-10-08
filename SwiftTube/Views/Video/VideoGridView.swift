@@ -17,7 +17,9 @@ struct VideoGridView: View {
                         VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu)
                     }
                 }
-                .padding(16)
+                .scenePadding(.horizontal)
+                .scenePadding(.bottom)
+//                .padding(16)
             }
 #else
             List(videos) { video in

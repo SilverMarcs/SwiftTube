@@ -25,6 +25,7 @@
 				AppDelegate.swift = (ios, xros, );
 				Utils/Managers/OrientationManager.swift = (ios, xros, );
 				Views/Player/MediaPlayerWindowView.swift = (macos, );
+				Views/Player/VideoPlayerView.swift = (ios, xros, );
 			};
 			target = 08E62F842E871877007AD438 /* SwiftTube */;
 		};
