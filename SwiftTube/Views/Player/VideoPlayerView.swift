@@ -78,9 +78,9 @@ struct VideoPlayerView: View {
                                 }
                             }
                         }
-//                        withAnimation(.easeInOut(duration: 0.2)) {
+                       withAnimation(.easeInOut(duration: 0.2)) {
                             dragOffset = 0
-//                        }
+                       }
                     }
             )
             .offset(y: dragOffset)
