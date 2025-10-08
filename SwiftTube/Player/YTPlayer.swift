@@ -73,6 +73,16 @@ final class YTPlayer {
             return time
         }
     }
+    /// Get playback rate
+    var playbackRate: Double {
+        get async throws {
+            let result = try await webPage.callJavaScript("return player.getPlaybackRate();")
+            guard let rate = result as? Double else {
+                throw YTPlayerError.invalidResponse
+            }
+            return rate
+        }
+    }
     private var videoId: String?
     private let configuration: Configuration
     
@@ -155,6 +165,11 @@ final class YTPlayer {
     /// Seek to a specific time
     func seek(to time: TimeInterval) async throws {
         try await executePlayerCommand("seekTo(\(time), true)")
+    }
+    
+    /// Set playback rate
+    func setPlaybackRate(_ rate: Double) async throws {
+        try await executePlayerCommand("setPlaybackRate(\(rate))")
     }
     
     /// Retry loading the current video

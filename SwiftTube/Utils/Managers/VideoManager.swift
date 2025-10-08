@@ -8,6 +8,7 @@ class VideoManager {
     
     var playbackPosition: TimeInterval = 0
     var playbackDuration: TimeInterval?
+    var playbackRate: Double = 1.0
     
     var isExpanded: Bool = false
     var currentVideo: Video? = nil {
@@ -107,8 +108,16 @@ class VideoManager {
             // ignore seek errors for now
         }
         playbackPosition = clamped
-        updateVideoProgress(clamped)
-        lastPersistedProgress = clamped
+    }
+    
+    func setPlaybackRate(_ rate: Double) async {
+        guard let player else { return }
+        do {
+            try await player.setPlaybackRate(rate)
+            playbackRate = rate
+        } catch {
+            // ignore playback rate errors
+        }
     }
     
     private func createPlayerIfNeeded(autoPlay: Bool) {
@@ -176,7 +185,6 @@ class VideoManager {
     private func setPlaybackDurationIfNeeded(_ duration: TimeInterval) {
         guard duration > 0 else { return }
         playbackDuration = duration
-        playbackPosition = clampTime(playbackPosition)
         if var video = currentVideo, video.duration == nil {
             video.duration = Int(duration.rounded())
             currentVideo = video

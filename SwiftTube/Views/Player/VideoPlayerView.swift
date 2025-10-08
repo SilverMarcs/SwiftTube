@@ -45,11 +45,29 @@ struct VideoPlayerView: View {
                         }
                     }
                     .overlay(alignment: .center) {
-                        centerControls
+                        if showOverlays {
+                            centerControls
+                        }
                     }
                     .overlay(alignment: .bottom) {
                         if showOverlays {
                             playbackControls
+                        }
+                    }
+                    .overlay(alignment: .topLeading) {
+                        if showOverlays {
+                            Button {
+                                showOverlays.toggle()
+                                isCustomFullscreen.toggle()
+                            } label: {
+                                Image(systemName: isCustomFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                                    .padding(4)
+                                    .contentShape(.rect)
+                            }
+                            .tint(.white)
+                            .buttonStyle(.glass)
+                            .buttonBorderShape(.circle)
+                            .padding()
                         }
                     }
             }
@@ -67,15 +85,11 @@ struct VideoPlayerView: View {
                     .onEnded { value in
                         let vertical = value.translation.height
                         let horizontal = value.translation.width
-                        if abs(horizontal) < 50 { // mostly vertical swipe
-                            if vertical < -50 && !isCustomFullscreen { // swipe up to enter fullscreen
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    isCustomFullscreen = true
-                                }
-                            } else if vertical > 50 && isCustomFullscreen { // swipe down to exit fullscreen
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    isCustomFullscreen = false
-                                }
+                        if abs(horizontal) < 40 { // mostly vertical swipe
+                            if vertical < -40 && !isCustomFullscreen { // swipe up to enter fullscreen
+                                isCustomFullscreen = true
+                            } else if vertical > 40 && isCustomFullscreen { // swipe down to exit fullscreen
+                                isCustomFullscreen = false
                             }
                         }
                        withAnimation(.easeInOut(duration: 0.2)) {
@@ -120,20 +134,18 @@ private extension VideoPlayerView {
         }
     }
     var centerControls: some View {
-        HStack {
-            if showOverlays {
-                Button {
-                    Task {
-                        await manager.seek(by: -10)
-                    }
-                } label: {
-                    Image(systemName: "gobackward.10")
-                        .font(.system(size: 30))
-                        .padding(5)
+        HStack(spacing: 15) {
+            Button {
+                Task {
+                    await manager.seek(by: -10)
                 }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
+            } label: {
+                Image(systemName: "gobackward.10")
+                    .font(.system(size: 30))
+                    .padding(5)
             }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
             
             Button {
                 Task {
@@ -149,27 +161,24 @@ private extension VideoPlayerView {
             }
             .buttonStyle(.glass)
             .buttonBorderShape(.circle)
-            .opacity(showOverlays ? 1 : 0.01)
             
-            if showOverlays {
-                Button {
-                    Task {
-                        await manager.seek(by: 10)
-                    }
-                } label: {
-                    Image(systemName: "goforward.10")
-                        .font(.system(size: 30))
-                        .padding(5)
+            Button {
+                Task {
+                    await manager.seek(by: 10)
                 }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
+            } label: {
+                Image(systemName: "goforward.10")
+                    .font(.system(size: 30))
+                    .padding(5)
             }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
         }
     }
     
     var playbackControls: some View {
         let duration = manager.playbackDuration ?? manager.currentVideo?.duration.map(Double.init) ?? 0
-        let sliderRange = duration > 0 ? 0...duration : 0...1
+        let sliderRange: ClosedRange<Double> = duration > 0 ? 0...duration : 0...1
         let lowerBound = sliderRange.lowerBound
         let upperBound = sliderRange.upperBound
         let sliderBinding = Binding<Double>(
@@ -211,22 +220,32 @@ private extension VideoPlayerView {
                 Text(formatTime(duration))
                     .foregroundStyle(.white)
                     .font(.caption)
+                
+                Menu {
+                    ForEach([0.5, 1.0, 1.25, 1.5, 2.0], id: \.self) { rate in
+                        Button {
+                            Task {
+                                await manager.setPlaybackRate(rate)
+                            }
+                        } label: {
+                            HStack {
+                                Text("\(rate, specifier: "%.2g")x")
+                                if manager.playbackRate == rate {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "slider.vertical.3")
+                        .padding(4)
+                        .contentShape(.rect)
+                        .tint(.white)
+                }
             }
             .padding(.horizontal, 15)
             .padding(.vertical, 4)
             .glassEffect()
-            
-            Button {
-                showOverlays.toggle()
-                isCustomFullscreen.toggle()
-            } label: {
-                Image(systemName: isCustomFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                    .padding(4)
-                    .contentShape(.rect)
-            }
-            .tint(.white)
-            .buttonStyle(.glass)
-            .buttonBorderShape(.circle)
         }
         .frame(maxWidth: .infinity)
         .padding(10)
