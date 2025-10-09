@@ -92,7 +92,11 @@ struct VideoCard: View {
                                 Image(systemName: "clock")
                                     .font(.system(size: 10))
                             }
+                            #if os(macOS)
+                            .labelIconToTitleSpacing(1)
+                            #else
                             .labelIconToTitleSpacing(0)
+                            #endif
                             
                             if userDefaults.isWatchLater(video.id) {
                                 Image(systemName: "bookmark.fill")
