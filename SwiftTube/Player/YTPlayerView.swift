@@ -49,8 +49,8 @@ struct YTPlayerView<Overlay: View>: View {
 //            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
 //                Task { await player.restoreIfNeeded() }
 //            }
-            .onChange(of: scenePhase) { newPhase in
-                if newPhase == .active {
+            .onChange(of: scenePhase) {
+                if scenePhase == .active {
                     Task { await player.restoreIfNeeded() }
                 }
             }
