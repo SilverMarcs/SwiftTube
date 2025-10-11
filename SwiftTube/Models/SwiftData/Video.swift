@@ -31,6 +31,15 @@ extension Video {
         } else {
             finalProgress = sanitized
         }
+        // Avoid overwriting an existing positive progress with 0.
+        // The YouTube iframe player sometimes reports currentTime as 0 when playback ends,
+        // which would otherwise clear a saved watched progress. If there's already a
+        // saved positive progress for this video, do not overwrite it with 0 here.
+        let previousProgress = UserDefaultsManager.shared.getWatchProgress(videoId: id)
+        if finalProgress == 0 && previousProgress > 0 {
+            return
+        }
+
         UserDefaultsManager.shared.setWatchProgress(videoId: id, progress: finalProgress)
     }
 }
