@@ -90,9 +90,10 @@ class VideoManager {
     private func loadVideo(_ video: Video) {
         guard let player else { return }
         
-        // Load video with current progress directly
+        // Load video with current progress directly, unless fully watched
         let currentProgress = userDefaults.getWatchProgress(videoId: video.id)
-        let startTime = currentProgress > 5 ? currentProgress : nil
+        let isFullyWatched = video.duration.map { currentProgress >= Double($0) } ?? false
+        let startTime = isFullyWatched ? nil : (currentProgress > 5 ? currentProgress : nil)
             
         Task {
             try? await player.load(videoId: video.id, startTime: startTime)
@@ -110,14 +111,30 @@ class VideoManager {
         // Cancel existing task
         timeUpdateTask?.cancel()
         
-        // Start observing player progress (every 10 seconds for progress saving, since high accuracy isn't needed)
+        // Start observing player progress (every 5 seconds for progress saving, since high accuracy isn't needed)
         timeUpdateTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(5))
                 guard let self = self else { break }
-                
-                // Get fresh current time directly from player
-                if let currentTime = try? await player.currentPlaybackTime {
+
+                // If the player reports the ended state, prefer storing the video's duration
+                // as the watched progress. The YouTube iframe player often resets currentTime to 0
+                // right after playback ends which would otherwise clear the saved progress.
+                if let state = try? await player.playbackState, state == .ended {
+                    // Prefer the locally-known duration if available.
+                    if let localDuration = self.currentVideo?.duration.map(Double.init) {
+                        self.updateVideoProgress(localDuration)
+                    } else if let durationFromPlayer = try? await player.duration {
+                        // Fall back to asking the player for duration
+                        self.updateVideoProgress(durationFromPlayer)
+                    } else {
+                        // If we can't determine a duration, avoid overwriting with 0.
+                        // As a last resort, use current time only if it's > 0.
+                        if let currentTime = try? await player.currentPlaybackTime, currentTime > 0 {
+                            self.updateVideoProgress(currentTime)
+                        }
+                    }
+                } else if let currentTime = try? await player.currentPlaybackTime {
                     self.updateVideoProgress(currentTime)
                 }
             }
