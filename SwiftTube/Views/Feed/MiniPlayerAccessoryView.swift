@@ -34,13 +34,15 @@ struct MiniPlayerAccessoryView: View {
                         Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
                             .contentTransition(.symbolEffect(.replace))
                     }
+                    .tint(.primary)
                     #if os(macOS)
                     .buttonStyle(.glassProminent)
                     .controlSize(.extraLarge)
                     .buttonBorderShape(.circle)
                     #endif
                 }
-                .padding()
+                .padding(.vertical, 7)
+                .padding(.horizontal, 15)
                 .contentShape(.rect)
                 .onTapGesture {
                     #if os(macOS)
@@ -51,6 +53,9 @@ struct MiniPlayerAccessoryView: View {
                     manager.isExpanded = true
                     #endif
                 }
+                .glassEffect(.clear)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 5)
             } else {
                 #if !os(macOS)
                 Text("No video playing")
