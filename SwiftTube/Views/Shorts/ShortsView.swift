@@ -76,10 +76,9 @@ struct ShortsView: View {
             }
         }
         .onDisappear {
-            isReady = false
-            
             DispatchQueue.main.async {
                 videoManager.isMiniPlayerVisible = true
+                isReady = false
             }
             
             Task {

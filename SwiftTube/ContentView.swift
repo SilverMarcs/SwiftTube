@@ -39,10 +39,6 @@ struct ContentView: View {
             TabView(selection: $selection) {
                 Tab("Videos", systemImage: "video", value: .feed) {
                     FeedView()
-                        .safeAreaBar(edge: .bottom) {
-                            MiniPlayerAccessoryView()
-                                .matchedTransitionSource(id: "MINIPLAYER", in: animation)
-                        }
                 }
                 
                 Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
@@ -51,17 +47,13 @@ struct ContentView: View {
                 
                 Tab("Profile", systemImage: "person", value: .profile, role: .search) {
                     ProfileView()
-                        .safeAreaBar(edge: .bottom) {
-                            MiniPlayerAccessoryView()
-                                .matchedTransitionSource(id: "MINIPLAYER", in: animation)
-                        }
                 }
             }
 //            .tabBarMinimizeBehavior(.onScrollDown)
-//            .tabViewBottomAccessory {
-//                MiniPlayerAccessoryView()
-//                    .matchedTransitionSource(id: "MINIPLAYER", in: animation)
-//            }
+            .tabViewBottomAccessory {
+                MiniPlayerAccessoryView()
+                    .matchedTransitionSource(id: "MINIPLAYER", in: animation)
+            }
             .sheet(isPresented: $manager.isExpanded) {
                 if let video = manager.currentVideo {
                     VideoDetailView(video: video)

@@ -45,7 +45,7 @@ struct MiniPlayerAccessoryView: View {
                     #endif
                 }
                 .padding(.vertical, 8)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 18)
                 .contentShape(.rect)
                 .onTapGesture {
                     #if os(macOS)
@@ -56,9 +56,13 @@ struct MiniPlayerAccessoryView: View {
                     manager.isExpanded = true
                     #endif
                 }
-                .glassEffect(.clear)
-                .padding(.horizontal, 23)
-                .padding(.vertical, 7)
+//                .glassEffect(.clear)
+//                .padding(.horizontal, 23)
+//                .padding(.vertical, 7)
+            } else {
+                #if !os(macOS)
+                Text("No video playing")
+                #endif
             }
         }
     }
