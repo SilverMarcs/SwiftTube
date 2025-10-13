@@ -5,7 +5,6 @@ import WebKit
 struct YTPlayerView<Overlay: View>: View {
     let player: YTPlayer
     let overlayView: Overlay
-    @Environment(\.scenePhase) private var scenePhase
     
     init(player: YTPlayer, @ViewBuilder overlayView: () -> Overlay = { EmptyView() }) {
         self.player = player
@@ -40,20 +39,5 @@ struct YTPlayerView<Overlay: View>: View {
                     }
                 }
             }
-            #if !os(macOS)
-            // When the view re-appears (e.g., after background) attempt a lightweight restore.
-            .task {
-                await player.restoreIfNeeded()
-            }
-            // Also monitor scene/app foreground transitions.
-//            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-//                Task { await player.restoreIfNeeded() }
-//            }
-            .onChange(of: scenePhase) {
-                if scenePhase == .active {
-                    Task { await player.restoreIfNeeded() }
-                }
-            }
-            #endif
     }
 }

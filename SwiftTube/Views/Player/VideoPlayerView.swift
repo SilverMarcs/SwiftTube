@@ -4,6 +4,7 @@ import SwiftMediaViewer
 struct VideoPlayerView: View {
     @Environment(VideoManager.self) var manager
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.scenePhase) private var scenePhase
     
     @Binding var isCustomFullscreen: Bool
     
@@ -58,6 +59,16 @@ struct VideoPlayerView: View {
                     OrientationManager.shared.lockOrientation(.all)
                 }
             }
+            #if !os(macOS)
+            .onChange(of: scenePhase) {
+                if scenePhase == .active {
+                    Task { await manager.restoreIfNeeded() }
+                    manager.resumeTimerTracking()
+                } else if scenePhase == .background {
+                    manager.pauseTimerTracking()
+                }
+            }
+            #endif
         }
     }
 }

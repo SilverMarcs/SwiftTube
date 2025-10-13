@@ -17,11 +17,14 @@ struct MiniPlayerAccessoryView: View {
                     
                     VStack(alignment: .leading) {
                         Text(video.title)
-                            .font(.subheadline)
+                            .font(.system(size: 13))
+                            .bold()
                             .lineLimit(1)
                         
                         Text(video.channel.title)
                             .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                     
                     Spacer()
@@ -41,8 +44,8 @@ struct MiniPlayerAccessoryView: View {
                     .buttonBorderShape(.circle)
                     #endif
                 }
-                .padding(.vertical, 7)
-                .padding(.horizontal, 15)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 16)
                 .contentShape(.rect)
                 .onTapGesture {
                     #if os(macOS)
@@ -54,12 +57,8 @@ struct MiniPlayerAccessoryView: View {
                     #endif
                 }
                 .glassEffect(.clear)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 5)
-            } else {
-                #if !os(macOS)
-                Text("No video playing")
-                #endif
+                .padding(.horizontal, 23)
+                .padding(.vertical, 7)
             }
         }
     }

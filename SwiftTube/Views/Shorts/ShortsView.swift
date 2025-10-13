@@ -13,6 +13,7 @@ struct ShortsView: View {
     @Environment(VideoManager.self) var videoManager
     @Environment(ShortsManager.self) var shortsManager
     @Environment(UserDefaultsManager.self) var userDefaults
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var currentIndex = 0
     @State private var isReady = false
@@ -68,6 +69,11 @@ struct ShortsView: View {
         .task {
             try? await Task.sleep(nanoseconds: 2_000_000)
             isReady = true
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active {
+                Task { await shortsManager.restoreIfNeeded() }
+            }
         }
         .onDisappear {
             isReady = false

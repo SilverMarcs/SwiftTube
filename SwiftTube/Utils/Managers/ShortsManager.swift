@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 @Observable
 class ShortsManager {
@@ -53,6 +54,25 @@ class ShortsManager {
         guard let player else { return }
         try? await player.pause()
         isCurrentlyPlaying = false
+    }
+    
+    func restoreIfNeeded() async {
+        guard case .ready = player?.state else { return }
+        guard let currentVideo else { return }
+        
+        do {
+            let result = try await player?.webPage.callJavaScript("return (typeof player !== 'undefined') && !!player.getIframe();")
+            if let ok = result as? Bool, ok {
+                return
+            }
+        } catch {}
+        
+        player?.state = .idle
+        do {
+            try await player?.load(videoId: currentVideo.id)
+        } catch {
+            player?.state = .error(error)
+        }
     }
     
     private func createPlayerIfNeeded(id: String) {

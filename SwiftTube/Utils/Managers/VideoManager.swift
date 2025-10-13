@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 @Observable
 class VideoManager {
@@ -57,6 +58,38 @@ class VideoManager {
     func dismiss() {
         isExpanded = false
         currentVideo = nil // This will trigger didSet and handle cleanup
+    }
+    
+    func pauseTimerTracking() {
+        timeUpdateTask?.cancel()
+        timeUpdateTask = nil
+    }
+    
+    func resumeTimerTracking() {
+        guard timeUpdateTask == nil else { return }
+        setupPlayerObserver()
+    }
+    
+    func restoreIfNeeded() async {
+        guard case .ready = player?.state else { return }
+        guard let currentVideo else { return }
+        
+        do {
+            let result = try await player?.webPage.callJavaScript("return (typeof player !== 'undefined') && !!player.getIframe();")
+            if let ok = result as? Bool, ok {
+                return
+            }
+        } catch {}
+        
+        let savedProgress = userDefaults.getWatchProgress(videoId: currentVideo.id)
+        let startTime = savedProgress > 5 ? savedProgress : nil
+        
+        player?.state = .idle
+        do {
+            try await player?.load(videoId: currentVideo.id, startTime: startTime)
+        } catch {
+            player?.state = .error(error)
+        }
     }
     
     @MainActor
