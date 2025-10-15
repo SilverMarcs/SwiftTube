@@ -16,6 +16,7 @@ struct PlatformPlayerContainer: View {
         AVPlayerMac(player: player)
         #else
         AVPlayerIos(player: player)
+            .aspectRatio(16/9, contentMode: .fit)
         #endif
     }
 }

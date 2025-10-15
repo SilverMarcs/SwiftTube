@@ -15,7 +15,6 @@ struct NativeVideoPlayerView: View {
                         UniversalProgressView()
                     }
                 }
-                .aspectRatio(16/9, contentMode: .fit)
                 .background(.bar)
                 #if !os(macOS)
                 .onChange(of: scenePhase) {

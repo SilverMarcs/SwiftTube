@@ -112,7 +112,7 @@ class NativeVideoManager {
             guard let stream = streams
                 .filterVideoAndAudio()
                 .filter({ $0.isNativelyPlayable })
-                .filter({ ($0.videoResolution ?? 0) <= 1080 }) // Filter to 1080p or lower
+                .filter({ ($0.videoResolution ?? 0) <= 1440 }) // Filter to 1080p or lower
                 .highestResolutionStream() else {
                 return
             }

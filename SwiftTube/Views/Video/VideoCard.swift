@@ -12,9 +12,9 @@ struct VideoCard: View {
         Button {
             #if os(macOS)
             manager.setVideo(video)
-            if !manager.isMediaPlayerWindowOpen {
+//            if !manager.isMediaPlayerWindowOpen {
                 openWindow(id: "media-player")
-            }
+//            }
             #else
             if manager.currentVideo?.id == video.id {
                 manager.isExpanded = true

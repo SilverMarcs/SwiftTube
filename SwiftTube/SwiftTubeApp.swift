@@ -51,14 +51,14 @@ struct SwiftTubeApp: App {
         }
         
         #if os(macOS)
-        WindowGroup("media-player", id: "media-player") {
+        Window("media-player", id: "media-player") {
             MediaPlayerWindowView()
+                .environment(nativeVideoManager)
+                .environment(userDefaultsManager)
         }
         .restorationBehavior(.disabled)
         .windowResizability(.contentSize)
-        .defaultSize(width: 1024, height: 576)
-        .environment(nativeVideoManager)
-        .environment(userDefaultsManager)
+//        .defaultSize(width: 1024, height: 576)
         #endif
     }
 }

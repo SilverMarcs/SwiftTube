@@ -86,12 +86,15 @@ struct VideoDetailView: View {
                     VideoCommentsView(video: video)
                 }
             }
-            .statusBar(hidden: false) // Explicitly show the status bar
+           // Explicitly show the status bar
+            #if !os(macOS)
+            .statusBar(hidden: false)
             .safeAreaBar(edge: .top) {
                 if showVideo {
                     NativeVideoPlayerView()
                 }
             }
+            #endif
             .formStyle(.grouped)
         }
     }
