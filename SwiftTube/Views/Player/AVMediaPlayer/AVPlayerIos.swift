@@ -32,13 +32,17 @@ struct AVPlayerIos: UIViewControllerRepresentable {
     
     class Coordinator: NSObject, AVPlayerViewControllerDelegate {
         func playerViewController(_ playerViewController: AVPlayerViewController, willBeginFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator) {
-            OrientationManager.shared.lockOrientation(.landscape, andRotateTo: .landscapeRight)
-            print("[AVPlayerIos] isFullScreen -> true")
+            // Defer the orientation request until after the transition starts to avoid race conditions
+            coordinator.animate(alongsideTransition: nil) { _ in
+                OrientationManager.shared.lockOrientation(.landscape, rotateTo: .landscapeRight)
+            }
         }
         
         func playerViewController(_ playerViewController: AVPlayerViewController, willEndFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator) {
-            OrientationManager.shared.lockOrientation(.all)
-            print("[AVPlayerIos] isFullScreen -> false")
+            // Return to following system/user preference and nudge back to portrait by default
+            coordinator.animate(alongsideTransition: nil) { _ in
+                OrientationManager.shared.lockOrientation(.all, rotateTo: .portrait)
+            }
         }
     }
 }

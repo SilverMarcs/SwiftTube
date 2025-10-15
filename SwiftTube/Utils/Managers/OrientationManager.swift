@@ -1,21 +1,41 @@
 import SwiftUI
+import UIKit
 
-// TODO: see if need to be observable or not
+// Centralized orientation control. Not Observable to avoid accidental SwiftUI refreshes.
 class OrientationManager {
     static let shared = OrientationManager()
     var lockedOrientation: UIInterfaceOrientationMask = .all
-    
-    func lockOrientation(_ orientation: UIInterfaceOrientationMask, andRotateTo rotateOrientation: UIInterfaceOrientation? = nil) {
+
+    /// Locks supported orientations for the app window and optionally requests a rotation.
+    /// - Parameters:
+    ///   - orientation: The mask to advertise via `supportedInterfaceOrientationsFor`.
+    ///   - rotateTo: Optional concrete orientation to request. On iOS 16+, we use `UIWindowScene.requestGeometryUpdate`.
+    func lockOrientation(_ orientation: UIInterfaceOrientationMask, rotateTo: UIInterfaceOrientation? = nil) {
         lockedOrientation = orientation
-        
-        if let rotateOrientation = rotateOrientation {
-            UIDevice.current.setValue(rotateOrientation.rawValue, forKey: "orientation")
-        }
-        
-        // Use the modern API instead of the deprecated method
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
-            rootViewController.setNeedsUpdateOfSupportedInterfaceOrientations()
+
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene }).first else { return }
+
+        // Inform view controllers to re-evaluate supported orientations
+        windowScene.windows.first?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+
+        // Optionally request rotation
+        guard let rotateTo = rotateTo else { return }
+
+        let orientations = UIInterfaceOrientationMask(from: rotateTo)
+        let preferences = UIWindowScene.GeometryPreferences.iOS(interfaceOrientations: orientations)
+        windowScene.requestGeometryUpdate(preferences, errorHandler: nil)
+    }
+}
+
+private extension UIInterfaceOrientationMask {
+    init(from orientation: UIInterfaceOrientation) {
+        switch orientation {
+        case .portrait: self = .portrait
+        case .portraitUpsideDown: self = .portraitUpsideDown
+        case .landscapeLeft: self = .landscapeLeft
+        case .landscapeRight: self = .landscapeRight
+        default: self = .all
         }
     }
 }
