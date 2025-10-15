@@ -14,7 +14,8 @@ struct SwiftTubeApp: App {
     #endif
     
     @State var videoLoader = VideoLoader()
-    @State var videoManager = VideoManager()
+//    @State var videoManager = VideoManager()
+    @State var nativeVideoManager = NativeVideoManager()
     @State var shortsManager = ShortsManager()
     @State var userDefaultsManager = UserDefaultsManager.shared
     
@@ -22,17 +23,16 @@ struct SwiftTubeApp: App {
         WindowGroup {
             ContentView()
                 .environment(videoLoader)
-                .environment(videoManager)
+//                .environment(videoManager)
+                .environment(nativeVideoManager)
                 .environment(shortsManager)
                 .environment(userDefaultsManager)
                 .environment(\.openURL, OpenURLAction { url in
                     if let videoId = url.youtubeVideoID {
-                        // TODO: remove teh dismiss function
-                        videoManager.dismiss()
                         Task {
                             do {
                                 let video = try await YTService.fetchVideo(byId: videoId)
-                                videoManager.currentVideo = video
+                                nativeVideoManager.setVideo(video)
                             } catch {
                                 print("Failed to fetch video: \(error)")
                             }
@@ -45,9 +45,9 @@ struct SwiftTubeApp: App {
                     await videoLoader.loadAllChannelVideos()
                     
                     // Restore most recently watched video from history without autoplay
-                    if videoManager.currentVideo == nil {
+                    if nativeVideoManager.currentVideo == nil {
                         if let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
-                            videoManager.setVideoWithoutAutoplay(mostRecentVideo)
+                            nativeVideoManager.setVideo(mostRecentVideo, autoPlay: false)
                         }
                     }
                 }
@@ -60,7 +60,7 @@ struct SwiftTubeApp: App {
         .restorationBehavior(.disabled)
         .windowResizability(.contentSize)
         .defaultSize(width: 1024, height: 576)
-        .environment(videoManager)
+        .environment(nativeVideoManager)
         .environment(userDefaultsManager)
         #endif
     }

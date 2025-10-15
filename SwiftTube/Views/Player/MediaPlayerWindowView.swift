@@ -1,7 +1,8 @@
 import SwiftUI
+import AVKit
 
 struct MediaPlayerWindowView: View {
-    @Environment(VideoManager.self) var videoManager
+    @Environment(NativeVideoManager.self) var videoManager
     
     @State private var showDetail = false
 
@@ -11,20 +12,16 @@ struct MediaPlayerWindowView: View {
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
 
-            if let player = videoManager.player {
-                YTPlayerView(player: player)
+            if videoManager.currentVideo != nil {
+                NativeVideoPlayerView()
                     .aspectRatio(16/9, contentMode: .fit)
                     .gesture(WindowDragGesture())
                     .onTapGesture(count: 2, perform: toggleFullscreen)
                     .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
                     .navigationTitle(videoManager.currentVideo?.title ?? "Loading")
                     .preferredColorScheme(.dark)
-                    .onAppear {
-                        videoManager.isMediaPlayerWindowOpen = true
-                    }
                     .onDisappear {
-                        videoManager.dismiss()
-                        videoManager.isMediaPlayerWindowOpen = false
+                        videoManager.player?.pause()
                     }
                     .windowToolbarFullScreenVisibility(.onHover)
                     .toolbar {

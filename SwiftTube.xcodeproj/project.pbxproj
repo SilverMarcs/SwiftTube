@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0848F0CA2E9FBE7C0092DBF5 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0848F0C92E9FBE7C0092DBF5 /* YouTubeKit */; };
 		08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630512E87AD2A007AD438 /* SwiftMediaViewer */; };
 		08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630542E87AD56007AD438 /* SwiftMediaViewer */; };
 /* End PBXBuildFile section */
@@ -24,6 +25,8 @@
 			platformFiltersByRelativePath = {
 				AppDelegate.swift = (ios, xros, );
 				Utils/Managers/OrientationManager.swift = (ios, xros, );
+				Views/Player/AVMediaPlayer/AVPlayerIos.swift = (ios, xros, );
+				Views/Player/AVMediaPlayer/AVPlayerMac.swift = (macos, );
 				Views/Player/MediaPlayerWindowView.swift = (macos, );
 				Views/Player/VideoPlayerView.swift = (ios, xros, );
 			};
@@ -49,6 +52,7 @@
 			files = (
 				08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */,
 				08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */,
+				0848F0CA2E9FBE7C0092DBF5 /* YouTubeKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -93,6 +97,7 @@
 			packageProductDependencies = (
 				08E630512E87AD2A007AD438 /* SwiftMediaViewer */,
 				08E630542E87AD56007AD438 /* SwiftMediaViewer */,
+				0848F0C92E9FBE7C0092DBF5 /* YouTubeKit */,
 			);
 			productName = SwiftTube;
 			productReference = 08E62F852E871877007AD438 /* SwiftTube.app */;
@@ -124,6 +129,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */,
+				0848F0C82E9FBE7C0092DBF5 /* XCRemoteSwiftPackageReference "YouTubeKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 08E62F862E871877007AD438 /* Products */;
@@ -410,6 +416,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		0848F0C82E9FBE7C0092DBF5 /* XCRemoteSwiftPackageReference "YouTubeKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/alexeichhorn/YouTubeKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.3.2;
+			};
+		};
 		08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SilverMarcs/SwiftMediaViewer";
@@ -421,6 +435,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		0848F0C92E9FBE7C0092DBF5 /* YouTubeKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0848F0C82E9FBE7C0092DBF5 /* XCRemoteSwiftPackageReference "YouTubeKit" */;
+			productName = YouTubeKit;
+		};
 		08E630512E87AD2A007AD438 /* SwiftMediaViewer */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SwiftMediaViewer;

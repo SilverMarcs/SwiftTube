@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct ContentView: View {
-    @Environment(VideoManager.self) var manager
+    @Environment(NativeVideoManager.self) var manager
     @Namespace private var animation
     @State var selection: AppTab = .feed
     @State private var isCustomFullscreen = false
@@ -35,7 +35,7 @@ struct ContentView: View {
                 .padding(10)
         }
         #else
-        ZStack(alignment: .top) {
+//        ZStack(alignment: .top) {
             TabView(selection: $selection) {
                 Tab("Videos", systemImage: "video", value: .feed) {
                     FeedView()
@@ -54,20 +54,20 @@ struct ContentView: View {
                 MiniPlayerAccessoryView()
                     .matchedTransitionSource(id: "MINIPLAYER", in: animation)
             }
-            .sheet(isPresented: $manager.isExpanded) {
+            .fullScreenCover(isPresented: $manager.isExpanded) {
                 if let video = manager.currentVideo {
                     VideoDetailView(video: video)
                         .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
-                        .presentationBackground(.background)
-                        .presentationCornerRadius(0)
-                        .presentationDetents([.fraction(isCustomFullscreen ? 0.001 : 7.13/10)])
-                        .presentationCompactAdaptation(.none)
-                        .presentationBackgroundInteraction(.enabled)
+//                        .presentationBackground(.background)
+//                        .presentationCornerRadius(0)
+//                        .presentationDetents([.fraction(isCustomFullscreen ? 0.001 : 7.13/10)])
+//                        .presentationCompactAdaptation(.none)
+//                        .presentationBackgroundInteraction(.enabled)
                 }
             }
             
-            VideoPlayerView(isCustomFullscreen: $isCustomFullscreen)
-        }
+//            VideoPlayerView(isCustomFullscreen: $isCustomFullscreen)
+//        }
         #endif
     }
 }

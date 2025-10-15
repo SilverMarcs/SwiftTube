@@ -1,13 +1,14 @@
 import SwiftUI
 import SwiftMediaViewer
+import AVKit
+import YouTubeKit
 
 struct VideoDetailView: View {
     @Environment(UserDefaultsManager.self) private var userDefaults
-    @Environment(VideoManager.self) var manager
+    @Environment(NativeVideoManager.self) var manager
+    @Environment(\.colorScheme) var colorScheme
     
-    @State var video: Video    
-    
-    @State private var isLoading = false
+    @State var video: Video
     @State var showDetail: Bool = false
     
     var body: some View {
@@ -83,23 +84,14 @@ struct VideoDetailView: View {
                     VideoCommentsView(video: video)
                 }
             }
-            .overlay {
-                if isLoading {
-                    UniversalProgressView()
-                }
+            .statusBar(hidden: false) // Explicitly show the status bar
+            .safeAreaBar(edge: .top) {
+                NativeVideoPlayerView()
             }
             .formStyle(.grouped)
+            .onAppear {
+                manager.setVideo(video)
+            }
         }
     }
-
-//    private func loadVideoDetail() async {
-//        isLoading = true
-//        defer { isLoading = false }
-//        
-//        do {
-//            try await YTService.fetchVideoDetails(for: &video)
-//        } catch {
-//            print(error.localizedDescription)
-//        }
-//    }
 }

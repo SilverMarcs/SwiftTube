@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct MiniPlayerAccessoryView: View {
-    @Environment(VideoManager.self) var manager
+    @Environment(NativeVideoManager.self) var manager
     @Environment(\.openWindow) private var openWindow
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     
@@ -30,9 +30,7 @@ struct MiniPlayerAccessoryView: View {
                     Spacer()
                     
                     Button {
-                        Task {
-                            await manager.togglePlayPause()
-                        }
+                        manager.togglePlayPause()
                     } label: {
                         Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
                             .contentTransition(.symbolEffect(.replace))

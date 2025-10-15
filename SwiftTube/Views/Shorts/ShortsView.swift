@@ -7,10 +7,11 @@
 
 import SwiftUI
 import SwiftMediaViewer
+import AVKit
 
 struct ShortsView: View {
     @Environment(VideoLoader.self) private var videoLoader
-    @Environment(VideoManager.self) var videoManager
+    @Environment(NativeVideoManager.self) var videoManager
     @Environment(ShortsManager.self) var shortsManager
     @Environment(UserDefaultsManager.self) var userDefaults
     @Environment(\.scenePhase) private var scenePhase

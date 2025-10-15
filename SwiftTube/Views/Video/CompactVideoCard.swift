@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct CompactVideoCard: View {
-    @Environment(VideoManager.self) var manager
+    @Environment(NativeVideoManager.self) var manager
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
@@ -18,7 +18,7 @@ struct CompactVideoCard: View {
     var body: some View {
         Button {
             #if os(macOS)
-            manager.currentVideo = video
+            manager.setVideo(video)
             if !manager.isMediaPlayerWindowOpen {
                 openWindow(id: "media-player")
             }
@@ -26,7 +26,7 @@ struct CompactVideoCard: View {
             if manager.currentVideo?.id == video.id {
                 manager.isExpanded = true
             } else {
-                manager.currentVideo = video
+                manager.setVideo(video)
             }
             #endif
         } label: {
