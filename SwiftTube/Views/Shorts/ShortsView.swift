@@ -1,10 +1,3 @@
-//
-//  ShortsView.swift
-//  SwiftTube
-//
-//  Created by Zabir Raihan on 28/09/2025.
-//
-
 import SwiftUI
 import SwiftMediaViewer
 import AVKit
@@ -14,13 +7,18 @@ struct ShortsView: View {
     @Environment(NativeVideoManager.self) var videoManager
 
     @State private var currentIndex = 0
+    @State private var shortsPlayer = AVPlayer() // Single shared player
 
     var body: some View {
         NavigationStack {
             TabView(selection: $currentIndex) {
                 ForEach(Array(videoLoader.shortVideos.enumerated()), id: \.element.id) { index, video in
-                    ShortVideoCard(video: video, isActive: currentIndex == index)
-                        .tag(index)
+                    ShortVideoCard(
+                        video: video,
+                        isActive: currentIndex == index,
+                        player: shortsPlayer // Pass shared player
+                    )
+                    .tag(index)
                 }
             }
             .background(.black)
@@ -38,6 +36,9 @@ struct ShortsView: View {
                 DispatchQueue.main.async {
                     videoManager.isMiniPlayerVisible = true
                 }
+                // Clean up shorts player
+                shortsPlayer.pause()
+                shortsPlayer.replaceCurrentItem(with: nil)
             }
             .ignoresSafeArea()
         }

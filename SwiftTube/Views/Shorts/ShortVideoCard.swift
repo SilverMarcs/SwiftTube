@@ -5,14 +5,14 @@ import YouTubeKit
 struct ShortVideoCard: View {
     let video: Video
     let isActive: Bool
+    let player: AVPlayer // Receive player from parent
     
-    @State private var player: AVPlayer?
     @State private var showDetail: Bool = false
     @State private var isLoading: Bool = true
     
     var body: some View {
         ZStack {
-            if let player = player, isActive {
+            if isActive {
                 VideoPlayer(player: player)
                     .aspectRatio(9/16, contentMode: .fit)
                     .clipped()
@@ -48,12 +48,7 @@ struct ShortVideoCard: View {
         .task(id: isActive) {
             if isActive {
                 await loadVideo()
-            } else {
-                cleanupPlayer()
             }
-        }
-        .onDisappear {
-            cleanupPlayer()
         }
         .sheet(isPresented: $showDetail) {
             VideoDetailView(video: video)
@@ -64,6 +59,8 @@ struct ShortVideoCard: View {
     }
     
     private func loadVideo() async {
+        player.pause()
+        player.replaceCurrentItem(with: nil)
         isLoading = true
         
         do {
@@ -80,23 +77,15 @@ struct ShortVideoCard: View {
             }
             
             let playerItem = AVPlayerItem(url: stream.url)
-            let newPlayer = AVPlayer(playerItem: playerItem)
             
             await MainActor.run {
-                self.player = newPlayer
+                player.replaceCurrentItem(with: playerItem)
                 self.isLoading = false
-                newPlayer.play()
+                player.play()
             }
         } catch {
             print("Failed to load short video: \(error)")
             isLoading = false
         }
-    }
-    
-    private func cleanupPlayer() {
-        player?.pause()
-        player?.replaceCurrentItem(with: nil)
-        player = nil
-        isLoading = false
     }
 }
