@@ -35,39 +35,30 @@ struct ContentView: View {
                 .padding(10)
         }
         #else
-//        ZStack(alignment: .top) {
-            TabView(selection: $selection) {
-                Tab("Videos", systemImage: "video", value: .feed) {
-                    FeedView()
-                }
-                
-                Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
-                    ShortsView()
-                }
-                
-                Tab("Profile", systemImage: "person", value: .profile, role: .search) {
-                    ProfileView()
-                }
-            }
-//            .tabBarMinimizeBehavior(.onScrollDown)
-            .tabViewBottomAccessory {
-                MiniPlayerAccessoryView()
-                    .matchedTransitionSource(id: "MINIPLAYER", in: animation)
-            }
-            .fullScreenCover(isPresented: $manager.isExpanded) {
-                if let video = manager.currentVideo {
-                    VideoDetailView(video: video)
-                        .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
-//                        .presentationBackground(.background)
-//                        .presentationCornerRadius(0)
-//                        .presentationDetents([.fraction(isCustomFullscreen ? 0.001 : 7.13/10)])
-//                        .presentationCompactAdaptation(.none)
-//                        .presentationBackgroundInteraction(.enabled)
-                }
+        TabView(selection: $selection) {
+            Tab("Videos", systemImage: "video", value: .feed) {
+                FeedView()
             }
             
-//            VideoPlayerView(isCustomFullscreen: $isCustomFullscreen)
-//        }
+            Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
+                ShortsView()
+            }
+            
+            Tab("Profile", systemImage: "person", value: .profile, role: .search) {
+                ProfileView()
+            }
+        }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .tabViewBottomAccessory {
+            MiniPlayerAccessoryView()
+                .matchedTransitionSource(id: "MINIPLAYER", in: animation)
+        }
+        .fullScreenCover(isPresented: $manager.isExpanded) {
+            if let video = manager.currentVideo {
+                VideoDetailView(video: video)
+                    .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
+            }
+        }
         #endif
     }
 }

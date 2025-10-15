@@ -10,14 +10,11 @@ struct NativeVideoPlayerView: View {
     var body: some View {
         if let player = manager.player {
             PlatformPlayerContainer(player: player)
-//                .onChange(of: manager.isFullScreen) {
-//                    print("fullscreen", manager.isFullScreen)
-//                    if manager.isFullScreen {
-//                        OrientationManager.shared.lockOrientation(.landscape, andRotateTo: .landscapeRight)
-//                    } else {
-//                        OrientationManager.shared.lockOrientation(.all)
-//                    }
-//                }
+                .overlay {
+                    if manager.isSetting {
+                        UniversalProgressView()
+                    }
+                }
                 .aspectRatio(16/9, contentMode: .fit)
                 .background(.bar)
                 #if !os(macOS)

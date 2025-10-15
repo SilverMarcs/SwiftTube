@@ -89,9 +89,6 @@ struct VideoDetailView: View {
                 NativeVideoPlayerView()
             }
             .formStyle(.grouped)
-            .onAppear {
-                manager.setVideo(video)
-            }
         }
     }
 }

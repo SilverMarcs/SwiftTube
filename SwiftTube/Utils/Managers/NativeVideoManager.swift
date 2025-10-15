@@ -16,6 +16,7 @@ class NativeVideoManager {
     private(set) var isPlaying: Bool = false
     
     var isExpanded: Bool = false
+    var isSetting: Bool = false
     var isMiniPlayerVisible: Bool = true
     
     private var timeObserver: Any?
@@ -29,6 +30,8 @@ class NativeVideoManager {
     ///   - video: The video to set as current, or nil to clear
     ///   - autoPlay: Whether to automatically start playback (default: true)
     func setVideo(_ video: Video?, autoPlay: Bool = true) {
+        player?.pause()
+        isSetting = true
         guard currentVideo?.id != video?.id else { return }
         guard let video else { return }
         
@@ -38,6 +41,7 @@ class NativeVideoManager {
         userDefaults.addToHistory(video.id)
         Task {
             await loadVideoStream(for: video, autoPlay: autoPlay)
+            isSetting = false
         }
     }
     
@@ -130,7 +134,7 @@ class NativeVideoManager {
         removeTimeObserver()
         
         self.timeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 5, preferredTimescale: 600), // TODO: should scale be 1
+            forInterval: CMTime(seconds: 5, preferredTimescale: 1), // TODO: should scale be 1
             queue: .main
         ) { [weak self] time in
             guard let self = self, let currentVideo = self.currentVideo else { return }
