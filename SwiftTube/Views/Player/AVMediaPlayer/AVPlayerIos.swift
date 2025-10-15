@@ -14,9 +14,6 @@ struct AVPlayerIos: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
         controller.player = player
-        controller.player?.allowsExternalPlayback = true
-        controller.entersFullScreenWhenPlaybackBegins = false
-        controller.exitsFullScreenWhenPlaybackEnds = false
         controller.allowsPictureInPicturePlayback = true
         
         // Delegate + notifications to detect fullscreen reliably
