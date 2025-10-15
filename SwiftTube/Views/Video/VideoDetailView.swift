@@ -33,31 +33,10 @@ struct VideoDetailView: View {
                                 .labelIconToTitleSpacing(3)
                                 .font(.system(size: 11))
                         }
-                        
-                        GlassEffectContainer {
-                            ShareLink(item: URL(string: video.url)!) {
-                                Label("Share Video", systemImage: "square.and.arrow.up")
-                            }
-                            .labelStyle(.iconOnly)
-                            .buttonStyle(.glass)
-                            .controlSize(.mini)
-                            
-                            Button {
-                                userDefaults.toggleWatchLater(video.id)
-                            } label: {
-                                Label(
-                                    userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
-                                    systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
-                                )
-                                .labelStyle(.iconOnly)
-                            }
-                            .foregroundStyle(userDefaults.isWatchLater(video.id) ? .green : .secondary)
-                            .buttonStyle(.glass)
-                            .controlSize(.mini)
-                        }
                     }
                     .font(.system(size: 14))
                     .foregroundStyle(.secondary)
+//                    .listRowSeparator(.hidden)
                     .listRowSeparator(.hidden, edges: .bottom)
                     .listRowInsets([.vertical], 0)
                 }
@@ -71,6 +50,7 @@ struct VideoDetailView: View {
                 Section {
                     ChannelRowView(channel: video.channel)
                 }
+                .listSectionMargins(.top, 0)
                 
                 // Description
                 if !video.videoDescription.isEmpty {
@@ -87,6 +67,33 @@ struct VideoDetailView: View {
                 }
             }
            // Explicitly show the status bar
+            .overlay(alignment: .bottomTrailing) {
+                Menu {
+                    ShareLink(item: URL(string: video.url)!) {
+                        Label("Share Video", systemImage: "square.and.arrow.up")
+                    }
+                    .tint(.primary)
+                    
+                    Button {
+                        userDefaults.toggleWatchLater(video.id)
+                    } label: {
+                        Label(
+                            userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
+                            systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
+                        )
+                    }
+                    .tint(.primary)
+                } label: {
+                    Image(systemName: "shippingbox.fill")
+                }
+                .tint(Color.accentColor.secondary)
+                .menuStyle(.button)
+                .controlSize(.extraLarge)
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.circle)
+                .padding()
+                .ignoresSafeArea()
+            }
             #if !os(macOS)
             .statusBar(hidden: false)
             .safeAreaBar(edge: .top) {

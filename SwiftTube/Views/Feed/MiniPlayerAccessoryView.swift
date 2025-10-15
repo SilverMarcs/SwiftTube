@@ -47,20 +47,14 @@ struct MiniPlayerAccessoryView: View {
                 .contentShape(.rect)
                 .onTapGesture {
                     #if os(macOS)
-//                    if !manager.isMediaPlayerWindowOpen {
-                        openWindow(id: "media-player")
-//                    }
+                    openWindow(id: "media-player")
                     #else
                     manager.isExpanded = true
                     #endif
                 }
-//                .glassEffect(.clear)
-//                .padding(.horizontal, 23)
-//                .padding(.vertical, 7)
-            } else {
-                #if !os(macOS)
-                Text("No video playing")
-                #endif
+                .glassEffect(.clear)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 7)
             }
         }
     }
