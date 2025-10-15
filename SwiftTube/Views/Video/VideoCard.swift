@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct VideoCard: View {
-    @Environment(NativeVideoManager.self) var manager
+    @Environment(VideoManager.self) var manager
     @Environment(UserDefaultsManager.self) private var userDefaults
     @Environment(\.openWindow) private var openWindow
     let video: Video

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct VideoCommentsView: View {
-    @Environment(NativeVideoManager.self) var manager
+    @Environment(VideoManager.self) var manager
     
     let video: Video
     

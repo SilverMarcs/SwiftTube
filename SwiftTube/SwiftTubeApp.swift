@@ -15,7 +15,7 @@ struct SwiftTubeApp: App {
     
     @State var videoLoader = VideoLoader()
 //    @State var videoManager = VideoManager()
-    @State var nativeVideoManager = NativeVideoManager()
+    @State var nativeVideoManager = VideoManager()
     @State var userDefaultsManager = UserDefaultsManager.shared
     
     var body: some Scene {

@@ -2,7 +2,7 @@ import SwiftUI
 import AVKit
 
 struct MediaPlayerWindowView: View {
-    @Environment(NativeVideoManager.self) var videoManager
+    @Environment(VideoManager.self) var videoManager
     
     @State private var showDetail = false
 

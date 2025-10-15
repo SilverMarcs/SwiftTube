@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct ContentView: View {
-    @Environment(NativeVideoManager.self) var manager
+    @Environment(VideoManager.self) var manager
     @Namespace private var animation
     @State var selection: AppTab = .feed
     @State private var isCustomFullscreen = false

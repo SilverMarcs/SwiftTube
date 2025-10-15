@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct MiniPlayerAccessoryView: View {
-    @Environment(NativeVideoManager.self) var manager
+    @Environment(VideoManager.self) var manager
     @Environment(\.openWindow) private var openWindow
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     

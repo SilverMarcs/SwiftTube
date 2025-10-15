@@ -10,7 +10,7 @@ import AVKit
 import YouTubeKit
 
 @Observable
-class NativeVideoManager {
+class VideoManager {
     private(set) var currentVideo: Video? = nil
     private(set) var player: AVPlayer?
     private(set) var isPlaying: Bool = false
@@ -112,7 +112,7 @@ class NativeVideoManager {
             guard let stream = streams
                 .filterVideoAndAudio()
                 .filter({ $0.isNativelyPlayable })
-                .filter({ ($0.videoResolution ?? 0) <= 1440 }) // Filter to 1080p or lower
+//                .filter({ ($0.videoResolution ?? 0) <= 1440 }) // Filter to 1080p or lower
                 .highestResolutionStream() else {
                 return
             }

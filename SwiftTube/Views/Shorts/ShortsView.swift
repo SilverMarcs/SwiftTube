@@ -4,7 +4,7 @@ import AVKit
 
 struct ShortsView: View {
     @Environment(VideoLoader.self) private var videoLoader
-    @Environment(NativeVideoManager.self) var videoManager
+    @Environment(VideoManager.self) var videoManager
 
     @State private var currentIndex = 0
     @State private var shortsPlayer = AVPlayer() // Single shared player

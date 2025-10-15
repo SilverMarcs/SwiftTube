@@ -5,7 +5,7 @@ import SwiftMediaViewer
 
 struct NativeVideoPlayerView: View {
     @Environment(\.scenePhase) var scenePhase
-    @Environment(NativeVideoManager.self) var manager
+    @Environment(VideoManager.self) var manager
 
     var body: some View {
         if let player = manager.player {

@@ -5,7 +5,7 @@ import YouTubeKit
 
 struct VideoDetailView: View {
     @Environment(UserDefaultsManager.self) private var userDefaults
-    @Environment(NativeVideoManager.self) var manager
+    @Environment(VideoManager.self) var manager
     @Environment(\.colorScheme) var colorScheme
     
     @State var video: Video
@@ -50,7 +50,9 @@ struct VideoDetailView: View {
                 Section {
                     ChannelRowView(channel: video.channel)
                 }
+                #if !os(macOS)
                 .listSectionMargins(.top, 0)
+                #endif
                 
                 // Description
                 if !video.videoDescription.isEmpty {

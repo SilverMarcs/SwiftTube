@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct CompactVideoCard: View {
-    @Environment(NativeVideoManager.self) var manager
+    @Environment(VideoManager.self) var manager
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
