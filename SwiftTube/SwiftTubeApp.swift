@@ -16,16 +16,13 @@ struct SwiftTubeApp: App {
     @State var videoLoader = VideoLoader()
 //    @State var videoManager = VideoManager()
     @State var nativeVideoManager = NativeVideoManager()
-    @State var shortsManager = ShortsManager()
     @State var userDefaultsManager = UserDefaultsManager.shared
     
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(videoLoader)
-//                .environment(videoManager)
                 .environment(nativeVideoManager)
-                .environment(shortsManager)
                 .environment(userDefaultsManager)
                 .environment(\.openURL, OpenURLAction { url in
                     if let videoId = url.youtubeVideoID {
