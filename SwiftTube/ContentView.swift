@@ -55,7 +55,7 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $manager.isExpanded) {
             if let video = manager.currentVideo {
-                VideoDetailView(video: video)
+                VideoDetailView(video: video, showVideo: true)
                     .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
             }
         }

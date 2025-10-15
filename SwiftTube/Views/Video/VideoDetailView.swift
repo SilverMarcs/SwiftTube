@@ -11,6 +11,8 @@ struct VideoDetailView: View {
     @State var video: Video
     @State var showDetail: Bool = false
     
+    var showVideo: Bool = false
+    
     var body: some View {
         NavigationStack {
             List {
@@ -86,7 +88,9 @@ struct VideoDetailView: View {
             }
             .statusBar(hidden: false) // Explicitly show the status bar
             .safeAreaBar(edge: .top) {
-                NativeVideoPlayerView()
+                if showVideo {
+                    NativeVideoPlayerView()
+                }
             }
             .formStyle(.grouped)
         }

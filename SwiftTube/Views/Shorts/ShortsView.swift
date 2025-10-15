@@ -12,79 +12,34 @@ import AVKit
 struct ShortsView: View {
     @Environment(VideoLoader.self) private var videoLoader
     @Environment(NativeVideoManager.self) var videoManager
-    @Environment(ShortsManager.self) var shortsManager
-    @Environment(UserDefaultsManager.self) var userDefaults
-    @Environment(\.scenePhase) private var scenePhase
 
     @State private var currentIndex = 0
-    @State private var isReady = false
 
     var body: some View {
         NavigationStack {
-            if isReady {
-                TabView(selection: $currentIndex) {
-                    ForEach(Array(videoLoader.shortVideos.enumerated()), id: \.element.id) { index, video in
-                        ShortVideoCard(video: video, isActive: currentIndex == index)
-                            .tag(index)
-                    }
+            TabView(selection: $currentIndex) {
+                ForEach(Array(videoLoader.shortVideos.enumerated()), id: \.element.id) { index, video in
+                    ShortVideoCard(video: video, isActive: currentIndex == index)
+                        .tag(index)
                 }
-                .background {
-                    if !videoLoader.shortVideos.isEmpty {
-                        CachedAsyncImage(url: URL(string: videoLoader.shortVideos[currentIndex].thumbnailURL), targetSize: 500)
-                            .blur(radius: 10)
-                            .overlay {
-                                Color.black.opacity(0.8)
-                            }
-                            .clipped()
-                            .ignoresSafeArea()
-                    }
+            }
+            .background(.black)
+            #if !os(macOS)
+            .statusBarHidden(false)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            #endif
+            .onAppear {
+                DispatchQueue.main.async {
+                    videoManager.isMiniPlayerVisible = false
                 }
-                #if !os(macOS)
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                #endif
-                .onChange(of: currentIndex) {
-                    if !videoLoader.shortVideos.isEmpty && currentIndex <  videoLoader.shortVideos.count {
-                        let video =  videoLoader.shortVideos[currentIndex]
-                        shortsManager.switchTo(video, at: currentIndex)
-                    }
+                videoManager.player?.pause()
+            }
+            .onDisappear {
+                DispatchQueue.main.async {
+                    videoManager.isMiniPlayerVisible = true
                 }
-                .onAppear {
-                    DispatchQueue.main.async {
-                        videoManager.isMiniPlayerVisible = false
-                    }
-
-                    Task {
-                        try? await videoManager.player?.pause()
-                    }
-                    
-                    if !videoLoader.shortVideos.isEmpty {
-                        let video =  videoLoader.shortVideos[currentIndex]
-                        shortsManager.startPlaying(video, at: currentIndex)
-                    }
-                }
-                .ignoresSafeArea()
-            } else {
-                ProgressView()
             }
-        }
-        .task {
-            try? await Task.sleep(nanoseconds: 2_000_000)
-            isReady = true
-        }
-        .onChange(of: scenePhase) {
-            if scenePhase == .active {
-                Task { await shortsManager.restoreIfNeeded() }
-            }
-        }
-        .onDisappear {
-            DispatchQueue.main.async {
-                videoManager.isMiniPlayerVisible = true
-                isReady = false
-            }
-            
-            Task {
-                await shortsManager.pause()
-            }
+            .ignoresSafeArea()
         }
     }
 }
