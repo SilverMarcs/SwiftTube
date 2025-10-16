@@ -28,7 +28,6 @@
 				Views/Player/AVMediaPlayer/AVPlayerIos.swift = (ios, xros, );
 				Views/Player/AVMediaPlayer/AVPlayerMac.swift = (macos, );
 				Views/Player/MediaPlayerWindowView.swift = (macos, );
-				Views/Player/VideoPlayerView.swift = (ios, xros, );
 			};
 			target = 08E62F842E871877007AD438 /* SwiftTube */;
 		};

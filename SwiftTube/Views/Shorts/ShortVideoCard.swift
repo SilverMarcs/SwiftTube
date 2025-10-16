@@ -16,7 +16,7 @@ struct ShortVideoCard: View {
                 VideoPlayer(player: player)
                     .aspectRatio(9/16, contentMode: .fit)
                     .clipped()
-                    .overlay(alignment: .bottomLeading) {
+                    .overlay(alignment: .bottom) {
                         HStack {
                             ChannelRowView(channel: video.channel)
                                 .foregroundStyle(.white)

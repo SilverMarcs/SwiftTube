@@ -31,8 +31,6 @@ struct ContentView: View {
         .overlay(alignment: .bottom) {
             MiniPlayerAccessoryView()
                 .frame(maxWidth: 400)
-                .glassEffect()
-                .padding(10)
         }
         #else
         TabView(selection: $selection) {

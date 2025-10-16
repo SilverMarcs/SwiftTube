@@ -27,15 +27,11 @@ struct ShortsView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             #endif
             .onAppear {
-                DispatchQueue.main.async {
-                    videoManager.isMiniPlayerVisible = false
-                }
+                videoManager.isMiniPlayerVisible = false
                 videoManager.player?.pause()
             }
             .onDisappear {
-                DispatchQueue.main.async {
-                    videoManager.isMiniPlayerVisible = true
-                }
+                videoManager.isMiniPlayerVisible = true
                 // Clean up shorts player
                 shortsPlayer.pause()
                 shortsPlayer.replaceCurrentItem(with: nil)
