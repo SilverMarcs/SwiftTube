@@ -112,7 +112,7 @@ class VideoManager {
             guard let stream = streams
                 .filterVideoAndAudio()
                 .filter({ $0.isNativelyPlayable })
-//                .filter({ ($0.videoResolution ?? 0) <= 1440 }) // Filter to 1080p or lower
+//                .filter({ ($0.videoResolution ?? 0) <= 1440 }) // Filter to 1440p or lower
                 .highestResolutionStream() else {
                 return
             }
@@ -147,9 +147,7 @@ class VideoManager {
         guard let player else { return }
         
         playbackStatusObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
-            DispatchQueue.main.async {
-                self?.isPlaying = player.timeControlStatus == .playing
-            }
+            self?.isPlaying = player.timeControlStatus == .playing
         }
     }
     

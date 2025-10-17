@@ -14,13 +14,14 @@ struct SwiftTubeApp: App {
     #endif
     
     @State var videoLoader = VideoLoader()
-//    @State var videoManager = VideoManager()
+
     @State var nativeVideoManager = VideoManager()
     @State var userDefaultsManager = UserDefaultsManager.shared
+    @State var selectedTab: TabSelection = .feed
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(selectedTab: $selectedTab)
                 .environment(videoLoader)
                 .environment(nativeVideoManager)
                 .environment(userDefaultsManager)
@@ -49,7 +50,9 @@ struct SwiftTubeApp: App {
                     }
                 }
         }
-        
+        .commands {
+            AppCommands(selectedTab: $selectedTab)
+        }
         #if os(macOS)
         Window("media-player", id: "media-player") {
             MediaPlayerWindowView()

@@ -78,11 +78,10 @@ struct ShortVideoCard: View {
             
             let playerItem = AVPlayerItem(url: stream.url)
             
-            await MainActor.run {
-                player.replaceCurrentItem(with: playerItem)
-                self.isLoading = false
-                player.play()
-            }
+            
+            player.replaceCurrentItem(with: playerItem)
+            self.isLoading = false
+            player.play()
         } catch {
             print("Failed to load short video: \(error)")
             isLoading = false

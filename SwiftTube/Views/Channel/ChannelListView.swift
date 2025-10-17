@@ -146,7 +146,6 @@ struct ChannelListView: View {
         userDefaults.addChannel(subscription)
     }
 
-    @MainActor
     private func refreshChannels() async {
         let allChannels = userDefaults.savedChannels
         guard !allChannels.isEmpty else { return }

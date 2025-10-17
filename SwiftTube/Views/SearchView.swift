@@ -7,6 +7,8 @@ struct SearchView: View {
     @State private var results: SearchResults = SearchResults(videos: [], channels: [])
     @State private var isLoading = false
     
+    @FocusState private var isFocused
+    
     enum SearchScope: String, Hashable, CaseIterable {
         case video = "Videos"
         case channel = "Channels"
@@ -44,11 +46,12 @@ struct SearchView: View {
                     UniversalProgressView()
                 }
             }
-            #if os(macOS)
             .searchable(text: $searchText, placement: .toolbarPrincipal, prompt: "Search videos or channels")
-            #else
-            .searchable(text: $searchText, prompt: "Search videos or channels")
-            #endif
+            .searchFocused($isFocused)
+            .task {
+                try? await Task.sleep(nanoseconds: 1_000_000)
+                isFocused = true
+            }
             .searchScopes($searchScope, activation: .onSearchPresentation) {
                 Text(SearchScope.video.rawValue).tag(SearchScope.video)
                 Text(SearchScope.channel.rawValue).tag(SearchScope.channel)

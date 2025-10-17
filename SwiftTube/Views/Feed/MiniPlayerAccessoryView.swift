@@ -46,8 +46,6 @@ struct MiniPlayerAccessoryView: View {
                     .buttonStyle(.glassProminent)
                     .buttonBorderShape(.circle)
                     .controlSize(.large)
-                    #else
-//                    .tint(.primary)
                     #endif
     
                 }

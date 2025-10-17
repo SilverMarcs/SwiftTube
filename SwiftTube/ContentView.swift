@@ -10,33 +10,24 @@ import SwiftMediaViewer
 
 struct ContentView: View {
     @Environment(VideoManager.self) var manager
-    @Namespace private var animation
-    @State var selection: AppTab = .feed
+
+    @Binding var selectedTab: TabSelection
     @State private var isCustomFullscreen = false
+    
+    @Namespace private var animation
     
     var body: some View {
         @Bindable var manager = manager
 
-        TabView(selection: $selection) {
-            Tab("Videos", systemImage: "video", value: .feed) {
-                FeedView()
-            }
-            
-            Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
-                ShortsView()
-            }
-
-            Tab("Profile", systemImage: "person", value: .profile) {
-                ProfileView()
-            }
-            
-            
-            Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
-                SearchView()
+        TabView(selection: $selectedTab) {
+            ForEach(TabSelection.allCases, id: \.self) { tab in
+                Tab(tab.title, systemImage: tab.systemImage, value: tab, role: tab == .search ? .search : .none) {
+                    tab.tabView
+                }
             }
         }
-        #if os(macOS)
         .tabViewStyle(.sidebarAdaptable)
+        #if os(macOS)
         .tabViewSidebarBottomBar {
             MiniPlayerAccessoryView()
         }
@@ -54,11 +45,4 @@ struct ContentView: View {
         }
         #endif
     }
-}
-
-enum AppTab: String, CaseIterable {
-    case feed
-    case search
-    case shorts
-    case profile
 }
