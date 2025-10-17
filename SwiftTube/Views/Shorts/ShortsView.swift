@@ -1,24 +1,20 @@
 import SwiftUI
-import SwiftMediaViewer
 import AVKit
 
 struct ShortsView: View {
     @Environment(VideoLoader.self) private var videoLoader
     @Environment(VideoManager.self) var videoManager
-
-    @State private var currentIndex = 0
-    @State private var shortsPlayer = AVPlayer() // Single shared player
-
+    
+    @State private var shortsPlayer = AVPlayer()
+    
     var body: some View {
         NavigationStack {
-            TabView(selection: $currentIndex) {
-                ForEach(Array(videoLoader.shortVideos.enumerated()), id: \.element.id) { index, video in
+            TabView {
+                ForEach(videoLoader.shortVideos) { video in
                     ShortVideoCard(
                         video: video,
-                        isActive: currentIndex == index,
-                        player: shortsPlayer // Pass shared player
+                        player: shortsPlayer
                     )
-                    .tag(index)
                 }
             }
             .background(.black)
@@ -27,12 +23,15 @@ struct ShortsView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             #endif
             .onAppear {
-                videoManager.isMiniPlayerVisible = false
+                DispatchQueue.main.async {
+                    videoManager.isMiniPlayerVisible = false
+                }
                 videoManager.player?.pause()
             }
             .onDisappear {
-                videoManager.isMiniPlayerVisible = true
-                // Clean up shorts player
+                DispatchQueue.main.async {
+                    videoManager.isMiniPlayerVisible = true
+                }
                 shortsPlayer.pause()
                 shortsPlayer.replaceCurrentItem(with: nil)
             }
