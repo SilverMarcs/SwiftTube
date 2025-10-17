@@ -58,8 +58,7 @@ struct VideoCommentsView: View {
         } catch APIError.commentsDisabled {
             // Comments are disabled for this video
         } catch {
-            print(error.localizedDescription)
-            // Failed to fetch comments
+            print("Error in VideoCommentsView: \(error.localizedDescription)")
         }
     }
 }

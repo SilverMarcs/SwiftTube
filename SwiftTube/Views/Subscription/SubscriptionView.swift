@@ -64,7 +64,7 @@ struct SubscriptionView: View {
             subscriptions = fetchedSubscriptions
             isLoading = false
         } catch {
-            print(error.localizedDescription)
+            print("Error in SubscriptionView: \(error.localizedDescription)")
         }
     }
 }

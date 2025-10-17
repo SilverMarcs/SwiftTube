@@ -38,7 +38,7 @@ struct ChannelListView: View {
                 if authManager.isSignedIn && apiKey.isEmpty {
                     Section {
                         if availableSubscriptions.isEmpty {
-                            Button(isLoadingSubscriptions ? "Loading Subscriptions..." : "Load Subscriptions") {
+                            Button("Load Subscriptions") {
                                 Task { await loadSubscriptions() }
                             }
                             .disabled(isLoadingSubscriptions)

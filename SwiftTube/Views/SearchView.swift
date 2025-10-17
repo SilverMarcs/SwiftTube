@@ -65,7 +65,7 @@ struct SearchView: View {
                 channels: allResults.channels
             )
         } catch {
-            print(error.localizedDescription)
+            print("Error in SearchView: \(error.localizedDescription)")
         }
     }
 }

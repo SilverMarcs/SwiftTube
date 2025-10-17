@@ -54,7 +54,7 @@ struct ChannelVideoList: View {
         do {
             videos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
         } catch {
-            print(error.localizedDescription)
+            print("Error in ChannelVideoList \(error.localizedDescription)")
         }
     }
 }
