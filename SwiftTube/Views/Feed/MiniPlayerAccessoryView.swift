@@ -55,10 +55,10 @@ struct MiniPlayerAccessoryView: View {
                 }
                 .padding(.vertical, 8)
                 #if !os(macOS)
+                .padding(.horizontal, 18)
                 .glassEffect(.clear)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 7)
-                .padding(.horizontal, 18)
                 #else
                 .padding(.horizontal, 10)
                 #endif

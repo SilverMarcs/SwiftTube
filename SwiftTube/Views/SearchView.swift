@@ -15,18 +15,26 @@ struct SearchView: View {
     var body: some View {
         NavigationStack {
             List {
-                if searchScope == .video {
+                if searchScope == .video && !results.videos.isEmpty {
                     Section("Videos") {
                         ForEach(results.videos) { video in
                             CompactVideoCard(video: video)
                         }
                     }
-                } else if searchScope == .channel {
+                } else if searchScope == .channel && !results.channels.isEmpty {
                     Section("Channels") {
                         ForEach(results.channels) { channel in
                             ChannelRowView(channel: channel)
                         }
                     }
+                }
+            }
+            .toolbar {
+                Button {
+                    results = .init(videos: [], channels: [])
+                } label: {
+                    Label("Clear", systemImage: "eraser")
+                        .labelStyle(.titleOnly)
                 }
             }
             .navigationTitle("Search")
@@ -41,7 +49,7 @@ struct SearchView: View {
             #else
             .searchable(text: $searchText, prompt: "Search videos or channels")
             #endif
-            .searchScopes($searchScope) {
+            .searchScopes($searchScope, activation: .onSearchPresentation) {
                 Text(SearchScope.video.rawValue).tag(SearchScope.video)
                 Text(SearchScope.channel.rawValue).tag(SearchScope.channel)
             }

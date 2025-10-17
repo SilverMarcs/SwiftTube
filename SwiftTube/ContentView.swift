@@ -60,12 +60,8 @@ struct ContentView: View {
             }
             
             
-            Tab("Search", systemImage: "magnifyingglass", value: .search) {
+            Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
                 SearchView()
-                    .safeAreaBar(edge: .bottom) {
-                        MiniPlayerAccessoryView()
-                            .matchedTransitionSource(id: "MINIPLAYER", in: animation)
-                    }
             }
         }
 //        .tabBarMinimizeBehavior(.onScrollDown)

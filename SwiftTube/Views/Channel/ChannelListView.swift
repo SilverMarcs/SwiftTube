@@ -35,33 +35,38 @@ struct ChannelListView: View {
     var body: some View {
         NavigationStack {
             List {
-                if authManager.isSignedIn && apiKey.isEmpty {
-                    Section {
-                        if availableSubscriptions.isEmpty {
-                            Button("Load Subscriptions") {
-                                Task { await loadSubscriptions() }
+                Section("Subscriptions") {
+                    if availableSubscriptions.isEmpty {
+                        Group {
+                            if isLoadingSubscriptions {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text("Press refresh button to fetch subs")
+                                    .foregroundStyle(.secondary)
                             }
-                            .disabled(isLoadingSubscriptions)
-                            .frame(maxWidth: .infinity)
-                            .listRowSeparator(.hidden)
-                        } else {
-                            ForEach(filteredSubscriptions) { subscription in
-                                HStack {
-                                    ChannelRowView(channel: subscription)
-                                        .navigationLinkIndicatorVisibility(.hidden)
-                                    
-                                    Spacer()
-                                    
-                                    Button {
-                                        addSubscriptionAsChannel(subscription)
-                                    } label: {
-                                        Image(systemName: "plus")
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .tint(.blue)
-                                    .buttonBorderShape(.circle)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .listRowSeparator(.hidden)
+                    } else {
+                        ForEach(filteredSubscriptions) { subscription in
+                            HStack {
+                                ChannelRowView(channel: subscription)
+                                    .navigationLinkIndicatorVisibility(.hidden)
+                                
+                                Spacer()
+                                
+                                Button {
+                                    addSubscriptionAsChannel(subscription)
+                                } label: {
+                                    Image(systemName: "plus")
                                 }
+                                .buttonStyle(.bordered)
+                                .tint(.blue)
+                                .buttonBorderShape(.circle)
                             }
+                            .listRowSeparator(.hidden, edges: .top)
+                            .listRowSeparator(.visible, edges: .bottom)
                         }
                     }
                 }
@@ -72,6 +77,8 @@ struct ChannelListView: View {
                             ChannelRowView(channel: channel)
                         }
                         .onDelete(perform: deleteChannels)
+                        .listRowSeparator(.hidden, edges: .top)
+                        .listRowSeparator(.visible, edges: .bottom)
                     }
                 }
             }
@@ -86,6 +93,22 @@ struct ChannelListView: View {
             .navigationTitle("Channels")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
+                if authManager.isSignedIn && apiKey.isEmpty {
+                    ToolbarItem {
+                        Button {
+                            Task { await loadSubscriptions() }
+                        } label: {
+                            Label("Load Subscriptions", systemImage: "arrow.clockwise")
+                            #if os(macOS)
+                                .labelStyle(.titleOnly)
+                            #else
+                                .labelStyle(.iconOnly)
+                            #endif
+                        }
+                        .disabled(isLoadingSubscriptions)
+                    }
+                }
+                
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingAddChannel = true

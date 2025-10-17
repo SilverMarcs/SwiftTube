@@ -16,7 +16,7 @@ extension YTService {
                     id: item.snippet.channelId,
                     title: item.snippet.channelTitle,
                     channelDescription: "",
-                    thumbnailURL: YouTubeVideoThumbnail(videoID: videoId).url!.absoluteString,
+                    thumbnailURL: item.snippet.thumbnails.high?.url ?? "",
                     viewCount: 0,
                     subscriberCount: 0
                 )
