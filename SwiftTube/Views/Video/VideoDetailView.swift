@@ -93,6 +93,7 @@ struct VideoDetailView: View {
                 .controlSize(.extraLarge)
                 .buttonStyle(.glassProminent)
                 .buttonBorderShape(.circle)
+                .menuIndicator(.hidden)
                 .padding()
                 .ignoresSafeArea()
             }

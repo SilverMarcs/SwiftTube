@@ -9,23 +9,44 @@ struct ShortsView: View {
     
     var body: some View {
         NavigationStack {
-            TabView {
-                ForEach(videoLoader.shortVideos) { video in
-                    ShortVideoCard(
-                        video: video,
-                        player: shortsPlayer
-                    )
+            Group {
+#if os(macOS)
+                ScrollView(.vertical) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(videoLoader.shortVideos) { video in
+                            ShortVideoCard(
+                                video: video,
+                                player: shortsPlayer
+                            )
+                            .containerRelativeFrame([.vertical])
+                        }
+                    }
+                    .scrollTargetLayout()
                 }
+                .navigationTitle("Shorts")
+                .scrollTargetBehavior(.paging)
+                .scrollIndicators(.hidden)
+#else
+                TabView {
+                    ForEach(videoLoader.shortVideos) { video in
+                        ShortVideoCard(
+                            video: video,
+                            player: shortsPlayer
+                        )
+                    }
+                }
+                .background(.black)
+                .statusBarHidden(false)
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .ignoresSafeArea()
+#endif
             }
-            .background(.black)
-            #if !os(macOS)
-            .statusBarHidden(false)
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            #endif
             .onAppear {
+                #if !os(macOS)
                 DispatchQueue.main.async {
                     videoManager.isMiniPlayerVisible = false
                 }
+                #endif
                 videoManager.player?.pause()
             }
             .onDisappear {
@@ -35,7 +56,6 @@ struct ShortsView: View {
                 shortsPlayer.pause()
                 shortsPlayer.replaceCurrentItem(with: nil)
             }
-            .ignoresSafeArea()
         }
     }
 }

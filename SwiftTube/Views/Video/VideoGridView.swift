@@ -5,7 +5,7 @@ struct VideoGridView: View {
     var showChannelLinkInContextMenu: Bool = true
 
     private let gridColumns: [GridItem] = [
-        GridItem(.adaptive(minimum: 220, maximum: 420), spacing: 10, alignment: .top)
+        GridItem(.adaptive(minimum: 240, maximum: 420), spacing: 10, alignment: .top)
     ]
     
     var body: some View {
@@ -19,7 +19,6 @@ struct VideoGridView: View {
                 }
                 .scenePadding(.horizontal)
                 .scenePadding(.bottom)
-//                .padding(16)
             }
 #else
             List(videos) { video in
