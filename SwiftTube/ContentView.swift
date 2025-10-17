@@ -16,35 +16,10 @@ struct ContentView: View {
     
     var body: some View {
         @Bindable var manager = manager
-        
-        #if os(macOS)
-        TabView(selection: $selection) {
-            Tab("Videos", systemImage: "video", value: .feed) {
-                FeedView()
-            }
 
-            Tab("Profile", systemImage: "person", value: .profile) {
-                ProfileView()
-            }
-            
-            Tab("Search", systemImage: "magnifyingglass", value: .search) {
-                SearchView()
-            }
-        }
-        .tabViewStyle(.sidebarAdaptable)
-        .tabViewSidebarBottomBar {
-//        .overlay(alignment: .bottom) {
-            MiniPlayerAccessoryView()
-//                .frame(maxWidth: 400)
-        }
-        #else
         TabView(selection: $selection) {
             Tab("Videos", systemImage: "video", value: .feed) {
                 FeedView()
-                    .safeAreaBar(edge: .bottom) {
-                        MiniPlayerAccessoryView()
-                            .matchedTransitionSource(id: "MINIPLAYER", in: animation)
-                    }
             }
             
             Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
@@ -53,10 +28,6 @@ struct ContentView: View {
 
             Tab("Profile", systemImage: "person", value: .profile) {
                 ProfileView()
-                    .safeAreaBar(edge: .bottom) {
-                        MiniPlayerAccessoryView()
-                            .matchedTransitionSource(id: "MINIPLAYER", in: animation)
-                    }
             }
             
             
@@ -64,12 +35,17 @@ struct ContentView: View {
                 SearchView()
             }
         }
-//        .tabBarMinimizeBehavior(.onScrollDown)
-//        .tabViewBottomAccessory {
-//        .safeAreaBar(edge: .bottom) {
-//            MiniPlayerAccessoryView()
-//                .matchedTransitionSource(id: "MINIPLAYER", in: animation)
-//        }
+        #if os(macOS)
+        .tabViewStyle(.sidebarAdaptable)
+        .tabViewSidebarBottomBar {
+            MiniPlayerAccessoryView()
+        }
+        #else
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .tabViewBottomAccessory {
+            MiniPlayerAccessoryView()
+                .matchedTransitionSource(id: "MINIPLAYER", in: animation)
+        }
         .fullScreenCover(isPresented: $manager.isExpanded) {
             if let video = manager.currentVideo {
                 VideoDetailView(video: video, showVideo: true)

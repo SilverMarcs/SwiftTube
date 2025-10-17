@@ -10,10 +10,16 @@ struct MiniPlayerAccessoryView: View {
         if manager.isMiniPlayerVisible {
             if let video = manager.currentVideo {
                 HStack {
-                    CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
-                        .aspectRatio(4/3, contentMode: .fill)
-                        .frame(maxWidth: 40, maxHeight: 34)
-                        .clipShape(.rect(cornerRadius: 10))
+                    Group {
+#if os(macOS)
+                        CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
+#else
+                        AsyncImage(url: URL(string: video.thumbnailURL))
+#endif
+                    }
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 40, height: 34)
+                    .clipShape(.rect(cornerRadius: 10))
                     
                     VStack(alignment: .leading) {
                         Text(video.title)
@@ -41,7 +47,7 @@ struct MiniPlayerAccessoryView: View {
                     .buttonBorderShape(.circle)
                     .controlSize(.large)
                     #else
-                    .tint(.primary)
+//                    .tint(.primary)
                     #endif
     
                 }
@@ -53,14 +59,9 @@ struct MiniPlayerAccessoryView: View {
                     manager.isExpanded = true
                     #endif
                 }
+                .padding(.horizontal, 12)
+                #if os(macOS)
                 .padding(.vertical, 8)
-                #if !os(macOS)
-                .padding(.horizontal, 18)
-                .glassEffect(.clear)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 7)
-                #else
-                .padding(.horizontal, 10)
                 #endif
             }
         }
