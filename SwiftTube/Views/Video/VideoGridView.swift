@@ -5,14 +5,14 @@ struct VideoGridView: View {
     var showChannelLinkInContextMenu: Bool = true
 
     private let gridColumns: [GridItem] = [
-        GridItem(.adaptive(minimum: 280, maximum: 420), spacing: 16, alignment: .top)
+        GridItem(.adaptive(minimum: 220, maximum: 420), spacing: 10, alignment: .top)
     ]
     
     var body: some View {
         Group {
 #if os(macOS)
             ScrollView {
-                LazyVGrid(columns: gridColumns, spacing: 16) {
+                LazyVGrid(columns: gridColumns, spacing: 10) {
                     ForEach(videos) { video in
                         VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu)
                     }

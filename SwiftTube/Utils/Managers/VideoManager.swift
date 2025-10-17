@@ -90,7 +90,7 @@ class VideoManager {
         // Seek to saved progress if available
         let savedProgress = userDefaults.getWatchProgress(videoId: video.id)
         if savedProgress > 5 {
-            let time = CMTime(seconds: savedProgress, preferredTimescale: 600)
+            let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
             player?.seek(to: time)
         }
         
@@ -134,7 +134,7 @@ class VideoManager {
         removeTimeObserver()
         
         self.timeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 5, preferredTimescale: 1), // TODO: should scale be 1
+            forInterval: CMTime(seconds: 5, preferredTimescale: 1),
             queue: .main
         ) { [weak self] time in
             guard let self = self, let currentVideo = self.currentVideo else { return }

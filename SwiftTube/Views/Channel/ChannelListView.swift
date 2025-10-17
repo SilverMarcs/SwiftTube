@@ -76,7 +76,7 @@ struct ChannelListView: View {
                 }
             }
             #if os(macOS)
-            .searchable(text: $searchText, placement: .toolbar, prompt: "Search channels and subscriptions")
+            .searchable(text: $searchText, placement: .toolbarPrincipal, prompt: "Search channels and subscriptions")
             #else
             .searchable(text: $searchText, prompt: "Search channels and subscriptions")
             #endif
@@ -93,9 +93,6 @@ struct ChannelListView: View {
                         Label("Add Channel", systemImage: "plus")
                     }
                 }
-                #if os(macOS)
-                ToolbarSpacer(.flexible)
-                #endif
             }
             .sheet(isPresented: $showingAddChannel) {
                 AddChannelView()

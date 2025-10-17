@@ -35,15 +35,16 @@ struct MiniPlayerAccessoryView: View {
                         Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
                             .contentTransition(.symbolEffect(.replace))
                     }
-                    .tint(.primary)
                     #if os(macOS)
+                    .keyboardShortcut(.space, modifiers: [])
                     .buttonStyle(.glassProminent)
-                    .controlSize(.extraLarge)
                     .buttonBorderShape(.circle)
+                    .controlSize(.large)
+                    #else
+                    .tint(.primary)
                     #endif
+    
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 18)
                 .contentShape(.rect)
                 .onTapGesture {
                     #if os(macOS)
@@ -52,9 +53,15 @@ struct MiniPlayerAccessoryView: View {
                     manager.isExpanded = true
                     #endif
                 }
+                .padding(.vertical, 8)
+                #if !os(macOS)
                 .glassEffect(.clear)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 7)
+                .padding(.horizontal, 18)
+                #else
+                .padding(.horizontal, 10)
+                #endif
             }
         }
     }

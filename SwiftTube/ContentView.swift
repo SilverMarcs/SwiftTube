@@ -26,11 +26,16 @@ struct ContentView: View {
             Tab("Profile", systemImage: "person", value: .profile) {
                 ProfileView()
             }
+            
+            Tab("Search", systemImage: "magnifyingglass", value: .search) {
+                SearchView()
+            }
         }
-//        .tabViewSidebarBottomBar {
-        .overlay(alignment: .bottom) {
+        .tabViewStyle(.sidebarAdaptable)
+        .tabViewSidebarBottomBar {
+//        .overlay(alignment: .bottom) {
             MiniPlayerAccessoryView()
-                .frame(maxWidth: 400)
+//                .frame(maxWidth: 400)
         }
         #else
         TabView(selection: $selection) {
@@ -45,9 +50,18 @@ struct ContentView: View {
             Tab("Shorts", systemImage: "play.rectangle.on.rectangle", value: .shorts) {
                 ShortsView()
             }
-            
-            Tab("Profile", systemImage: "person", value: .profile, role: .search) {
+
+            Tab("Profile", systemImage: "person", value: .profile) {
                 ProfileView()
+                    .safeAreaBar(edge: .bottom) {
+                        MiniPlayerAccessoryView()
+                            .matchedTransitionSource(id: "MINIPLAYER", in: animation)
+                    }
+            }
+            
+            
+            Tab("Search", systemImage: "magnifyingglass", value: .search) {
+                SearchView()
                     .safeAreaBar(edge: .bottom) {
                         MiniPlayerAccessoryView()
                             .matchedTransitionSource(id: "MINIPLAYER", in: animation)
@@ -72,6 +86,7 @@ struct ContentView: View {
 
 enum AppTab: String, CaseIterable {
     case feed
+    case search
     case shorts
     case profile
 }
