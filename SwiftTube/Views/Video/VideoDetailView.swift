@@ -21,22 +21,20 @@ struct VideoDetailView: View {
                     HStack(spacing: 5) {
                         Label(video.viewCount.formatNumber(), systemImage: "eye")
                             .labelIconToTitleSpacing(3)
-                            .font(.system(size: 11))
                         
                         Text("•")
+                        
                         Text(video.publishedAt, style: .date)
                         
                         Spacer()
                         
                         if let likesText = video.likeCount?.formatNumber() {
-                            Label(likesText, systemImage: "hand.thumbsup.fill")
+                            Label(likesText, systemImage: "hand.thumbsup")
                                 .labelIconToTitleSpacing(3)
-                                .font(.system(size: 11))
                         }
                     }
                     .font(.system(size: 14))
                     .foregroundStyle(.secondary)
-//                    .listRowSeparator(.hidden)
                     .listRowSeparator(.hidden, edges: .bottom)
                     .listRowInsets([.vertical], 0)
                 }

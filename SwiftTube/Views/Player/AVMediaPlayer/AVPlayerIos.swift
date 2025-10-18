@@ -31,17 +31,57 @@ struct AVPlayerIos: UIViewControllerRepresentable {
     }
     
     class Coordinator: NSObject, AVPlayerViewControllerDelegate {
-        func playerViewController(_ playerViewController: AVPlayerViewController, willBeginFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator) {
-            // Defer the orientation request until after the transition starts to avoid race conditions
+        private var isInFullscreen = false
+        private weak var playerViewController: AVPlayerViewController?
+        
+        override init() {
+            super.init()
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(appWillEnterForeground),
+                name: UIApplication.willEnterForegroundNotification,
+                object: nil
+            )
+        }
+        
+        deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
+        
+        func playerViewController(
+            _ playerViewController: AVPlayerViewController,
+            willBeginFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator
+        ) {
+            self.playerViewController = playerViewController
+            isInFullscreen = true
+            
             coordinator.animate(alongsideTransition: nil) { _ in
                 OrientationManager.shared.lockOrientation(.landscape, rotateTo: .landscapeRight)
             }
         }
         
-        func playerViewController(_ playerViewController: AVPlayerViewController, willEndFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator) {
-            // Return to following system/user preference and nudge back to portrait by default
+        func playerViewController(
+            _ playerViewController: AVPlayerViewController,
+            willEndFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator
+        ) {
+            isInFullscreen = false
+            
+            let wasPlaying = playerViewController.player?.timeControlStatus == .playing
             coordinator.animate(alongsideTransition: nil) { _ in
                 OrientationManager.shared.lockOrientation(.all, rotateTo: .portrait)
+                if wasPlaying {
+                    playerViewController.player?.play()
+                }
+            }
+        }
+        
+        // MARK: - Handle foreground return
+        @objc private func appWillEnterForeground() {
+            guard isInFullscreen else { return }
+            
+            // Ensure playerViewController reference still valid
+            if let _ = playerViewController {
+                OrientationManager.shared.lockOrientation(.landscape, rotateTo: .landscapeRight)
             }
         }
     }
