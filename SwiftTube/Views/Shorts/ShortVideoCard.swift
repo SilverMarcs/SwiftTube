@@ -54,6 +54,9 @@ struct ShortVideoCard: View {
                     .presentationDetents([.medium])
                     .presentationBackground(.bar)
                     .presentationDragIndicator(.visible)
+                #if os(macOS)
+                    .frame(height: 500)
+                #endif
             }
     }
     
