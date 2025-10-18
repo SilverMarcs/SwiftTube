@@ -10,11 +10,6 @@ struct NativeVideoPlayerView: View {
     var body: some View {
         if let player = manager.player {
             PlatformPlayerContainer(player: player)
-                .overlay {
-                    if manager.isSetting {
-                        UniversalProgressView()
-                    }
-                }
                 .background(.bar)
                 #if !os(macOS)
                 .onChange(of: scenePhase) {
@@ -25,6 +20,14 @@ struct NativeVideoPlayerView: View {
                     }
                 }
                 #endif
+                .overlay {
+                    if manager.isSetting {
+                        UniversalProgressView()
+                    }
+                }
+        } else {
+            Color.black
+                .aspectRatio(16/9, contentMode: .fit)
         }
     }
 }
