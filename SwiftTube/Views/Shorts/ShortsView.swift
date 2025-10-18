@@ -6,6 +6,7 @@ struct ShortsView: View {
     @Environment(VideoManager.self) var videoManager
     
     @State private var shortsPlayer = AVPlayer()
+    @State private var currentVideoId: String?
     
     var body: some View {
         NavigationStack {
@@ -16,7 +17,8 @@ struct ShortsView: View {
                         ForEach(videoLoader.shortVideos) { video in
                             ShortVideoCard(
                                 video: video,
-                                player: shortsPlayer
+                                player: shortsPlayer,
+                                currentVideoId: $currentVideoId
                             )
                             .containerRelativeFrame([.vertical])
                         }
@@ -31,7 +33,8 @@ struct ShortsView: View {
                     ForEach(videoLoader.shortVideos) { video in
                         ShortVideoCard(
                             video: video,
-                            player: shortsPlayer
+                            player: shortsPlayer,
+                            currentVideoId: $currentVideoId
                         )
                     }
                 }

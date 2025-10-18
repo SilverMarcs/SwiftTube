@@ -5,6 +5,7 @@ import YouTubeKit
 struct ShortVideoCard: View {
     let video: Video
     let player: AVPlayer
+    @Binding var currentVideoId: String?
     
     @State private var showDetail = false
     @State private var isLoading = true
@@ -44,10 +45,14 @@ struct ShortVideoCard: View {
                 }
             }
             .onAppear {
+                currentVideoId = video.id
                 Task { await loadVideo() }
             }
             .onDisappear {
-                cleanup()
+                if currentVideoId == video.id {
+                    cleanup()
+                    currentVideoId = nil
+                }
             }
             .sheet(isPresented: $showDetail) {
                 VideoDetailView(video: video)
@@ -61,15 +66,20 @@ struct ShortVideoCard: View {
     }
     
     private func loadVideo() async {
+        guard currentVideoId == video.id else { return }
+        
         isLoading = true
         
-        // Clean up old content first
         player.pause()
         player.replaceCurrentItem(with: nil)
         
         do {
+            guard currentVideoId == video.id else { return }
+            
             let youtube = YouTube(videoID: video.id, methods: [.local, .remote])
             let streams = try await youtube.streams
+            
+            guard currentVideoId == video.id else { return }
             
             guard let stream = streams
                 .filterVideoAndAudio()
@@ -79,6 +89,8 @@ struct ShortVideoCard: View {
                 isLoading = false
                 return
             }
+            
+            guard currentVideoId == video.id else { return }
             
             let playerItem = AVPlayerItem(url: stream.url)
             player.replaceCurrentItem(with: playerItem)
