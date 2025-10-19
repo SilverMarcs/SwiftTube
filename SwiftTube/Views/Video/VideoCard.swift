@@ -2,27 +2,12 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct VideoCard: View {
-    @Environment(VideoManager.self) var manager
     @Environment(UserDefaultsManager.self) private var userDefaults
-    @Environment(\.openWindow) private var openWindow
     let video: Video
     var showChannelLink: Bool = true
     
     var body: some View {
-        Button {
-            #if os(macOS)
-            manager.setVideo(video)
-//            if !manager.isMediaPlayerWindowOpen {
-                openWindow(id: "media-player")
-//            }
-            #else
-            if manager.currentVideo?.id == video.id {
-                manager.isExpanded = true
-            } else {
-                manager.setVideo(video)
-            }
-            #endif
-        } label: {
+        PlayVideoButton(video: video) {
             VStack(alignment: .leading) {
                 CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 500)
                     .aspectRatio(16/9, contentMode: .fill)
@@ -73,7 +58,6 @@ struct VideoCard: View {
                         Spacer()
 
                         HStack(spacing: 4) {
-                            // Views
                             Label {
                                 Text(video.viewCount.formatNumber())
                                     .font(.footnote)
@@ -84,7 +68,6 @@ struct VideoCard: View {
                             .labelIconToTitleSpacing(2)
                             
 
-                            // Time
                             Label {
                                 Text(video.publishedAt.customRelativeFormat())
                                     .font(.footnote)
@@ -114,7 +97,7 @@ struct VideoCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .background(.background.secondary, in: .rect(cornerRadius: 12))
         }
-        .buttonStyle(.plain)
         .videoContextMenu(video: video, showChannelLink: showChannelLink)
     }
 }
+

@@ -29,16 +29,19 @@ class VideoManager {
     /// - Parameters:
     ///   - video: The video to set as current, or nil to clear
     ///   - autoPlay: Whether to automatically start playback (default: true)
-    func setVideo(_ video: Video?, autoPlay: Bool = true) {
+    func setVideo(_ video: Video, autoPlay: Bool = true) {
+        isExpanded = true
+        
+        guard video.id != currentVideo?.id else {
+            return
+        }
+        
         player?.pause()
         isSetting = true
-        guard currentVideo?.id != video?.id else { return }
-        guard let video else { return }
         
-        // New video selected
-        isExpanded = autoPlay // Auto-expand only if autoplaying (iOS only)
         currentVideo = video
         userDefaults.addToHistory(video.id)
+        
         Task {
             await loadVideoStream(for: video, autoPlay: autoPlay)
             isSetting = false

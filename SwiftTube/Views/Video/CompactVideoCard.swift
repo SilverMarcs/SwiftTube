@@ -1,35 +1,11 @@
-//
-//  WatchLaterVideoCard.swift
-//  SwiftTube
-//
-//  Created by Zabir Raihan on 29/09/2025.
-//
-
 import SwiftUI
 import SwiftMediaViewer
 
 struct CompactVideoCard: View {
-    @Environment(VideoManager.self) var manager
-    #if os(macOS)
-    @Environment(\.openWindow) private var openWindow
-    #endif
     let video: Video
     
     var body: some View {
-        Button {
-            #if os(macOS)
-            manager.setVideo(video)
-//            if !manager.isMediaPlayerWindowOpen {
-                openWindow(id: "media-player")
-//            }
-            #else
-            if manager.currentVideo?.id == video.id {
-                manager.isExpanded = true
-            } else {
-                manager.setVideo(video)
-            }
-            #endif
-        } label: {
+        PlayVideoButton(video: video) {
             HStack {
                 CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
                     .aspectRatio(16/9, contentMode: .fill)
@@ -73,7 +49,6 @@ struct CompactVideoCard: View {
             }
             .contentShape(.rect)
         }
-        .buttonStyle(.plain)
         .videoContextMenu(video: video, showChannelLink: true)
     }
 }
