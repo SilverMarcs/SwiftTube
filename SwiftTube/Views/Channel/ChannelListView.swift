@@ -37,17 +37,20 @@ struct ChannelListView: View {
             List {
                 Section("Subscriptions") {
                     if availableSubscriptions.isEmpty {
-                        Group {
-                            if isLoadingSubscriptions {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Text("Press refresh button to fetch subs")
-                                    .foregroundStyle(.secondary)
+                        #if os(macOS)
+                        Text("Subscriptions not loaded yet")
+                            .frame(maxWidth: .infinity)
+                            .foregroundStyle(.secondary)
+                        #else
+                        if authManager.isSignedIn && apiKey.isEmpty {
+                            Button {
+                                Task { await loadSubscriptions() }
+                            } label: {
+                                Label("Load Subscriptions", systemImage: "arrow.clockwise")
                             }
+                            .disabled(isLoadingSubscriptions)
                         }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .listRowSeparator(.hidden)
+                        #endif
                     } else {
                         ForEach(filteredSubscriptions) { subscription in
                             HStack {
@@ -93,21 +96,19 @@ struct ChannelListView: View {
             .navigationTitle("Channels")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
+                #if os(macOS)
                 if authManager.isSignedIn && apiKey.isEmpty {
                     ToolbarItem {
                         Button {
                             Task { await loadSubscriptions() }
                         } label: {
-                            Label("Load Subscriptions", systemImage: "arrow.clockwise")
-                            #if os(macOS)
+                            Label("Load Subs", systemImage: "arrow.clockwise")
                                 .labelStyle(.titleOnly)
-                            #else
-                                .labelStyle(.iconOnly)
-                            #endif
                         }
                         .disabled(isLoadingSubscriptions)
                     }
                 }
+                #endif
                 
                 ToolbarItem(placement: .primaryAction) {
                     Button {
