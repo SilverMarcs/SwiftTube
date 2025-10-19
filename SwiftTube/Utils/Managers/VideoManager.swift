@@ -30,7 +30,7 @@ class VideoManager {
     ///   - video: The video to set as current, or nil to clear
     ///   - autoPlay: Whether to automatically start playback (default: true)
     func setVideo(_ video: Video, autoPlay: Bool = true) {
-        isExpanded = true
+        isExpanded = autoPlay
         
         guard video.id != currentVideo?.id else {
             return

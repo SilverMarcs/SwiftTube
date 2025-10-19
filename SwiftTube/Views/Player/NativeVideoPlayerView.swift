@@ -8,26 +8,28 @@ struct NativeVideoPlayerView: View {
     @Environment(VideoManager.self) var manager
 
     var body: some View {
-        if let player = manager.player {
-            PlatformPlayerContainer(player: player)
-                .background(.bar)
-                #if !os(macOS)
-                .onChange(of: scenePhase) {
-                    if scenePhase == .active {
-                        manager.resumeTimerTracking()
-                    } else if scenePhase == .background {
-                        manager.pauseTimerTracking()
+        Group {
+            if let player = manager.player {
+                PlatformPlayerContainer(player: player)
+                    .background(.bar)
+#if !os(macOS)
+                    .onChange(of: scenePhase) {
+                        if scenePhase == .active {
+                            manager.resumeTimerTracking()
+                        } else if scenePhase == .background {
+                            manager.pauseTimerTracking()
+                        }
                     }
-                }
-                #endif
-                .overlay {
-                    if manager.isSetting {
-                        UniversalProgressView()
-                    }
-                }
-        } else {
-            Color.black
-                .aspectRatio(16/9, contentMode: .fit)
+#endif
+            } else {
+                Color.black
+                    .aspectRatio(16/9, contentMode: .fit)
+            }
+        }
+        .overlay {
+            if manager.isSetting {
+                UniversalProgressView()
+            }
         }
     }
 }
