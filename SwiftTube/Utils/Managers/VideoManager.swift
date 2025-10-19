@@ -54,8 +54,10 @@ class VideoManager {
         
         if isPlaying {
             player.pause()
+            try? AVAudioSession.sharedInstance().setActive(false)
         } else {
             player.play()
+            try? AVAudioSession.sharedInstance().setActive(true)
         }
     }
     
@@ -100,6 +102,7 @@ class VideoManager {
         // Auto-play if requested
         if autoPlay {
             player?.play()
+            try? AVAudioSession.sharedInstance().setActive(true)
         }
     }
     
