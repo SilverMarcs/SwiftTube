@@ -43,24 +43,17 @@ final class VideoLoader {
             return all
         }
         
-        // Separate regular videos and shorts
-        let now = Date()
-        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: now) ?? now.addingTimeInterval(-7 * 24 * 60 * 60)
-        
-        // Keep ALL shorts
+        // Separate shorts and regular videos
         let shorts = aggregatedVideos.filter { $0.isShort }
+        let regularVideos = aggregatedVideos.filter { !$0.isShort }
         
-        // For non-shorts, keep only those within last 7 days
-        let recentRegularVideos = aggregatedVideos.filter { !$0.isShort && $0.publishedAt >= sevenDaysAgo }
-        
-        // Sort recent regular videos by publish date (desc)
-        let sortedVideos = recentRegularVideos.sorted { $0.publishedAt > $1.publishedAt }
+        // Sort by publish date (desc)
+        let sortedVideos = regularVideos.sorted { $0.publishedAt > $1.publishedAt }
         
         // Update observable arrays (atomic updates)
         self.videos = sortedVideos
         self.shortVideos = shorts.shuffled()
         
-        // #if !DEBUG
         // Fetch details for the first 50 regular videos
         let videosForDetails = self.videos.prefix(50)
         if !videosForDetails.isEmpty {
@@ -80,7 +73,6 @@ final class VideoLoader {
                 print("Error updating video rich data: \(error)")
             }
         }
-        // #endif
     }
 
     func getMostRecentHistoryVideo() -> Video? {

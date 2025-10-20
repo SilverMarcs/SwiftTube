@@ -35,15 +35,20 @@ class FeedParser: NSObject, XMLParserDelegate, Sendable {
         }
     }
     
-    var feed: Feed?
+    var entries: [Entry] = []
     private var currentElement = ""
-    private var entries: [Entry] = []
     private var feedTitleChunks: [String] = []
     private var inEntry = false
     private var currentEntryBuilder = EntryBuilder()
+    private let cutoffDate: Date
+
+    override init() {
+        let now = Date()
+        self.cutoffDate = Calendar.current.date(byAdding: .day, value: -10, to: now) ?? now.addingTimeInterval(-10 * 24 * 60 * 60)
+        super.init()
+    }
 
     func parse(data: Data) {
-        // Preallocate with reasonable capacity
         entries.reserveCapacity(50)
         
         let parser = XMLParser(data: data)
@@ -109,6 +114,12 @@ class FeedParser: NSObject, XMLParserDelegate, Sendable {
             let publishedDate = FeedParser.isoFormatter.date(from: published) ?? Date.distantPast
             let updatedDate = FeedParser.isoFormatter.date(from: updated) ?? Date.distantPast
             
+            // Stop parsing if video is older than 10 days
+            if publishedDate < cutoffDate {
+                parser.abortParsing()
+                return
+            }
+            
             let author = Author(name: authorName)
             let videoThumbnail = YouTubeVideoThumbnail(videoID: videoId)
             let thumbnail = FeedThumbnail(url: videoThumbnail.url?.absoluteString ?? "", width: 120, height: 90)
@@ -117,24 +128,16 @@ class FeedParser: NSObject, XMLParserDelegate, Sendable {
             entries.append(entry)
         }
     }
-
-    func parserDidEndDocument(_ parser: XMLParser) {
-        let feedTitle = feedTitleChunks.joined()
-        feed = Feed(title: feedTitle, entries: entries)
-    }
     
     static func fetchChannelVideosFromRSS(channel: Channel) async throws -> [Video] {
         let url = URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channel.id)")!
         let (data, _) = try await URLSession.shared.data(from: url)
         
         // Parse on background thread
-        let entries = try await Task.detached(priority: .userInitiated) {
+        let entries = await Task.detached(priority: .userInitiated) {
             let parser = await FeedParser()
             await parser.parse(data: data)
-            guard let feed = await parser.feed else {
-                throw APIError.invalidResponse
-            }
-            return feed.entries
+            return await parser.entries
         }.value
         
         return entries.map { entry in
