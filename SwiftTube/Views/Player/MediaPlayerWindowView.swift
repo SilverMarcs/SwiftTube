@@ -35,8 +35,10 @@ struct MediaPlayerWindowView: View {
         }
         .sheet(isPresented: $showDetail) {
             if let video = videoManager.currentVideo {
-                VideoDetailView(video: video, )
-                    .frame(height: 500)
+                NavigationStack {
+                    VideoDetailView(video: video, )
+                        .frame(height: 500)
+                }
             }
         }
     }

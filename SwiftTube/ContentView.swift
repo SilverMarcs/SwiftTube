@@ -39,13 +39,8 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $manager.isExpanded) {
             if let video = manager.currentVideo {
-                NavigationStack {
-                    VideoDetailView(video: video)
-                        .safeAreaBar(edge: .top) {
-                            NativeVideoPlayerView()
-                        }
-                }
-                .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
+                VideoDetailView(video: video, showVideo: true)
+                    .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
             }
         }
         #endif
