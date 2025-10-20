@@ -90,13 +90,13 @@ import AuthenticationServices
         }
     }
     
-//    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-//        #if os(iOS)
-//        return UIApplication.shared.windows.first ?? ASPresentationAnchor()
-//        #elseif os(macOS)
-//        return NSApplication.shared.keyWindow ?? ASPresentationAnchor()
-//        #endif
-//    }
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        #if os(iOS)
+        return UIApplication.shared.windows.first ?? ASPresentationAnchor()
+        #elseif os(macOS)
+        return NSApplication.shared.keyWindow ?? ASPresentationAnchor()
+        #endif
+    }
     
     var isSignedIn: Bool {
         return !accessToken.isEmpty

@@ -12,7 +12,7 @@ struct NativeVideoPlayerView: View {
             if let player = manager.player {
                 PlatformPlayerContainer(player: player)
                     .background(.bar)
-#if !os(macOS)
+                    #if !os(macOS)
                     .onChange(of: scenePhase) {
                         if scenePhase == .active {
                             manager.resumeTimerTracking()
@@ -20,7 +20,7 @@ struct NativeVideoPlayerView: View {
                             manager.pauseTimerTracking()
                         }
                     }
-#endif
+                    #endif
             } else {
                 Color.black
                     .aspectRatio(16/9, contentMode: .fit)
