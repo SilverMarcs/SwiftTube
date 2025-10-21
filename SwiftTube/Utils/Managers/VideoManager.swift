@@ -43,7 +43,7 @@ class VideoManager {
         userDefaults.addToHistory(video.id)
         
         Task {
-            await loadVideoStream(for: video, autoPlay: autoPlay)
+            await loadVideoStream(autoPlay: autoPlay)
             isSetting = false
         }
     }
@@ -66,61 +66,69 @@ class VideoManager {
     }
     
     // MARK: - Private Methods
-    private func loadVideoStream(for video: Video, autoPlay: Bool) async {
-        do {
-            let youtube = YouTube(videoID: video.id, methods: [.local, .remote])
-            let streams = try await youtube.streams
-            
-            guard let stream = streams
-                .filterVideoAndAudio()
-                .filter({ $0.isNativelyPlayable })
-//                .filter({ ($0.videoResolution ?? 0) <= 1440 }) // Filter to 1440p or lower
-                .highestResolutionStream() else {
-                return
-            }
-            
-            let playerItem = AVPlayerItem(url: stream.url)
-            if let existingPlayer = player {
-                existingPlayer.replaceCurrentItem(with: playerItem)
-            } else {
-                player = AVPlayer(playerItem: playerItem)
-                setupPlaybackStatusObserver()
-            }
-            
-            setupTimeObserver()
-            
-            // Seek to saved progress if available
-            let savedProgress = userDefaults.getWatchProgress(videoId: video.id)
-            if savedProgress > 5 {
-                let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
-                await player?.seek(to: time)
-            }
-            
-            if autoPlay {
-                player?.play()
-                #if !os(macOS)
-                try? AVAudioSession.sharedInstance().setActive(true)
-                #endif
-            }
-            
-        } catch {
-            print("YouTubeKit error: \(error)")
-        }
-    }
+     private func loadVideoStream(autoPlay: Bool) async {
+         do {
+             guard let video = currentVideo else { return }
+             let youtube = YouTube(videoID: video.id, methods: [.local, .remote])
+             let streams = try await youtube.streams
+             
+             guard let stream = streams
+                 .filterVideoAndAudio()
+                 .filter({ $0.isNativelyPlayable })
+ //                .filter({ ($0.videoResolution ?? 0) <= 1440 }) // Filter to 1440p or lower
+                 .highestResolutionStream() else {
+                 return
+             }
+             
+             let playerItem = AVPlayerItem(url: stream.url)
+             
+             // Remove existing time observer before replacing item
+             removeTimeObserver()
+             
+             if let existingPlayer = player {
+                 existingPlayer.replaceCurrentItem(with: playerItem)
+             } else {
+                 player = AVPlayer(playerItem: playerItem)
+                 setupPlaybackStatusObserver()
+             }
+             
+             // Seek to saved progress for the NEW video if available
+             let savedProgress = userDefaults.getWatchProgress(videoId: video.id)
+             if savedProgress > 5 {
+                 let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
+                 await player?.seek(to: time)
+             }
+             
+             // Setup time observer AFTER seeking to correct position
+             setupTimeObserver()
+             
+             if autoPlay {
+                 player?.play()
+                 #if !os(macOS)
+                 try? AVAudioSession.sharedInstance().setActive(true)
+                 #endif
+             }
+             
+         } catch {
+             print("YouTubeKit error: \(error)")
+         }
+     }
     
     
     // MARK: - Observers
     private func setupTimeObserver() {
-        guard let player else { return }
+        guard let player, let video = currentVideo else { return }
         
         removeTimeObserver()
         
+        // Capture the video ID at observer setup time to avoid tracking progress for the wrong video
+        let videoId = video.id
         self.timeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 5, preferredTimescale: 1),
+            forInterval: CMTime(seconds: 10, preferredTimescale: 1),
             queue: .main
         ) { [weak self] time in
-            guard let self = self, let currentVideo = self.currentVideo else { return }
-            currentVideo.updateWatchProgress(time.seconds)
+            guard let self = self else { return }
+            self.userDefaults.setWatchProgress(videoId: videoId, progress: time.seconds)
         }
     }
     
