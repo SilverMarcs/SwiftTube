@@ -8,6 +8,7 @@
 import Foundation
 import AVKit
 import YouTubeKit
+import MediaPlayer
 
 @Observable
 class VideoManager {
@@ -22,12 +23,6 @@ class VideoManager {
     private var timeObserver: Any?
     private let userDefaults = UserDefaultsManager.shared
     
-    // MARK: - Public Methods
-    
-    /// Set the current video with optional autoplay
-    /// - Parameters:
-    ///   - video: The video to set as current, or nil to clear
-    ///   - autoPlay: Whether to automatically start playback (default: true)
     func setVideo(_ video: Video, autoPlay: Bool = true) {
         isExpanded = autoPlay
         
@@ -48,7 +43,6 @@ class VideoManager {
         }
     }
     
-    /// Toggle play/pause state
     func togglePlayPause() {
         guard let player else { return }
         
@@ -62,50 +56,87 @@ class VideoManager {
     }
     
     // MARK: - Private Methods
-     private func loadVideoStream(autoPlay: Bool) async {
-         do {
-             guard let video = currentVideo else { return }
-             let youtube = YouTube(videoID: video.id, methods: [.local, .remote])
-             let streams = try await youtube.streams
-             
-             guard let stream = streams
-                 .filterVideoAndAudio()
-                 .filter({ $0.isNativelyPlayable })
- //                .filter({ ($0.videoResolution ?? 0) <= 1440 }) // Filter to 1440p or lower
-                 .highestResolutionStream() else {
-                 return
-             }
-             
-             let playerItem = AVPlayerItem(url: stream.url)
-             
-             // Remove existing time observer BEFORE replacing item
-             removeTimeObserver()
-             
-             if let existingPlayer = player {
-                 existingPlayer.replaceCurrentItem(with: playerItem)
-             } else {
-                 player = AVPlayer(playerItem: playerItem)
-             }
-             
-             // Seek to saved progress for the NEW video if available
-             let savedProgress = userDefaults.getWatchProgress(videoId: video.id)
-             if savedProgress > 5 {
-                 let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
-                 await player?.seek(to: time)
-             }
-             
-             // Setup time observer AFTER seeking to correct position
-             setupTimeObserver()
-             
-             if autoPlay {
-                 player?.play()
-                 isPlaying = true
-             }
-             
-         } catch {
-             print("YouTubeKit error: \(error)")
-         }
-     }
+    private func loadVideoStream(autoPlay: Bool) async {
+        do {
+            guard let video = currentVideo else { return }
+            
+            let youtube = YouTube(videoID: video.id, methods: [.local, .remote])
+            let streams = try await youtube.streams
+            
+            guard let stream = streams
+                .filterVideoAndAudio()
+                .filter({ $0.isNativelyPlayable })
+                .highestResolutionStream() else {
+                return
+            }
+            
+            let playerItem = AVPlayerItem(url: stream.url)
+            
+            // Set external metadata on the player item (now awaiting)
+            playerItem.externalMetadata = await createMetadataItems(for: video)
+            
+            removeTimeObserver()
+            
+            if let existingPlayer = player {
+                existingPlayer.replaceCurrentItem(with: playerItem)
+            } else {
+                player = AVPlayer(playerItem: playerItem)
+            }
+            
+            let savedProgress = userDefaults.getWatchProgress(videoId: video.id)
+            if savedProgress > 5 {
+                let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
+                await player?.seek(to: time)
+            }
+            
+            setupTimeObserver()
+            
+            if autoPlay {
+                player?.play()
+                isPlaying = true
+            }
+            
+        } catch {
+            print("YouTubeKit error: \(error)")
+        }
+    }
+
+    // MARK: - Metadata Creation
+    private func createMetadataItems(for video: Video) async -> [AVMetadataItem] {
+        var metadata: [AVMetadataItem] = []
+        
+        // Title
+        let titleItem = AVMutableMetadataItem()
+        titleItem.identifier = .commonIdentifierTitle
+        titleItem.value = video.title as NSString
+        titleItem.extendedLanguageTag = "und"
+        metadata.append(titleItem)
+        
+        // Artist (Channel name)
+        let artistItem = AVMutableMetadataItem()
+        artistItem.identifier = .commonIdentifierArtist
+        artistItem.value = video.channel.title as NSString
+        artistItem.extendedLanguageTag = "und"
+        metadata.append(artistItem)
+
+        // Artwork (thumbnail)
+        if !video.thumbnailURL.isEmpty, let url = URL(string: video.thumbnailURL) {
+            let artworkItem = AVMutableMetadataItem()
+            artworkItem.identifier = .commonIdentifierArtwork
+            artworkItem.dataType = kCMMetadataBaseDataType_PNG as String
+            
+            // Load thumbnail asynchronously using URLSession
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                artworkItem.value = data as NSData
+                metadata.append(artworkItem)
+            } catch {
+                print("Failed to load thumbnail: \(error)")
+            }
+        }
+        
+        return metadata
+    }
     
     
     // MARK: - Observers
