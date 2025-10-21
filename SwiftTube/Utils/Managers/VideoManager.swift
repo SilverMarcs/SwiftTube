@@ -8,13 +8,11 @@
 import Foundation
 import AVKit
 import YouTubeKit
-import MediaPlayer
 
 @Observable
 class VideoManager {
     private(set) var currentVideo: Video? = nil
     private(set) var player: AVPlayer?
-    private(set) var isPlaying: Bool = false
     
     var isExpanded: Bool = false
     var isSetting: Bool = false
@@ -31,7 +29,6 @@ class VideoManager {
         }
         
         player?.pause()
-        isPlaying = false
         isSetting = true
         
         currentVideo = video
@@ -46,12 +43,10 @@ class VideoManager {
     func togglePlayPause() {
         guard let player else { return }
         
-        if isPlaying {
+        if player.timeControlStatus == .playing {
             player.pause()
-            isPlaying = false
         } else {
             player.play()
-            isPlaying = true
         }
     }
     
@@ -72,8 +67,9 @@ class VideoManager {
             
             let playerItem = AVPlayerItem(url: stream.url)
             
-            // Set external metadata on the player item (now awaiting)
+            #if !os(macOS)
             playerItem.externalMetadata = await createMetadataItems(for: video)
+            #endif
             
             removeTimeObserver()
             
@@ -93,7 +89,6 @@ class VideoManager {
             
             if autoPlay {
                 player?.play()
-                isPlaying = true
             }
             
         } catch {
@@ -137,7 +132,6 @@ class VideoManager {
         
         return metadata
     }
-    
     
     // MARK: - Observers
     private func setupTimeObserver() {

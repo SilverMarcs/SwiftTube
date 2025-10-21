@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftMediaViewer
+import AVKit
 
 struct MiniPlayerAccessoryView: View {
     @Environment(VideoManager.self) var manager
@@ -37,7 +38,7 @@ struct MiniPlayerAccessoryView: View {
                 Button {
                     manager.togglePlayPause()
                 } label: {
-                    Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
+                    Image(systemName: manager.player?.timeControlStatus == .playing ? "pause.fill" : "play.fill")
                         .contentTransition(.symbolEffect(.replace))
                 }
                 #if os(macOS)
