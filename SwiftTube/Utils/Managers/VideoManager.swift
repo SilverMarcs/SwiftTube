@@ -100,9 +100,6 @@ class VideoManager {
              if autoPlay {
                  player?.play()
                  isPlaying = true
-                 #if !os(macOS)
-                 try? AVAudioSession.sharedInstance().setActive(true)
-                 #endif
              }
              
          } catch {
