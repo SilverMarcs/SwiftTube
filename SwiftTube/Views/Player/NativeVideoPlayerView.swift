@@ -17,7 +17,7 @@ struct NativeVideoPlayerView: View {
                         if scenePhase == .active {
                             manager.resumeTimerTracking()
                         } else if scenePhase == .background {
-                            manager.pauseTimerTracking()
+                            manager.removeTimeObserver()
                         }
                     }
                     #endif

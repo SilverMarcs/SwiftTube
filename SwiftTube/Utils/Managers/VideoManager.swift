@@ -20,7 +20,6 @@ class VideoManager {
     var isMiniPlayerVisible: Bool = true
     
     private var timeObserver: Any?
-    private var playbackStatusObservation: NSKeyValueObservation?
     private let userDefaults = UserDefaultsManager.shared
     
     // MARK: - Public Methods
@@ -37,6 +36,7 @@ class VideoManager {
         }
         
         player?.pause()
+        isPlaying = false
         isSetting = true
         
         currentVideo = video
@@ -54,14 +54,10 @@ class VideoManager {
         
         if isPlaying {
             player.pause()
-            #if !os(macOS)
-            try? AVAudioSession.sharedInstance().setActive(false)
-            #endif
+            isPlaying = false
         } else {
             player.play()
-            #if !os(macOS)
-            try? AVAudioSession.sharedInstance().setActive(true)
-            #endif
+            isPlaying = true
         }
     }
     
@@ -82,14 +78,13 @@ class VideoManager {
              
              let playerItem = AVPlayerItem(url: stream.url)
              
-             // Remove existing time observer before replacing item
+             // Remove existing time observer BEFORE replacing item
              removeTimeObserver()
              
              if let existingPlayer = player {
                  existingPlayer.replaceCurrentItem(with: playerItem)
              } else {
                  player = AVPlayer(playerItem: playerItem)
-                 setupPlaybackStatusObserver()
              }
              
              // Seek to saved progress for the NEW video if available
@@ -104,6 +99,7 @@ class VideoManager {
              
              if autoPlay {
                  player?.play()
+                 isPlaying = true
                  #if !os(macOS)
                  try? AVAudioSession.sharedInstance().setActive(true)
                  #endif
@@ -132,20 +128,6 @@ class VideoManager {
         }
     }
     
-    /// Setup KVO observer for player's playback status
-    private func setupPlaybackStatusObserver() {
-        guard let player else { return }
-        
-        playbackStatusObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
-            self?.isPlaying = player.timeControlStatus == .playing
-        }
-    }
-    
-    /// Pause timer tracking (call when app goes to background)
-    func pauseTimerTracking() {
-        removeTimeObserver()
-    }
-    
     /// Resume timer tracking (call when app comes to foreground)
     func resumeTimerTracking() {
         guard timeObserver == nil, player != nil else { return }
@@ -153,7 +135,7 @@ class VideoManager {
     }
     
     /// Remove time observer
-    private func removeTimeObserver() {
+    func removeTimeObserver() {
         guard let player, let observer = timeObserver else { return }
         player.removeTimeObserver(observer)
         timeObserver = nil
