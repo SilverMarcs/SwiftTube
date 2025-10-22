@@ -5,6 +5,8 @@ struct FeedView: View {
     @Environment(VideoLoader.self) private var videoLoader
     var authmanager = GoogleAuthManager.shared
     
+    @State var showSettings: Bool = false
+    
     var body: some View {
         NavigationStack {
             VideoGridView(videos: videoLoader.videos)
@@ -25,13 +27,20 @@ struct FeedView: View {
                         }
                         .keyboardShortcut("r")
                     }
-                    #else
-                    ToolbarItem(placement: .primaryAction) {
-                        CachedAsyncImage(url: URL(string: authmanager.avatarUrl), targetSize: 100)
-                            .frame(width: 30, height: 30)
-                    }
-                    .sharedBackgroundVisibility(.hidden)
                     #endif
+                }
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Label("Settings", systemImage: "gear")
+                        }
+                    }
+                }
+                .sheet(isPresented: $showSettings) {
+                    SettingsView()
+                        .presentationDetents([.medium])
                 }
         }
     }
