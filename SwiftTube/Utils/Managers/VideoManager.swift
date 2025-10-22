@@ -16,7 +16,6 @@ class VideoManager {
     
     var isExpanded: Bool = false
     var isSetting: Bool = false
-    var isMiniPlayerVisible: Bool = true
     
     private var timeObserver: Any?
     private let userDefaults = UserDefaultsManager.shared
@@ -55,12 +54,13 @@ class VideoManager {
         do {
             guard let video = currentVideo else { return }
             
-            let youtube = YouTube(videoID: video.id, methods: [.local, .remote])
+            let youtube = YouTube(videoID: video.id, methods: [.remote, .local])
             let streams = try await youtube.streams
             
             guard let stream = streams
                 .filterVideoAndAudio()
                 .filter({ $0.isNativelyPlayable })
+//                .filter({ ($0.videoResolution ?? 0) <= 1080 })
                 .highestResolutionStream() else {
                 return
             }
@@ -109,7 +109,7 @@ class VideoManager {
         
         // Artist (Channel name)
         let artistItem = AVMutableMetadataItem()
-        artistItem.identifier = .commonIdentifierArtist
+        artistItem.identifier = .iTunesMetadataTrackSubTitle
         artistItem.value = video.channel.title as NSString
         artistItem.extendedLanguageTag = "und"
         metadata.append(artistItem)

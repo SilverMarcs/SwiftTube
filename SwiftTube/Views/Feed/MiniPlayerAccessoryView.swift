@@ -8,7 +8,7 @@ struct MiniPlayerAccessoryView: View {
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
     
     var body: some View {
-        if let video = manager.currentVideo, manager.isMiniPlayerVisible {
+        if let video = manager.currentVideo {
             HStack {
                 Group {
 #if os(macOS)

@@ -75,7 +75,7 @@ struct ShortVideoCard: View {
         do {
             guard currentVideoId == video.id else { return }
             
-            let youtube = YouTube(videoID: video.id, methods: [.local, .remote])
+            let youtube = YouTube(videoID: video.id, methods: [.remote, .local])
             let streams = try await youtube.streams
             
             guard currentVideoId == video.id else { return }
@@ -83,7 +83,7 @@ struct ShortVideoCard: View {
             guard let stream = streams
                 .filterVideoAndAudio()
                 .filter({ $0.isNativelyPlayable })
-                .filter({ ($0.videoResolution ?? 0) <= 1080 })
+//                .filter({ ($0.videoResolution ?? 0) <= 1080 })
                 .highestResolutionStream() else {
                 isLoading = false
                 return

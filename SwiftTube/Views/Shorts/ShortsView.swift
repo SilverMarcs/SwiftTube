@@ -45,17 +45,9 @@ struct ShortsView: View {
 #endif
             }
             .onAppear {
-                #if !os(macOS)
-                DispatchQueue.main.async {
-                    videoManager.isMiniPlayerVisible = false
-                }
-                #endif
                 videoManager.player?.pause()
             }
             .onDisappear {
-                DispatchQueue.main.async {
-                    videoManager.isMiniPlayerVisible = true
-                }
                 shortsPlayer.pause()
                 shortsPlayer.replaceCurrentItem(with: nil)
             }
