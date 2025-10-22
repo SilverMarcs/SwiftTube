@@ -13,8 +13,6 @@ struct ProfileView: View {
 
     @Environment(UserDefaultsManager.self) var userDefaults
     @AppStorage("youtubeAPIKey") private var apiKey = ""
-    
-    @State var showSettings: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -50,19 +48,7 @@ struct ProfileView: View {
             }
             .navigationTitle("Profile")
             .toolbarTitleDisplayMode(.inlineLarge)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Label("Settings", systemImage: "gear")
-                    }
-                }
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsView()
-                    .presentationDetents([.medium])
-            }
+            .modifier(SettingsModifier())
         }
     }
 }

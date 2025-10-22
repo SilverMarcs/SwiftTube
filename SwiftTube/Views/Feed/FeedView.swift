@@ -1,12 +1,10 @@
-import SwiftUI
 import SwiftMediaViewer
+import SwiftUI
 
 struct FeedView: View {
     @Environment(VideoLoader.self) private var videoLoader
     var authmanager = GoogleAuthManager.shared
-    
-    @State var showSettings: Bool = false
-    
+
     var body: some View {
         NavigationStack {
             VideoGridView(videos: videoLoader.videos)
@@ -17,31 +15,19 @@ struct FeedView: View {
                 }
                 .toolbar {
                     #if os(macOS)
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            Task {
-                                await videoLoader.loadAllChannelVideos()
+                        ToolbarItem(placement: .primaryAction) {
+                            Button {
+                                Task {
+                                    await videoLoader.loadAllChannelVideos()
+                                }
+                            } label: {
+                                Label("Refresh", systemImage: "arrow.clockwise")
                             }
-                        } label: {
-                            Label("Refresh", systemImage: "arrow.clockwise")
+                            .keyboardShortcut("r")
                         }
-                        .keyboardShortcut("r")
-                    }
                     #endif
                 }
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Label("Settings", systemImage: "gear")
-                        }
-                    }
-                }
-                .sheet(isPresented: $showSettings) {
-                    SettingsView()
-                        .presentationDetents([.medium])
-                }
+                .modifier(SettingsModifier())
         }
     }
 }
