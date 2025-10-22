@@ -27,7 +27,9 @@ struct FeedView: View {
                         }
                     #endif
                 }
+                #if !os(macOS)
                 .modifier(SettingsModifier())
+                #endif
         }
     }
 }

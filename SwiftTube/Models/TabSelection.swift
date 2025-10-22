@@ -12,6 +12,15 @@ enum TabSelection: String, CaseIterable {
     case shorts = "shorts"
     case profile = "profile"
     case search = "search"
+    case settings = "settings"
+    
+    static var allCases: [TabSelection] {
+        #if os(macOS)
+        return [.feed, .shorts, .profile, .search, .settings]
+        #else
+        return [.feed, .shorts, .profile, .search]
+        #endif
+    }
     
     var title: String {
         switch self {
@@ -19,6 +28,7 @@ enum TabSelection: String, CaseIterable {
         case .shorts: return "Shorts"
         case .profile: return "Profile"
         case .search: return "Search"
+        case .settings: return "Settings"
         }
     }
     
@@ -28,6 +38,7 @@ enum TabSelection: String, CaseIterable {
         case .shorts: return "play.rectangle.on.rectangle"
         case .profile: return "person"
         case .search: return "magnifyingglass"
+        case .settings: return "gear"
         }
     }
     
@@ -35,8 +46,9 @@ enum TabSelection: String, CaseIterable {
         switch self {
         case .feed: return "1"
         case .shorts: return "2"
-        case .profile: return ","
+        case .profile: return "3"
         case .search: return "f"
+        case .settings: return ","
         }
     }
     
@@ -47,6 +59,7 @@ enum TabSelection: String, CaseIterable {
         case .shorts: ShortsView()
         case .profile: ProfileView()
         case .search: SearchView()
+        case .settings: SettingsView()
         }
     }
 }
