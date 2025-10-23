@@ -8,8 +8,8 @@
 import Foundation
 
 @Observable
-final class UserDefaultsManager {
-    static let shared = UserDefaultsManager()
+final class CloudStoreManager {
+    static let shared = CloudStoreManager()
     
 //    private let defaults = UserDefaults.standard
     // Use iCloud key-value store for syncing across devices

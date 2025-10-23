@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ChannelVideoList: View {
     let channel: Channel
-    @Environment(UserDefaultsManager.self) private var userDefaults
+    @Environment(CloudStoreManager.self) private var userDefaults
     @State private var videos: [Video] = []
     @State private var isLoading = true
     @State private var errorMessage: String?

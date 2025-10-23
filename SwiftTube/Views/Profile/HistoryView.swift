@@ -7,7 +7,7 @@
 import SwiftUI
 
 struct HistoryView: View {
-    @Environment(UserDefaultsManager.self) private var userDefaults
+    @Environment(CloudStoreManager.self) private var userDefaults
     @Environment(VideoLoader.self) private var videoLoader
     
     private var historyVideos: [Video] {
@@ -55,5 +55,5 @@ struct HistoryView: View {
 
 #Preview {
     HistoryView()
-        .environment(UserDefaultsManager.shared)
+        .environment(CloudStoreManager.shared)
 }

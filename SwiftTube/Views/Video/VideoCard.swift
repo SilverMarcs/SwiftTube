@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct VideoCard: View {
-    @Environment(UserDefaultsManager.self) private var userDefaults
+    @Environment(CloudStoreManager.self) private var userDefaults
     let video: Video
     var showChannelLink: Bool = true
     

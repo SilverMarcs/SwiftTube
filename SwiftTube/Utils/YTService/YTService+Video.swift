@@ -53,7 +53,7 @@ extension YTService {
         }
         
         let channel: Channel
-        if let savedChannel = UserDefaultsManager.shared.savedChannels.first(where: { $0.id == item.snippet.channelId }) {
+        if let savedChannel = CloudStoreManager.shared.savedChannels.first(where: { $0.id == item.snippet.channelId }) {
             channel = savedChannel
         } else {
             channel = try await YTService.fetchChannel(byId: item.snippet.channelId)

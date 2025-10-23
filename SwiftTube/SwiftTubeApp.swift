@@ -16,7 +16,7 @@ struct SwiftTubeApp: App {
     @State var videoLoader = VideoLoader()
 
     @State var nativeVideoManager = VideoManager()
-    @State var userDefaultsManager = UserDefaultsManager.shared
+    @State var userDefaultsManager = CloudStoreManager.shared
     @State var selectedTab: TabSelection = .feed
     
     var body: some Scene {

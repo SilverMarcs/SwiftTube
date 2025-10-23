@@ -13,7 +13,7 @@ final class VideoLoader {
     private(set) var shortVideos: [Video] = []
     
     private(set) var isLoading: Bool = false
-    private let userDefaults = UserDefaultsManager.shared
+    private let userDefaults = CloudStoreManager.shared
     
     func loadAllChannelVideos() async {
         let channels = userDefaults.savedChannels

@@ -9,7 +9,7 @@ import SwiftUI
 
 struct WatchLaterView: View {
     @Environment(VideoLoader.self) private var videoLoader
-    @Environment(UserDefaultsManager.self) private var userDefaults
+    @Environment(CloudStoreManager.self) private var userDefaults
     
     private var watchLaterVideos: [Video] {
         videoLoader.videos.filter { userDefaults.isWatchLater($0.id) }
@@ -54,5 +54,5 @@ struct WatchLaterView: View {
 
 #Preview {
     WatchLaterView()
-        .environment(UserDefaultsManager.shared)
+        .environment(CloudStoreManager.shared)
 }

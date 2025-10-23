@@ -3,7 +3,7 @@ import SwiftUI
 struct VideoContextMenuModifier: ViewModifier {
     let video: Video
     let showChannelLink: Bool
-    @Environment(UserDefaultsManager.self) private var userDefaults
+    @Environment(CloudStoreManager.self) private var userDefaults
     
     func body(content: Content) -> some View {
         content

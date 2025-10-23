@@ -18,7 +18,7 @@ struct Video: Codable, Identifiable, Hashable {
 extension Video {
     var watchProgressRatio: Double? {
         guard let duration = duration, duration > 0 else { return nil }
-        let progress = UserDefaultsManager.shared.getWatchProgress(videoId: id)
+        let progress = CloudStoreManager.shared.getWatchProgress(videoId: id)
         guard progress > 0 else { return nil }
         return min(progress / Double(duration), 1.0)
     }
@@ -35,11 +35,11 @@ extension Video {
         // The YouTube iframe player sometimes reports currentTime as 0 when playback ends,
         // which would otherwise clear a saved watched progress. If there's already a
         // saved positive progress for this video, do not overwrite it with 0 here.
-        let previousProgress = UserDefaultsManager.shared.getWatchProgress(videoId: id)
+        let previousProgress = CloudStoreManager.shared.getWatchProgress(videoId: id)
         if finalProgress == 0 && previousProgress > 0 {
             return
         }
 
-        UserDefaultsManager.shared.setWatchProgress(videoId: id, progress: finalProgress)
+        CloudStoreManager.shared.setWatchProgress(videoId: id, progress: finalProgress)
     }
 }

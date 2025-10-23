@@ -3,7 +3,7 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct ChannelListView: View {
-    @Environment(UserDefaultsManager.self) private var userDefaults
+    @Environment(CloudStoreManager.self) private var userDefaults
     @AppStorage("youtubeAPIKey") private var apiKey = ""
 
     @State private var showingAddChannel = false

@@ -3,7 +3,7 @@ import SwiftUI
 
 struct AddChannelView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(UserDefaultsManager.self) private var userDefaults
+    @Environment(CloudStoreManager.self) private var userDefaults
     
     @State private var channelInput = ""
     @State private var isLoading = false

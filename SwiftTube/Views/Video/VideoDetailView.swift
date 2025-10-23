@@ -4,7 +4,7 @@ import AVKit
 import YouTubeKit
 
 struct VideoDetailView: View {
-    @Environment(UserDefaultsManager.self) private var userDefaults
+    @Environment(CloudStoreManager.self) private var userDefaults
     @Environment(VideoManager.self) var manager
     @Environment(\.colorScheme) var colorScheme
     

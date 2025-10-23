@@ -11,7 +11,7 @@ import SwiftUI
 struct ProfileView: View {
     var authManager = GoogleAuthManager.shared
 
-    @Environment(UserDefaultsManager.self) var userDefaults
+    @Environment(CloudStoreManager.self) var userDefaults
     @AppStorage("youtubeAPIKey") private var apiKey = ""
 
     var body: some View {

@@ -18,7 +18,7 @@ class VideoManager {
     var isSetting: Bool = false
 
     private var timeObserver: Any?
-    private let userDefaults = UserDefaultsManager.shared
+    private let store = CloudStoreManager.shared
     private let fetchingSettings = FetchingSettings()
 
     func setVideo(_ video: Video, autoPlay: Bool = true) {
@@ -32,7 +32,7 @@ class VideoManager {
         isSetting = true
 
         currentVideo = video
-        userDefaults.addToHistory(video.id)
+        store.addToHistory(video.id)
 
         Task {
             await loadVideoStream(autoPlay: autoPlay)
@@ -83,7 +83,7 @@ class VideoManager {
                 player = AVPlayer(playerItem: playerItem)
             }
 
-            let savedProgress = userDefaults.getWatchProgress(videoId: video.id)
+            let savedProgress = store.getWatchProgress(videoId: video.id)
             if savedProgress > 5 {
                 let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
                 await player?.seek(to: time)
@@ -150,7 +150,7 @@ class VideoManager {
             queue: .main
         ) { [weak self] time in
             guard let self = self else { return }
-            self.userDefaults.setWatchProgress(videoId: videoId, progress: time.seconds)
+            self.store.setWatchProgress(videoId: videoId, progress: time.seconds)
         }
     }
 
