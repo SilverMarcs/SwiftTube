@@ -7,7 +7,7 @@
 
 import AVKit
 import Foundation
-import YouTubeKit
+@preconcurrency import YouTubeKit
 
 @Observable
 class VideoManager {
@@ -150,7 +150,9 @@ class VideoManager {
             queue: .main
         ) { [weak self] time in
             guard let self = self else { return }
-            self.store.setWatchProgress(videoId: videoId, progress: time.seconds)
+            Task {
+                await self.store.setWatchProgress(videoId: videoId, progress: time.seconds)
+            }
         }
     }
 

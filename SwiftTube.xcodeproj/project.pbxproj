@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0848F0CA2E9FBE7C0092DBF5 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0848F0C92E9FBE7C0092DBF5 /* YouTubeKit */; };
+		08E21CC92EAB8A13006E8DC2 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 08E21CC82EAB8A13006E8DC2 /* YouTubeKit */; };
 		08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630512E87AD2A007AD438 /* SwiftMediaViewer */; };
 		08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630542E87AD56007AD438 /* SwiftMediaViewer */; };
 /* End PBXBuildFile section */
@@ -52,7 +52,7 @@
 			files = (
 				08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */,
 				08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */,
-				0848F0CA2E9FBE7C0092DBF5 /* YouTubeKit in Frameworks */,
+				08E21CC92EAB8A13006E8DC2 /* YouTubeKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,7 +97,7 @@
 			packageProductDependencies = (
 				08E630512E87AD2A007AD438 /* SwiftMediaViewer */,
 				08E630542E87AD56007AD438 /* SwiftMediaViewer */,
-				0848F0C92E9FBE7C0092DBF5 /* YouTubeKit */,
+				08E21CC82EAB8A13006E8DC2 /* YouTubeKit */,
 			);
 			productName = SwiftTube;
 			productReference = 08E62F852E871877007AD438 /* SwiftTube.app */;
@@ -129,7 +129,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */,
-				0848F0C82E9FBE7C0092DBF5 /* XCRemoteSwiftPackageReference "YouTubeKit" */,
+				08E21CC72EAB8A13006E8DC2 /* XCRemoteSwiftPackageReference "YouTubeKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 08E62F862E871877007AD438 /* Products */;
@@ -220,6 +220,8 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
@@ -274,7 +276,9 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 			};
 			name = Release;
 		};
@@ -329,7 +333,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
@@ -386,7 +390,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
@@ -416,7 +420,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		0848F0C82E9FBE7C0092DBF5 /* XCRemoteSwiftPackageReference "YouTubeKit" */ = {
+		08E21CC72EAB8A13006E8DC2 /* XCRemoteSwiftPackageReference "YouTubeKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/alexeichhorn/YouTubeKit";
 			requirement = {
@@ -435,9 +439,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		0848F0C92E9FBE7C0092DBF5 /* YouTubeKit */ = {
+		08E21CC82EAB8A13006E8DC2 /* YouTubeKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 0848F0C82E9FBE7C0092DBF5 /* XCRemoteSwiftPackageReference "YouTubeKit" */;
+			package = 08E21CC72EAB8A13006E8DC2 /* XCRemoteSwiftPackageReference "YouTubeKit" */;
 			productName = YouTubeKit;
 		};
 		08E630512E87AD2A007AD438 /* SwiftMediaViewer */ = {

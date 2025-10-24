@@ -1,6 +1,6 @@
 import AVKit
 import SwiftUI
-import YouTubeKit
+@preconcurrency import YouTubeKit
 
 struct ShortVideoCard: View {
     let video: Video
