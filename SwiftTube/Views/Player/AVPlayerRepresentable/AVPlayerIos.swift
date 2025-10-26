@@ -42,6 +42,8 @@ struct AVPlayerIos: UIViewControllerRepresentable {
     
     class Coordinator: NSObject, AVPlayerViewControllerDelegate {
         private var isInFullscreen = false
+        private var wasInFullscreenBeforePiP = false
+        private var isInPiP = false
         weak var playerViewController: AVPlayerViewController?
         
         override init() {
@@ -91,7 +93,13 @@ struct AVPlayerIos: UIViewControllerRepresentable {
                 } else {
                     // Transition completed - actually exiting fullscreen
                     self.isInFullscreen = false
-                    OrientationManager.shared.lockOrientation(.all, rotateTo: .portrait)
+                    
+                    // Only unlock orientation if we're not entering PiP
+                    // (PiP will handle orientation when it stops)
+                    if !self.isInPiP {
+                        OrientationManager.shared.lockOrientation(.all, rotateTo: .portrait)
+                    }
+                    
                     if wasPlaying {
                         playerViewController.player?.play()
                     }
@@ -99,8 +107,48 @@ struct AVPlayerIos: UIViewControllerRepresentable {
             }
         }
         
+        // MARK: - PiP Delegate Methods
+        func playerViewControllerWillStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
+            // Remember if we were in fullscreen before PiP
+            wasInFullscreenBeforePiP = isInFullscreen
+            isInPiP = true
+            
+            // Keep landscape lock if we were in fullscreen
+            if wasInFullscreenBeforePiP {
+                OrientationManager.shared.lockOrientation(.landscape, rotateTo: .landscapeRight)
+            }
+        }
+        
+        func playerViewControllerWillStopPictureInPicture(_ playerViewController: AVPlayerViewController) {
+            // Prepare for restoration based on previous state
+            if wasInFullscreenBeforePiP {
+                // Keep landscape locked so it restores directly to fullscreen
+                OrientationManager.shared.lockOrientation(.landscape, rotateTo: .landscapeRight)
+            } else {
+                // Allow portrait for inline view
+                OrientationManager.shared.lockOrientation(.all, rotateTo: .portrait)
+            }
+        }
+        
+        func playerViewControllerDidStopPictureInPicture(_ playerViewController: AVPlayerViewController) {
+            isInPiP = false
+            
+            // If we were in fullscreen before PiP, restore fullscreen
+            if wasInFullscreenBeforePiP {
+                // Small delay to ensure PiP UI is fully dismissed
+                DispatchQueue.main.async {
+                    playerViewController.perform(NSSelectorFromString("enterFullScreenAnimated:completionHandler:"), with: false, with: nil)
+                    self.wasInFullscreenBeforePiP = false
+                }
+            }
+        }
+        
         // MARK: - Handle foreground return
         @objc private func appWillEnterForeground() {
+            // Don't interfere if we're in PiP - PiP delegates will handle it
+            guard !isInPiP else { return }
+            
+            // Only lock orientation if currently in fullscreen
             guard isInFullscreen else { return }
             
             if let _ = playerViewController {
