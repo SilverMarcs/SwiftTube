@@ -50,16 +50,13 @@ struct MiniPlayerAccessoryView: View {
 
             }
             .contentShape(.rect)
-            .onTapGesture {
-                #if os(macOS)
-                openWindow(id: "media-player")
-                #else
-                manager.isExpanded = true
-                #endif
-            }
             .padding(.horizontal, 12)
             #if os(macOS)
             .padding(.vertical, 8)
+            #else
+            .onTapGesture {
+                manager.isExpanded = true
+            }
             #endif
         }
     }

@@ -29,7 +29,11 @@ struct ContentView: View {
         .tabViewStyle(.sidebarAdaptable)
         #if os(macOS)
         .tabViewSidebarBottomBar {
-            MiniPlayerAccessoryView()
+            if let video = manager.currentVideo {
+                PlayVideoButton(video: video) {
+                    MiniPlayerAccessoryView()
+                }
+            }
         }
         #else
         .tabBarMinimizeBehavior(.onScrollDown)

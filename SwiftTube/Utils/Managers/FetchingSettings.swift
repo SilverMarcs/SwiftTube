@@ -12,6 +12,6 @@ struct FetchingSettings {
     @AppStorage("useLocalFetching") var useLocalFetching: Bool = false
 
     var methods: [YouTube.ExtractionMethod] {
-        useLocalFetching ? [.local, .remote] : [.remote, .local]
+        useLocalFetching ? [.local] : [.remote]
     }
 }
