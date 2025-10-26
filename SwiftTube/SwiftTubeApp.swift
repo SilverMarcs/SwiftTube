@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AVKit
 
 @main
 struct SwiftTubeApp: App {
@@ -61,5 +62,9 @@ struct SwiftTubeApp: App {
         }
         .restorationBehavior(.disabled)
         #endif
+    }
+    
+    init() {
+        AVPlayer.isObservationEnabled = true
     }
 }
