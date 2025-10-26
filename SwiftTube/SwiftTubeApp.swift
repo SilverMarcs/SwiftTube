@@ -60,9 +60,6 @@ struct SwiftTubeApp: App {
                 .environment(userDefaultsManager)
         }
         .restorationBehavior(.disabled)
-        .windowResizability(.contentSize)
-        .defaultSize(width: 1024, height: 576)
-        .windowIdealSize(.fitToContent)
         #endif
     }
 }

@@ -10,22 +10,20 @@ struct NativeVideoPlayerView: View {
     var body: some View {
         Group {
             if let player = manager.player {
-                PlatformPlayerContainer(player: player)
-                    .background(.bar)
-                    #if !os(macOS)
-                    .onChange(of: scenePhase) {
-                        if scenePhase == .active {
-                            manager.resumeTimerTracking()
-                        } else if scenePhase == .background {
-                            manager.removeTimeObserver()
-                        }
-                    }
-                    #endif
+                AVPlayerIos(player: player)
             } else {
                 Color.black
-                    .aspectRatio(16/9, contentMode: .fit)
             }
         }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active {
+                manager.resumeTimerTracking()
+            } else if scenePhase == .background {
+                manager.removeTimeObserver()
+            }
+        }
+        .aspectRatio(16/9, contentMode: .fit)
+        .background(.bar)
         .overlay {
             if manager.isSetting {
                 UniversalProgressView()
