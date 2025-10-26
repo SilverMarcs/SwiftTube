@@ -1,9 +1,6 @@
 import SwiftUI
-import AVKit
-import YouTubeKit
-import SwiftMediaViewer
 
-struct NativeVideoPlayerView: View {
+struct AVPlayerViewIos: View {
     @Environment(\.scenePhase) var scenePhase
     @Environment(VideoManager.self) var manager
 

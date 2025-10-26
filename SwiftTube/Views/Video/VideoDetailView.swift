@@ -16,6 +16,7 @@ struct VideoDetailView: View {
     var body: some View {
         NavigationStack {
             List {
+                #if !os(macOS)
                 Section(video.title) {
                     // Video Stats (Views, Likes, Published)
                     HStack(spacing: 5) {
@@ -40,7 +41,6 @@ struct VideoDetailView: View {
                 }
                 .headerProminence(.increased)
                 .listRowBackground(Color.clear)
-                #if !os(macOS)
                 .listSectionMargins(.all, 0)
                 #endif
                 
@@ -66,7 +66,6 @@ struct VideoDetailView: View {
                     VideoCommentsView(video: video)
                 }
             }
-            .formStyle(.grouped)
             .overlay(alignment: .bottomTrailing) {
                 Menu {
                     ShareLink(item: URL(string: video.url)!) {
@@ -99,7 +98,7 @@ struct VideoDetailView: View {
             .statusBar(hidden: false)
             .safeAreaBar(edge: .top) {
                 if showVideo {
-                    NativeVideoPlayerView()
+                    AVPlayerViewIos()
                 }
             }
             #endif

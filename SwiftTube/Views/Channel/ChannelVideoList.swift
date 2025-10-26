@@ -13,8 +13,7 @@ struct ChannelVideoList: View {
     }
     
     var body: some View {
-        NavigationStack {
-            VideoGridView(videos: videos, showChannelLinkInContextMenu: false)
+        VideoGridView(videos: videos, showChannelLinkInContextMenu: false)
             .navigationTitle(channel.title)
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
@@ -42,10 +41,9 @@ struct ChannelVideoList: View {
                     await loadChannelVideos()
                 }
             }
-        }
-        .sheet(isPresented: $showingDetails) {
-            ChannelDetailView(channel: channel)
-        }
+            .sheet(isPresented: $showingDetails) {
+                ChannelDetailView(channel: channel)
+            }
     }
     
     private func loadChannelVideos() async {

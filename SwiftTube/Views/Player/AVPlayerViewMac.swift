@@ -1,7 +1,7 @@
 import SwiftUI
 import AVKit
 
-struct MediaPlayerWindowView: View {
+struct AVPlayerViewMac: View {
     @Environment(VideoManager.self) var videoManager
     
     @State private var showDetail = false
@@ -27,18 +27,15 @@ struct MediaPlayerWindowView: View {
         .preferredColorScheme(.dark)
         .toolbar {
             Button {
-                showDetail = true
+                showDetail.toggle()
             } label: {
                 Image(systemName: "info")
             }
         }
-        .sheet(isPresented: $showDetail) {
+        .inspector(isPresented: $showDetail) {
             if let video = videoManager.currentVideo {
-                NavigationStack {
-                    VideoDetailView(video: video)
-                        .presentationBackgroundInteraction(.enabled)
-                        .frame(height: 500)
-                }
+                VideoDetailView(video: video)
+                    .id(video.id)
             }
         }
         .onAppear {

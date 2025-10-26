@@ -28,8 +28,8 @@
 				Utils/SettingsModifier.swift = (ios, xros, );
 				Views/Player/AVPlayerRepresentable/AVPlayerIos.swift = (ios, xros, );
 				Views/Player/AVPlayerRepresentable/AVPlayerMac.swift = (macos, );
-				Views/Player/MediaPlayerWindowView.swift = (macos, );
-				Views/Player/NativeVideoPlayerView.swift = (ios, xros, );
+				Views/Player/AVPlayerViewIos.swift = (ios, xros, );
+				Views/Player/AVPlayerViewMac.swift = (macos, );
 			};
 			target = 08E62F842E871877007AD438 /* SwiftTube */;
 		};

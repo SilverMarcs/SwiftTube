@@ -15,15 +15,25 @@ struct AVPlayerIos: UIViewControllerRepresentable {
         let controller = AVPlayerViewController()
         controller.player = player
         controller.allowsPictureInPicturePlayback = true
-        
-        // Delegate + notifications to detect fullscreen reliably
         controller.delegate = context.coordinator
+        
+        // Store reference in coordinator
+        context.coordinator.playerViewController = controller
+        
+        // Add swipe up gesture
+        let swipeUp = UISwipeGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleSwipeUp)
+        )
+        swipeUp.direction = .up
+        controller.view.addGestureRecognizer(swipeUp)
         
         return controller
     }
     
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
         uiViewController.delegate = context.coordinator
+        context.coordinator.playerViewController = uiViewController
     }
     
     func makeCoordinator() -> Coordinator {
@@ -32,7 +42,7 @@ struct AVPlayerIos: UIViewControllerRepresentable {
     
     class Coordinator: NSObject, AVPlayerViewControllerDelegate {
         private var isInFullscreen = false
-        private weak var playerViewController: AVPlayerViewController?
+        weak var playerViewController: AVPlayerViewController?
         
         override init() {
             super.init()
@@ -46,6 +56,14 @@ struct AVPlayerIos: UIViewControllerRepresentable {
         
         deinit {
             NotificationCenter.default.removeObserver(self)
+        }
+        
+        // MARK: - Swipe Gesture Handler
+        @objc func handleSwipeUp() {
+            guard let playerViewController = playerViewController,
+                  !isInFullscreen else { return }
+            
+            playerViewController.perform(NSSelectorFromString("enterFullScreenAnimated:completionHandler:"), with: true, with: nil)
         }
         
         func playerViewController(
@@ -64,13 +82,19 @@ struct AVPlayerIos: UIViewControllerRepresentable {
             _ playerViewController: AVPlayerViewController,
             willEndFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator
         ) {
-            isInFullscreen = false
-            
             let wasPlaying = playerViewController.player?.timeControlStatus == .playing
-            coordinator.animate(alongsideTransition: nil) { _ in
-                OrientationManager.shared.lockOrientation(.all, rotateTo: .portrait)
-                if wasPlaying {
-                    playerViewController.player?.play()
+            
+            coordinator.animate(alongsideTransition: nil) { context in
+                if context.isCancelled {
+                    // Transition was cancelled - stay in fullscreen, re-lock landscape
+                    OrientationManager.shared.lockOrientation(.landscape, rotateTo: .landscapeRight)
+                } else {
+                    // Transition completed - actually exiting fullscreen
+                    self.isInFullscreen = false
+                    OrientationManager.shared.lockOrientation(.all, rotateTo: .portrait)
+                    if wasPlaying {
+                        playerViewController.player?.play()
+                    }
                 }
             }
         }
@@ -79,7 +103,6 @@ struct AVPlayerIos: UIViewControllerRepresentable {
         @objc private func appWillEnterForeground() {
             guard isInFullscreen else { return }
             
-            // Ensure playerViewController reference still valid
             if let _ = playerViewController {
                 OrientationManager.shared.lockOrientation(.landscape, rotateTo: .landscapeRight)
             }

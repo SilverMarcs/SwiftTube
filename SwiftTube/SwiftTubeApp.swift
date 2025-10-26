@@ -56,7 +56,7 @@ struct SwiftTubeApp: App {
         }
         #if os(macOS)
         Window("Media Player", id: "media-player") {
-            MediaPlayerWindowView()
+            AVPlayerViewMac()
                 .environment(nativeVideoManager)
                 .environment(userDefaultsManager)
         }
