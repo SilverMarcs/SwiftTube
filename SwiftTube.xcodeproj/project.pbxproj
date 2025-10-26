@@ -26,8 +26,8 @@
 				AppDelegate.swift = (ios, xros, );
 				Utils/Managers/OrientationManager.swift = (ios, xros, );
 				Utils/SettingsModifier.swift = (ios, xros, );
-				Views/Player/AVMediaPlayer/AVPlayerIos.swift = (ios, xros, );
-				Views/Player/AVMediaPlayer/AVPlayerMac.swift = (macos, );
+				Views/Player/AVPlayerRepresentable/AVPlayerIos.swift = (ios, xros, );
+				Views/Player/AVPlayerRepresentable/AVPlayerMac.swift = (macos, );
 				Views/Player/MediaPlayerWindowView.swift = (macos, );
 				Views/Player/NativeVideoPlayerView.swift = (ios, xros, );
 			};
