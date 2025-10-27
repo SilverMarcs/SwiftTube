@@ -24,8 +24,8 @@
 			);
 			platformFiltersByRelativePath = {
 				AppDelegate.swift = (ios, xros, );
-				Utils/Managers/OrientationManager.swift = (ios, xros, );
-				Utils/SettingsModifier.swift = (ios, xros, );
+				Models/Managers/OrientationManager.swift = (ios, xros, );
+				Views/Components/SettingsModifier.swift = (ios, xros, );
 				Views/Player/AVPlayerRepresentable/AVPlayerIos.swift = (ios, xros, );
 				Views/Player/AVPlayerRepresentable/AVPlayerMac.swift = (macos, );
 				Views/Player/AVPlayerViewIos.swift = (ios, xros, );
