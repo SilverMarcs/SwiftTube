@@ -8,6 +8,7 @@
 import Foundation
 
 @Observable
+@MainActor
 final class CloudStoreManager {
     static let shared = CloudStoreManager()
     
@@ -60,8 +61,12 @@ final class CloudStoreManager {
     }
     
     @objc private func handleCloudStoreChange(_ notification: Notification) {
-        // Reload data when changes come from iCloud
-        load()
+        // Dispatch to main thread to ensure thread safety
+        // The notification arrives on a background queue, but we need to update
+        // @MainActor isolated properties on the main thread
+        Task { @MainActor in
+            self.load()
+        }
     }
     
     private func load() {
