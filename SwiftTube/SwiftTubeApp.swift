@@ -18,6 +18,7 @@ struct SwiftTubeApp: App {
 
     @State var nativeVideoManager = VideoManager()
     @State var userDefaultsManager = CloudStoreManager.shared
+    @State var authManager = GoogleAuthManager()
     @State var selectedTab: TabSelection = .feed
     
     var body: some Scene {
@@ -26,6 +27,7 @@ struct SwiftTubeApp: App {
                 .environment(videoLoader)
                 .environment(nativeVideoManager)
                 .environment(userDefaultsManager)
+                .environment(authManager)
                 .environment(\.openURL, OpenURLAction { url in
                     if let videoId = url.youtubeVideoID {
                         Task {

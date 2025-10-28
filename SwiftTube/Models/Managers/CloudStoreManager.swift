@@ -8,7 +8,6 @@
 import Foundation
 
 @Observable
-@MainActor
 final class CloudStoreManager {
     static let shared = CloudStoreManager()
     

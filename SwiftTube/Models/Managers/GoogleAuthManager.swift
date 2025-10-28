@@ -8,74 +8,89 @@
 import Foundation
 import AuthenticationServices
 
-@Observable class GoogleAuthManager: NSObject, ASWebAuthenticationPresentationContextProviding {
-    static let shared = GoogleAuthManager()
-    
+@Observable
+final class GoogleAuthManager: NSObject, ASWebAuthenticationPresentationContextProviding {
+    // Persisted properties (MainActor isolated for SwiftUI/UI safety)
     private(set) var accessToken: String = ""
     private var refreshToken: String = ""
     private var expirationDate: Date = Date()
     private(set) var fullName: String = ""
     private(set) var avatarUrl: String = ""
     
+    // OAuth configuration
     let clientId = "551349563852-504vr1i2r82rf2ksnpj9qvu8bmc54ns8.apps.googleusercontent.com"
     let redirectUri = "com.googleusercontent.apps.551349563852-504vr1i2r82rf2ksnpj9qvu8bmc54ns8:/oauth2redirect"
     
-    private let queue = DispatchQueue(label: "com.zabir.SwiftTube.tokenmanager")
     private var authenticationSession: ASWebAuthenticationSession?
     
-    private override init() {
+    // Keychain keys
+    private enum Keys {
+        static let access = "google_access_token"
+        static let refresh = "google_refresh_token"
+        static let expiry = "google_token_expiration"
+        static let name = "google_full_name"
+        static let avatar = "google_avatar_url"
+    }
+    
+    override init() {
         super.init()
         loadTokens()
     }
     
-    // TODO: must not save tokens in UserDefaults - will use Keychain later
     private func loadTokens() {
-        accessToken = UserDefaults.standard.string(forKey: "googleAccessToken") ?? ""
-        refreshToken = UserDefaults.standard.string(forKey: "googleRefreshToken") ?? ""
-        expirationDate = UserDefaults.standard.object(forKey: "googleTokenExpirationDate") as? Date ?? Date()
-        fullName = UserDefaults.standard.string(forKey: "googleFullName") ?? ""
-        avatarUrl = UserDefaults.standard.string(forKey: "googleAvatarUrl") ?? ""
+        if let token = KeychainManager.shared.load(key: Keys.access) { accessToken = token }
+        if let token = KeychainManager.shared.load(key: Keys.refresh) { refreshToken = token }
+        if let expiryString = KeychainManager.shared.load(key: Keys.expiry),
+           let seconds = TimeInterval(expiryString) {
+            expirationDate = Date(timeIntervalSince1970: seconds)
+        }
+        if let name = KeychainManager.shared.load(key: Keys.name) { fullName = name }
+        if let avatar = KeychainManager.shared.load(key: Keys.avatar) { avatarUrl = avatar }
     }
     
     private func saveTokens() {
-        UserDefaults.standard.set(accessToken, forKey: "googleAccessToken")
-        UserDefaults.standard.set(refreshToken, forKey: "googleRefreshToken")
-        UserDefaults.standard.set(expirationDate, forKey: "googleTokenExpirationDate")
-        UserDefaults.standard.set(fullName, forKey: "googleFullName")
-        UserDefaults.standard.set(avatarUrl, forKey: "googleAvatarUrl")
+        KeychainManager.shared.save(key: Keys.access, data: accessToken)
+        KeychainManager.shared.save(key: Keys.refresh, data: refreshToken)
+        KeychainManager.shared.save(key: Keys.expiry, data: String(expirationDate.timeIntervalSince1970))
+        KeychainManager.shared.save(key: Keys.name, data: fullName)
+        KeychainManager.shared.save(key: Keys.avatar, data: avatarUrl)
     }
     
     func clearTokens() {
-        queue.async {
-            self.accessToken = ""
-            self.refreshToken = ""
-            self.expirationDate = Date()
-            self.fullName = ""
-            self.avatarUrl = ""
-            self.saveTokens()
-        }
+        accessToken = ""
+        refreshToken = ""
+        expirationDate = Date()
+        fullName = ""
+        avatarUrl = ""
+        
+        KeychainManager.shared.delete(key: Keys.access)
+        KeychainManager.shared.delete(key: Keys.refresh)
+        KeychainManager.shared.delete(key: Keys.expiry)
+        KeychainManager.shared.delete(key: Keys.name)
+        KeychainManager.shared.delete(key: Keys.avatar)
     }
     
     func signIn() async throws {
         let authUrl = URL(string: "https://accounts.google.com/o/oauth2/v2/auth?client_id=\(clientId)&redirect_uri=\(redirectUri)&response_type=code&scope=https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid")!
         let callbackUrlScheme = "com.googleusercontent.apps.551349563852-504vr1i2r82rf2ksnpj9qvu8bmc54ns8"
-        
+
         return try await withCheckedThrowingContinuation { continuation in
-            authenticationSession = ASWebAuthenticationSession(url: authUrl, callbackURLScheme: callbackUrlScheme) { callbackURL, error in
+            authenticationSession = ASWebAuthenticationSession(url: authUrl, callbackURLScheme: callbackUrlScheme) { [weak self] callbackURL, error in
                 if let error = error {
                     continuation.resume(throwing: error)
                     return
                 }
-                
+
                 guard let callbackURL = callbackURL,
                       let queryItems = URLComponents(string: callbackURL.absoluteString)?.queryItems,
                       let code = queryItems.first(where: { $0.name == "code" })?.value else {
                     continuation.resume(throwing: NSError(domain: "GoogleAuthManager", code: 4, userInfo: [NSLocalizedDescriptionKey: "Failed to get authorization code"]))
                     return
                 }
-                
+
                 Task {
                     do {
+                        guard let self = self else { return }
                         try await self.exchangeCodeForTokens(authCode: code)
                         try await self.fetchUserInfo()
                         continuation.resume()
@@ -84,12 +99,12 @@ import AuthenticationServices
                     }
                 }
             }
-            
+
             authenticationSession?.presentationContextProvider = self
             authenticationSession?.start()
         }
     }
-    
+
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         #if os(iOS)
         return UIApplication.shared.windows.first ?? ASPresentationAnchor()
@@ -97,6 +112,8 @@ import AuthenticationServices
         return NSApplication.shared.keyWindow ?? ASPresentationAnchor()
         #endif
     }
+    
+    
     
     var isSignedIn: Bool {
         return !accessToken.isEmpty
@@ -130,11 +147,9 @@ import AuthenticationServices
             throw NSError(domain: "GoogleAuthManager", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])
         }
         
-        DispatchQueue.main.async {
-            self.accessToken = newAccessToken
-            self.expirationDate = Date().addingTimeInterval(expiresIn)
-            self.saveTokens()
-        }
+        self.accessToken = newAccessToken
+        self.expirationDate = Date().addingTimeInterval(expiresIn)
+        self.saveTokens()
         
         return newAccessToken
     }
@@ -166,12 +181,10 @@ import AuthenticationServices
             throw NSError(domain: "GoogleAuthManager", code: 3, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])
         }
         
-        DispatchQueue.main.async {
-            self.accessToken = accessToken
-            self.refreshToken = refreshToken
-            self.expirationDate = Date().addingTimeInterval(expiresIn)
-            self.saveTokens()
-        }
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.expirationDate = Date().addingTimeInterval(expiresIn)
+        self.saveTokens()
     }
     
     func fetchUserInfo() async throws {
@@ -188,11 +201,9 @@ import AuthenticationServices
             throw NSError(domain: "GoogleAuthManager", code: 5, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch user info"])
         }
         
-        DispatchQueue.main.async {
-            self.fullName = name
-            self.avatarUrl = picture
-            self.saveTokens()
-        }
+        self.fullName = name
+        self.avatarUrl = picture
+        self.saveTokens()
     }
     
     func getValidAccessToken() async throws -> String {
@@ -203,16 +214,3 @@ import AuthenticationServices
     }
 }
 
-//#if os(iOS)
-//extension UIViewController: ASWebAuthenticationPresentationContextProviding {
-//    public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-//        return self.view.window ?? ASPresentationAnchor()
-//    }
-//}
-//#elseif os(macOS)
-//extension NSWindow: ASWebAuthenticationPresentationContextProviding {
-//    public func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-//        return self
-//    }
-//}
-//#endif

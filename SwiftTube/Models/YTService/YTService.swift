@@ -34,7 +34,9 @@ enum YTService {
     }
     
     static func fetchOAuthResponse<T: Decodable>(from url: URL) async throws -> T {
-        let accessToken = try await GoogleAuthManager.shared.getValidAccessToken()
+        guard let accessToken = KeychainManager.shared.load(key: "google_access_token"), !accessToken.isEmpty else {
+            throw NSError(domain: "YTService", code: 401, userInfo: [NSLocalizedDescriptionKey: "Missing OAuth token"])
+        }
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         let (data, _) = try await URLSession.shared.data(for: request)

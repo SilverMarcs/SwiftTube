@@ -11,7 +11,7 @@ struct ChannelListView: View {
     @State private var isLoadingSubscriptions = false
     @State private var searchText = ""
     
-    private var authManager = GoogleAuthManager.shared
+    @Environment(GoogleAuthManager.self) private var authManager
     
     // Filter subscriptions that aren't already saved as channels
     private var availableSubscriptions: [Channel] {

@@ -9,7 +9,7 @@ import SwiftMediaViewer
 import SwiftUI
 
 struct ProfileView: View {
-    var authManager = GoogleAuthManager.shared
+    @Environment(GoogleAuthManager.self) private var authManager
 
     @Environment(CloudStoreManager.self) var userDefaults
     @AppStorage("youtubeAPIKey") private var apiKey = ""

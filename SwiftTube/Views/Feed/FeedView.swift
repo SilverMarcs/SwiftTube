@@ -3,7 +3,7 @@ import SwiftUI
 
 struct FeedView: View {
     @Environment(VideoLoader.self) private var videoLoader
-    var authmanager = GoogleAuthManager.shared
+    @Environment(GoogleAuthManager.self) private var authManager
 
     var body: some View {
         NavigationStack {

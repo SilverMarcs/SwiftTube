@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct SignInView: View {
-    private var tokenManager = GoogleAuthManager.shared
+    @Environment(GoogleAuthManager.self) private var tokenManager
 
     @State private var isSigningIn = false
     @State private var showSignOutConfirmation = false   // NEW
@@ -57,10 +57,8 @@ struct SignInView: View {
         Task {
             do {
                 try await tokenManager.signIn()
-                isSigningIn = false
-            } catch {
-                isSigningIn = false
-            }
+            } catch { }
+            isSigningIn = false
         }
     }
 }
