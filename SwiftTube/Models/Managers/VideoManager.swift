@@ -55,21 +55,8 @@ class VideoManager {
         do {
             guard let video = currentVideo else { return }
 
-            let youtube = YouTube(videoID: video.id, methods: fetchingSettings.methods)
-            let streams = try await youtube.streams
-
-            guard
-                let stream =
-                    streams
-                    .filterVideoAndAudio()
-                    .filter({ $0.isNativelyPlayable })
-                    //                .filter({ ($0.videoResolution ?? 0) <= 1080 })
-                    .highestResolutionStream()
-            else {
-                return
-            }
-
-            let playerItem = AVPlayerItem(url: stream.url)
+            let url = try await StreamURLCache.shared.url(for: video.id)
+            let playerItem = AVPlayerItem(url: url)
 
             #if !os(macOS)
                 playerItem.externalMetadata = await createMetadataItems(for: video)
@@ -150,9 +137,7 @@ class VideoManager {
             queue: .main
         ) { [weak self] time in
             guard let self = self else { return }
-            Task {
-                await self.store.setWatchProgress(videoId: videoId, progress: time.seconds)
-            }
+            self.store.setWatchProgress(videoId: videoId, progress: time.seconds)
         }
     }
 

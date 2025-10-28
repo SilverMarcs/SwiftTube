@@ -1,6 +1,5 @@
 import AVKit
 import SwiftUI
-@preconcurrency import YouTubeKit
 
 struct ShortVideoCard: View {
     let video: Video
@@ -11,7 +10,7 @@ struct ShortVideoCard: View {
     @State private var isLoading = true
     @State private var loopObserver: NSObjectProtocol?
 
-    private let fetchingSettings = FetchingSettings()
+    //
 
     var body: some View {
         VideoPlayer(player: player)
@@ -79,26 +78,11 @@ struct ShortVideoCard: View {
         do {
             guard currentVideoId == video.id else { return }
 
-            let youtube = YouTube(videoID: video.id, methods: fetchingSettings.methods)
-            let streams = try await youtube.streams
+            let url = try await StreamURLCache.shared.url(for: video.id)
 
             guard currentVideoId == video.id else { return }
 
-            guard
-                let stream =
-                    streams
-                    .filterVideoAndAudio()
-                    .filter({ $0.isNativelyPlayable })
-                    //                .filter({ ($0.videoResolution ?? 0) <= 1080 })
-                    .highestResolutionStream()
-            else {
-                isLoading = false
-                return
-            }
-
-            guard currentVideoId == video.id else { return }
-
-            let playerItem = AVPlayerItem(url: stream.url)
+            let playerItem = AVPlayerItem(url: url)
             player.replaceCurrentItem(with: playerItem)
             
             // Setup looping

@@ -44,13 +44,18 @@ struct SwiftTubeApp: App {
                 })
                 .task {
                     await videoLoader.loadAllChannelVideos()
-                    
                     // Restore most recently watched video from history without autoplay
                     if nativeVideoManager.currentVideo == nil {
                         if let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
                             nativeVideoManager.setVideo(mostRecentVideo, autoPlay: false)
                         }
                     }
+                    // Prefetch first 10 regular videos and shorts concurrently after loading/shuffling
+                    let regularIDs = Array(videoLoader.videos.prefix(10)).map { $0.id }
+                    let shortIDs = Array(videoLoader.shortVideos.prefix(10)).map { $0.id }
+                    async let a: Void = StreamURLCache.shared.prefetch(ids: regularIDs)
+                    async let b: Void = StreamURLCache.shared.prefetch(ids: shortIDs)
+                    _ = await (a, b)
                 }
         }
         .commands {
