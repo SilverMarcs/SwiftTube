@@ -11,7 +11,20 @@ import YouTubeKit
 actor StreamURLCache {
     static let shared = StreamURLCache()
 
-    private var cache: [String: URL] = [:]
+    // TTL for cached stream URLs: 2 hours
+    private static let ttl: TimeInterval = 2 * 60 * 60
+
+    private struct CacheEntry: Codable {
+        let url: URL
+        let createdAt: Date
+    }
+
+    private struct PersistedEntry: Codable {
+        let url: String
+        let createdAt: TimeInterval // seconds since 1970
+    }
+
+    private var cache: [String: CacheEntry] = [:]
     private var inFlight: [String: Task<URL, Error>] = [:]
     private let fileURL: URL
 
@@ -21,7 +34,12 @@ actor StreamURLCache {
 
     /// Returns a cached stream URL for a given video ID, fetching and caching on miss.
     func url(for videoID: String) async throws -> URL {
-        if let url = cache[videoID] { return url }
+        if let entry = cache[videoID], !isExpired(entry) {
+            return entry.url
+        } else if cache[videoID] != nil {
+            // Expired; drop it so we fetch fresh
+            cache[videoID] = nil
+        }
         if let task = inFlight[videoID] { return try await task.value }
 
         let task = Task<URL, Error> {
@@ -43,7 +61,7 @@ actor StreamURLCache {
 
         do {
             let url = try await task.value
-            cache[videoID] = url
+            cache[videoID] = CacheEntry(url: url, createdAt: Date())
             inFlight[videoID] = nil
             await persistToDisk()
             return url
@@ -83,18 +101,59 @@ actor StreamURLCache {
         }
         self.fileURL = appDir.appendingPathComponent("StreamURLCache.json")
         // Load existing cache from disk
-        if let data = try? Data(contentsOf: fileURL),
-           let dict = try? JSONDecoder().decode([String: String].self, from: data) {
-            var out: [String: URL] = [:]
-            for (k, v) in dict { if let u = URL(string: v) { out[k] = u } }
-            self.cache = out
+        if let data = try? Data(contentsOf: fileURL) {
+            // Try new format first: [String: PersistedEntry]
+            if let dict = try? JSONDecoder().decode([String: PersistedEntry].self, from: data) {
+                var out: [String: CacheEntry] = [:]
+                for (k, v) in dict {
+                    if let u = URL(string: v.url) {
+                        let entry = CacheEntry(url: u, createdAt: Date(timeIntervalSince1970: v.createdAt))
+                        out[k] = entry
+                    }
+                }
+                self.cache = out
+            } else if let legacy = try? JSONDecoder().decode([String: String].self, from: data) {
+                // Legacy format: [id: urlString]. Treat as expired to force refresh.
+                var out: [String: CacheEntry] = [:]
+                for (k, v) in legacy {
+                    if let u = URL(string: v) {
+                        out[k] = CacheEntry(url: u, createdAt: .distantPast)
+                    }
+                }
+                self.cache = out
+            }
         }
+
+        // Prune expired entries on startup
+        pruneExpired()
+        // Persist to transition legacy format or remove expired items
+        Task { await persistToDisk() }
     }
 
     private func persistToDisk() async {
-        let dict = cache.mapValues { $0.absoluteString }
+        let dict: [String: PersistedEntry] = cache.reduce(into: [:]) { acc, pair in
+            acc[pair.key] = PersistedEntry(url: pair.value.url.absoluteString,
+                                           createdAt: pair.value.createdAt.timeIntervalSince1970)
+        }
         if let data = try? JSONEncoder().encode(dict) {
             try? data.write(to: fileURL, options: [.atomic])
+        }
+    }
+
+    // MARK: - Expiry Helpers
+    private func isExpired(_ entry: CacheEntry) -> Bool {
+        return Date().timeIntervalSince(entry.createdAt) > Self.ttl
+    }
+
+    private func pruneExpired() {
+        let before = cache.count
+        cache = cache.filter { !isExpired($0.value) }
+        let after = cache.count
+        if before != after {
+            // best-effort logging in debug builds
+            #if DEBUG
+            print("StreamURLCache: pruned \(before - after) expired entries")
+            #endif
         }
     }
 }
