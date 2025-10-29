@@ -1,5 +1,6 @@
 import AVKit
 import SwiftUI
+@preconcurrency import YouTubeKit
 
 struct ShortVideoCard: View {
     let video: Video
@@ -78,11 +79,21 @@ struct ShortVideoCard: View {
         do {
             guard currentVideoId == video.id else { return }
 
-            let url = try await StreamURLCache.shared.url(for: video.id)
+            // Fetch stream URL on demand using YouTubeKit
+            let methods = FetchingSettings().methods
+            let youtube = YouTube(videoID: video.id, methods: methods)
+            let streams = try await youtube.streams
+            guard let stream = streams
+                .filterVideoAndAudio()
+                .filter({ $0.isNativelyPlayable })
+                .highestResolutionStream()
+            else {
+                throw NSError(domain: "ShortVideoCard", code: 1, userInfo: [NSLocalizedDescriptionKey: "No playable stream found"])
+            }
 
             guard currentVideoId == video.id else { return }
 
-            let playerItem = AVPlayerItem(url: url)
+            let playerItem = AVPlayerItem(url: stream.url)
             player.replaceCurrentItem(with: playerItem)
             
             // Setup looping

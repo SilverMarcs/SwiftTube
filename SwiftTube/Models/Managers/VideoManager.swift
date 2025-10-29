@@ -54,8 +54,18 @@ class VideoManager {
         do {
             guard let video = currentVideo else { return }
 
-            let url = try await StreamURLCache.shared.url(for: video.id)
-            let playerItem = AVPlayerItem(url: url)
+            // Fetch stream URL on demand using YouTubeKit
+            let methods = fetchingSettings.methods
+            let youtube = YouTube(videoID: video.id, methods: methods)
+            let streams = try await youtube.streams
+            guard let stream = streams
+                .filterVideoAndAudio()
+                .filter({ $0.isNativelyPlayable })
+                .highestResolutionStream()
+            else {
+                throw NSError(domain: "VideoManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "No playable stream found"])
+            }
+            let playerItem = AVPlayerItem(url: stream.url)
 
             #if !os(macOS)
                 playerItem.externalMetadata = await createMetadataItems(for: video)

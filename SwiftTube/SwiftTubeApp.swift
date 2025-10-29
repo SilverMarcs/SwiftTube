@@ -50,27 +50,6 @@ struct SwiftTubeApp: App {
                             nativeVideoManager.setVideo(mostRecentVideo, autoPlay: false)
                         }
                     }
-                    // Prefetch first 10 regular videos and shorts concurrently after loading/shuffling
-                    let regularIDs = Array(videoLoader.videos.prefix(10)).map { $0.id }
-
-                    // Only create shortIDs and prefetch them if NOT on macOS
-                    #if !os(macOS)
-                    let shortIDs = Array(videoLoader.shortVideos.prefix(10)).map { $0.id }
-                    #endif
-
-                    async let a: Void = StreamURLCache.shared.prefetch(ids: regularIDs)
-
-                    // Conditionally prefetch shortIDs
-                    #if !os(macOS)
-                    async let b: Void = StreamURLCache.shared.prefetch(ids: shortIDs)
-                    #endif
-
-                    // Await based on whether 'b' was declared
-                    #if !os(macOS)
-                    _ = await (a, b)
-                    #else
-                    _ = await a // Only await 'a' if 'b' wasn't declared
-                    #endif
                 }
         }
         .commands {
