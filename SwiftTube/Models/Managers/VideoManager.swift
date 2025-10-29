@@ -16,14 +16,13 @@ class VideoManager {
 
     var isExpanded: Bool = false
     var isSetting: Bool = false
-
-    private var timeObserver: Any?
     private let store = CloudStoreManager.shared
     private let fetchingSettings = FetchingSettings()
 
     func setVideo(_ video: Video, autoPlay: Bool = true) {
         isExpanded = autoPlay
-
+           persistCurrentTime()
+        
         guard video.id != currentVideo?.id else {
             return
         }
@@ -62,8 +61,6 @@ class VideoManager {
                 playerItem.externalMetadata = await createMetadataItems(for: video)
             #endif
 
-            removeTimeObserver()
-
             if let existingPlayer = player {
                 existingPlayer.replaceCurrentItem(with: playerItem)
             } else {
@@ -75,8 +72,6 @@ class VideoManager {
                 let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
                 await player?.seek(to: time)
             }
-
-            setupTimeObserver()
 
             if autoPlay {
                 player?.play()
@@ -124,33 +119,11 @@ class VideoManager {
         return metadata
     }
 
-    // MARK: - Observers
-    private func setupTimeObserver() {
-        guard let player, let video = currentVideo else { return }
-
-        removeTimeObserver()
-
-        // Capture the video ID at observer setup time to avoid tracking progress for the wrong video
-        let videoId = video.id
-        self.timeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 10, preferredTimescale: 1),
-            queue: .main
-        ) { [weak self] time in
-            guard let self = self else { return }
-            self.store.setWatchProgress(videoId: videoId, progress: time.seconds)
-        }
-    }
-
-    /// Resume timer tracking (call when app comes to foreground)
-    func resumeTimerTracking() {
-        guard timeObserver == nil, player != nil else { return }
-        setupTimeObserver()
-    }
-
-    /// Remove time observer
-    func removeTimeObserver() {
-        guard let player, let observer = timeObserver else { return }
-        player.removeTimeObserver(observer)
-        timeObserver = nil
+    // MARK: - Persistence
+    func persistCurrentTime() {
+        guard let player = player, let videoId = currentVideo?.id else { return }
+        let seconds = player.currentTime().seconds
+        guard seconds.isFinite, seconds > 0 else { return }
+        store.setWatchProgress(videoId: videoId, progress: seconds)
     }
 }

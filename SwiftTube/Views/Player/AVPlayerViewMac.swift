@@ -14,6 +14,7 @@ struct AVPlayerViewMac: View {
             } else if let player = videoManager.player {
                 AVPlayerMac(player: player)
                     .onDisappear {
+                        videoManager.persistCurrentTime()
                         videoManager.player?.pause()
                     }
             }
@@ -26,10 +27,17 @@ struct AVPlayerViewMac: View {
         .navigationSubtitle(videoManager.currentVideo?.channel.title ?? "Channel")
         .preferredColorScheme(.dark)
         .toolbar {
-            Button {
-                showDetail.toggle()
-            } label: {
-                Image(systemName: "info")
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    videoManager.persistCurrentTime()
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
+                }
+                Button {
+                    showDetail.toggle()
+                } label: {
+                    Image(systemName: "info")
+                }
             }
         }
         .inspector(isPresented: $showDetail) {

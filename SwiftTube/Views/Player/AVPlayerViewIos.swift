@@ -13,11 +13,10 @@ struct AVPlayerViewIos: View {
             }
         }
         .onChange(of: scenePhase) {
-            if scenePhase == .active {
-                manager.resumeTimerTracking()
-            } else if scenePhase == .background {
-                manager.removeTimeObserver()
-            }
+            manager.persistCurrentTime()
+        }
+        .onDisappear {
+            manager.persistCurrentTime()
         }
         .aspectRatio(16/9, contentMode: .fit)
         .background(.bar)
