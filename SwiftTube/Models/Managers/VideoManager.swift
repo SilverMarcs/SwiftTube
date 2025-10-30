@@ -131,6 +131,8 @@ class VideoManager {
 
     // MARK: - Persistence
     func persistCurrentTime() {
+        // Avoid saving while we're in the middle of switching videos
+        if isSetting { return }
         guard let player = player, let videoId = currentVideo?.id else { return }
         let seconds = player.currentTime().seconds
         guard seconds.isFinite, seconds > 0 else { return }
