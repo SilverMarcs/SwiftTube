@@ -2,7 +2,9 @@ import SwiftUI
 import AVKit
 
 struct AVPlayerViewMac: View {
+    // TODO: pass vdieo dirtvy to it rathe rthan videomanager.
     @Environment(VideoManager.self) var videoManager
+    @Environment(CloudStoreManager.self) private var userDefaults
     
     @State private var showDetail = false
     
@@ -29,24 +31,38 @@ struct AVPlayerViewMac: View {
         .navigationTitle(videoManager.currentVideo?.title ?? "Loading")
         .navigationSubtitle(videoManager.currentVideo?.channel.title ?? "Channel")
         .preferredColorScheme(.dark)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button {
-                    videoManager.persistCurrentTime()
-                } label: {
-                    Image(systemName: "square.and.arrow.down")
-                }
-                Button {
-                    showDetail.toggle()
-                } label: {
-                    Image(systemName: "info")
-                }
-            }
-        }
         .inspector(isPresented: $showDetail) {
             if let video = videoManager.currentVideo {
                 VideoDetailView(video: video)
                     .id(video.id)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .primaryAction) {
+                            if let video = videoManager.currentVideo {
+                                ShareLink(item: URL(string: video.url)!) {
+                                    Label("Share Video", systemImage: "square.and.arrow.up")
+                                }
+                                
+                                Button {
+                                    userDefaults.toggleWatchLater(video.id)
+                                } label: {
+                                    Label(
+                                        userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
+                                        systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
+                                    )
+                                }
+                            }
+                        }
+                        
+                        ToolbarSpacer()
+                        
+                        ToolbarItem {
+                            Button {
+                                showDetail.toggle()
+                            } label: {
+                                Image(systemName: "info")
+                            }
+                        }
+                    }
             }
         }
         .onAppear {

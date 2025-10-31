@@ -66,6 +66,7 @@ struct VideoDetailView: View {
                     VideoCommentsView(video: video)
                 }
             }
+            #if !os(macOS)
             .overlay(alignment: .bottomTrailing) {
                 Menu {
                     ShareLink(item: URL(string: video.url)!) {
@@ -94,7 +95,6 @@ struct VideoDetailView: View {
                 .padding()
                 .ignoresSafeArea()
             }
-            #if !os(macOS)
             .statusBar(hidden: false)
             .safeAreaBar(edge: .top) {
                 if showVideo {
