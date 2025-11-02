@@ -112,11 +112,11 @@ struct AVPlayerIos: UIViewControllerRepresentable {
             // Remember if we were in fullscreen before PiP
             wasInFullscreenBeforePiP = isInFullscreen
             isInPiP = true
-            
-            // Keep landscape lock if we were in fullscreen
-            if wasInFullscreenBeforePiP {
-                OrientationManager.shared.lockOrientation(.landscape, rotateTo: .landscapeRight)
-            }
+        }
+        
+        func playerViewControllerDidStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
+            // Unlock orientation when entering PiP so app can rotate freely
+            OrientationManager.shared.lockOrientation(.all, rotateTo: .portrait)
         }
         
         func playerViewControllerWillStopPictureInPicture(_ playerViewController: AVPlayerViewController) {
