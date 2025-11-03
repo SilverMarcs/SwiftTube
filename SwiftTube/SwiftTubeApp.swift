@@ -45,7 +45,7 @@ struct SwiftTubeApp: App {
                 })
                 .task(id: scenePhase) {
                     if scenePhase == .active {
-                        await videoLoader.loadAllChannelVideos(fetchDetails: true)
+                        await videoLoader.loadAllChannelVideos(shuffleShorts: videoLoader.shortVideos.isEmpty)
                         
                         if nativeVideoManager.currentVideo == nil {
                             if let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
