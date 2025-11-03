@@ -15,7 +15,7 @@ struct AVPlayerViewMac: View {
                     .background(.black)
             } else if let player = videoManager.player {
                 AVPlayerMac(player: player)
-                    .onChange(of: player.timeControlStatus) {
+                    .task(id: player.timeControlStatus) {
                         videoManager.persistCurrentTime()
                     }
                     .onDisappear {

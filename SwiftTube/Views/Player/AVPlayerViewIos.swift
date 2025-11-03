@@ -8,7 +8,7 @@ struct AVPlayerViewIos: View {
         Group {
             if let player = manager.player {
                 AVPlayerIos(player: player)
-                    .onChange(of: player.timeControlStatus) {
+                    .task(id: player.timeControlStatus) {
                         manager.persistCurrentTime()
                     }
                     .onDisappear {
