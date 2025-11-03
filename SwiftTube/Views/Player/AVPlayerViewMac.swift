@@ -22,6 +22,9 @@ struct AVPlayerViewMac: View {
                     .onDisappear {
                         videoManager.persistCurrentTime()
                         videoManager.player?.pause()
+                        Task {
+                            await videoLoader.loadAllChannelVideos(shuffleShorts: false)
+                        }
                     }
             }
         }
