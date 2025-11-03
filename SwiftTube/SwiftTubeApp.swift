@@ -13,6 +13,7 @@ struct SwiftTubeApp: App {
     #if !os(macOS)
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
+    @Environment(\.scenePhase) var scenePhase
     
     @State var videoLoader = VideoLoader()
 
@@ -42,12 +43,14 @@ struct SwiftTubeApp: App {
                     }
                     return .systemAction
                 })
-                .task {
-                    await videoLoader.loadAllChannelVideos()
-                    // Restore most recently watched video from history without autoplay
-                    if nativeVideoManager.currentVideo == nil {
-                        if let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
-                            nativeVideoManager.setVideo(mostRecentVideo, autoPlay: false)
+                .task(id: scenePhase) {
+                    if scenePhase == .active {
+                        await videoLoader.loadAllChannelVideos(fetchDetails: true)
+                        
+                        if nativeVideoManager.currentVideo == nil {
+                            if let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
+                                nativeVideoManager.setVideo(mostRecentVideo, autoPlay: false)
+                            }
                         }
                     }
                 }

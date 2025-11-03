@@ -15,11 +15,6 @@ struct AVPlayerViewIos: View {
                     .onDisappear {
                         manager.persistCurrentTime()
                     }
-                    .task(id: manager.isExpanded) {
-                        if !manager.isExpanded {
-                            Task { await videoLoader.loadAllChannelVideos(fetchDetails: true) }
-                        }
-                    }
             } else {
                 Color.black
             }
