@@ -47,11 +47,6 @@ struct SearchView: View {
                 }
             }
             .searchable(text: $searchText, placement: .toolbarPrincipal, prompt: "Search videos or channels")
-            .searchFocused($isFocused)
-            .task {
-                try? await Task.sleep(nanoseconds: 1_000_000)
-                isFocused = true
-            }
             .searchScopes($searchScope, activation: .onSearchPresentation) {
                 Text(SearchScope.video.rawValue).tag(SearchScope.video)
                 Text(SearchScope.channel.rawValue).tag(SearchScope.channel)

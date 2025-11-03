@@ -10,13 +10,7 @@ struct MiniPlayerAccessoryView: View {
     var body: some View {
         if let video = manager.currentVideo {
             HStack {
-                Group {
-#if os(macOS)
-                    CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
-#else
-                    AsyncImage(url: URL(string: video.thumbnailURL))
-#endif
-                }
+                CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 40, height: 34)
                 .clipShape(.rect(cornerRadius: 10))
@@ -46,6 +40,8 @@ struct MiniPlayerAccessoryView: View {
                 .buttonStyle(.glassProminent)
                 .buttonBorderShape(.circle)
                 .controlSize(.large)
+                #else
+                .tint(.primary)
                 #endif
 
             }

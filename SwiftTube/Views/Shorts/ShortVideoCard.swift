@@ -11,8 +11,6 @@ struct ShortVideoCard: View {
     @State private var isLoading = true
     @State private var loopObserver: NSObjectProtocol?
 
-    //
-
     var body: some View {
         VideoPlayer(player: player)
             .aspectRatio(9 / 16, contentMode: .fit)
