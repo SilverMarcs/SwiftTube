@@ -3,6 +3,7 @@ import AVKit
 
 struct AVPlayerViewIos: View {
     @Environment(VideoManager.self) var manager
+    @Environment(VideoLoader.self) private var videoLoader
 
     var body: some View {
         Group {
@@ -13,6 +14,11 @@ struct AVPlayerViewIos: View {
                     }
                     .onDisappear {
                         manager.persistCurrentTime()
+                    }
+                    .task(id: manager.isExpanded) {
+                        if !manager.isExpanded {
+                            Task { await videoLoader.loadAllChannelVideos(fetchDetails: true) }
+                        }
                     }
             } else {
                 Color.black

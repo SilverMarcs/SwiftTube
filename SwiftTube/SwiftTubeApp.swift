@@ -60,6 +60,7 @@ struct SwiftTubeApp: App {
             AVPlayerViewMac()
                 .environment(nativeVideoManager)
                 .environment(userDefaultsManager)
+                .environment(videoLoader)
         }
         .restorationBehavior(.disabled)
         #endif

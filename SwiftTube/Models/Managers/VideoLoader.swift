@@ -15,7 +15,7 @@ final class VideoLoader {
     private(set) var isLoading: Bool = false
     private let userDefaults = CloudStoreManager.shared
     
-    func loadAllChannelVideos() async {
+    func loadAllChannelVideos(fetchDetails: Bool = true) async {
         let channels = userDefaults.savedChannels
         guard !channels.isEmpty else {
             videos = []
@@ -55,6 +55,8 @@ final class VideoLoader {
         self.shortVideos = shorts.shuffled()
         
         // Fetch details for the first 50 regular videos
+        guard fetchDetails else { return }
+        
         let videosForDetails = self.videos.prefix(50)
         if !videosForDetails.isEmpty {
             do {
