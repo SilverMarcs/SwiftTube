@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SwiftMediaViewer
 
 struct ContentView: View {
     @Environment(VideoManager.self) var manager
@@ -37,11 +36,19 @@ struct ContentView: View {
             }
         }
         #else
+        .overlay {
+            if selectedTab == .shorts {
+                GeometryReader { geometry in
+                    ShortsView()
+                        .frame(height: geometry.size.height * 0.93)
+                }
+            }
+        }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory {
             if selectedTab != .shorts {
                 MiniPlayerAccessoryView()
-                .matchedTransitionSource(id: "MINIPLAYER", in: animation)
+                    .matchedTransitionSource(id: "MINIPLAYER", in: animation)
             }
         }
         .fullScreenCover(isPresented: $manager.isExpanded) {
