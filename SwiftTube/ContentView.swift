@@ -27,6 +27,7 @@ struct ContentView: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+        .tabViewSearchActivation(.searchTabSelection)
         #if os(macOS)
         .tabViewSidebarBottomBar {
             if let video = manager.currentVideo {
