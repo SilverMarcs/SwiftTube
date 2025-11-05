@@ -15,7 +15,7 @@ final class VideoLoader {
     private(set) var isLoading: Bool = false
     private let userDefaults = CloudStoreManager.shared
     
-    func loadAllChannelVideos(shuffleShorts: Bool = true) async {
+    func loadAllChannelVideos() async {
         let channels = userDefaults.savedChannels
         guard !channels.isEmpty else {
             videos = []
@@ -52,11 +52,7 @@ final class VideoLoader {
         
         // Update observable arrays (atomic updates)
         self.videos = sortedVideos
-        if shuffleShorts {
-            self.shortVideos = shorts.shuffled()
-        } else {
-            self.shortVideos = shorts
-        }
+        self.shortVideos = shorts.shuffled()
         
         let videosForDetails = self.videos.prefix(50)
         if !videosForDetails.isEmpty {
