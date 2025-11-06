@@ -6,7 +6,7 @@ struct ShortsView: View {
     @Environment(VideoManager.self) var videoManager
     
     @State private var shortsPlayer = AVPlayer()
-    @State private var currentVideoId: String?
+    @State private var activeVideoId: String?
     
     var body: some View {
         NavigationStack {
@@ -18,8 +18,9 @@ struct ShortsView: View {
                             ShortVideoCard(
                                 video: video,
                                 player: shortsPlayer,
-                                currentVideoId: $currentVideoId
+                                isActive: video.id == activeVideoId
                             )
+                            .id(video.id)
                             .containerRelativeFrame([.vertical])
                         }
                     }
@@ -28,14 +29,16 @@ struct ShortsView: View {
                 .navigationTitle("Shorts")
                 .scrollTargetBehavior(.paging)
                 .scrollIndicators(.hidden)
+                .scrollPosition(id: $activeVideoId)
 #else
-                TabView {
+                TabView(selection: $activeVideoId) {
                     ForEach(videoLoader.shortVideos) { video in
                         ShortVideoCard(
                             video: video,
                             player: shortsPlayer,
-                            currentVideoId: $currentVideoId
+                            isActive: video.id == activeVideoId
                         )
+                        .tag(video.id)
                     }
                 }
                 .background(.black)
@@ -46,6 +49,10 @@ struct ShortsView: View {
             }
             .onAppear {
                 videoManager.player?.pause()
+                // Initialize selection to the first item if not set
+                if activeVideoId == nil {
+                    activeVideoId = videoLoader.shortVideos.first?.id
+                }
             }
             .onDisappear {
                 shortsPlayer.pause()

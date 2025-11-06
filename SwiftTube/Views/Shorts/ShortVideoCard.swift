@@ -5,14 +5,14 @@ import SwiftUI
 struct ShortVideoCard: View {
     let video: Video
     let player: AVPlayer
-    @Binding var currentVideoId: String?
+    let isActive: Bool
 
     @State private var showDetail = false
-    @State private var isLoading = true
+    @State private var isLoading = false
     @State private var loopObserver: NSObjectProtocol?
 
     var body: some View {
-        VideoPlayer(player: player)
+        VideoPlayer(player: isActive ? player : nil)
             .aspectRatio(9 / 16, contentMode: .fit)
             .clipped()
             .overlay(alignment: .bottom) {
@@ -46,13 +46,18 @@ struct ShortVideoCard: View {
                 }
             }
             .onAppear {
-                currentVideoId = video.id
-                Task { await loadVideo() }
+                if isActive {
+                    Task { await loadVideo() }
+                }
             }
             .onDisappear {
-                if currentVideoId == video.id {
+                cleanup()
+            }
+            .onChange(of: isActive) { _, newValue in
+                if newValue {
+                    Task { await loadVideo() }
+                } else {
                     cleanup()
-                    currentVideoId = nil
                 }
             }
             .sheet(isPresented: $showDetail) {
@@ -66,7 +71,7 @@ struct ShortVideoCard: View {
     }
 
     private func loadVideo() async {
-        guard currentVideoId == video.id else { return }
+        guard isActive else { return }
 
         isLoading = true
 
@@ -75,7 +80,7 @@ struct ShortVideoCard: View {
         removeLoopObserver()
 
         do {
-            guard currentVideoId == video.id else { return }
+            guard isActive else { return }
 
             // Fetch stream URL on demand using YouTubeKit
             let methods = FetchingSettings().methods
@@ -89,7 +94,7 @@ struct ShortVideoCard: View {
                 throw NSError(domain: "ShortVideoCard", code: 1, userInfo: [NSLocalizedDescriptionKey: "No playable stream found"])
             }
 
-            guard currentVideoId == video.id else { return }
+            guard isActive else { return }
 
             let playerItem = AVPlayerItem(url: stream.url)
             player.replaceCurrentItem(with: playerItem)
@@ -115,10 +120,10 @@ struct ShortVideoCard: View {
             object: playerItem,
             queue: .main
         ) { [weak player] _ in
-            guard currentVideoId == video.id else { return }
+            guard let player, player.currentItem === playerItem else { return }
             // Seek to beginning and play again
-            player?.seek(to: .zero)
-            player?.play()
+            player.seek(to: .zero)
+            player.play()
         }
     }
     
@@ -133,5 +138,6 @@ struct ShortVideoCard: View {
         player.pause()
         player.replaceCurrentItem(with: nil)
         removeLoopObserver()
+        isLoading = false
     }
 }
