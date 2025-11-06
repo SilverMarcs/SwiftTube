@@ -7,8 +7,6 @@ struct SearchView: View {
     @State private var results: SearchResults = SearchResults(videos: [], channels: [])
     @State private var isLoading = false
     
-    @FocusState private var isFocused
-    
     enum SearchScope: String, Hashable, CaseIterable {
         case video = "Videos"
         case channel = "Channels"
