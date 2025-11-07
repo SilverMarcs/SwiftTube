@@ -56,13 +56,9 @@ enum TabSelection: String, CaseIterable {
     var tabView: some View {
         switch self {
         case .feed: FeedView()
-        #if os(macOS)
         case .shorts: ShortsView()
-        #else
-        case .shorts: EmptyView()
-        #endif
         case .profile: ProfileView()
-        case .search: SearchView()
+        case .search: EmptyView()
         case .settings: SettingsView()
         }
     }

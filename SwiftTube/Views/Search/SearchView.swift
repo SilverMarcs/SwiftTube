@@ -1,17 +1,11 @@
 import SwiftUI
 
 struct SearchView: View {
-    @State private var searchText: String = ""
+    @Binding var searchText: String
     @State private var searchScope: SearchScope = .video
     
     @State private var results: SearchResults = SearchResults(videos: [], channels: [])
     @State private var isLoading = false
-    
-    enum SearchScope: String, Hashable, CaseIterable, Identifiable {
-        case video = "Videos"
-        case channel = "Channels"
-        var id: String { rawValue }
-    }
     
     var body: some View {
         NavigationStack {
@@ -45,7 +39,6 @@ struct SearchView: View {
                     UniversalProgressView()
                 }
             }
-            .searchable(text: $searchText, placement: .toolbarPrincipal, prompt: "Search videos or channels")
             .searchScopes($searchScope, activation: .onSearchPresentation) {
                 ForEach(SearchScope.allCases) { scope in
                     Text(scope.rawValue)
@@ -75,4 +68,10 @@ struct SearchView: View {
             print("Error in SearchView: \(error.localizedDescription)")
         }
     }
+}
+
+enum SearchScope: String, Hashable, CaseIterable, Identifiable {
+    case video = "Videos"
+    case channel = "Channels"
+    var id: String { rawValue }
 }

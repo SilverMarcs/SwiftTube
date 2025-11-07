@@ -48,11 +48,6 @@ struct MiniPlayerAccessoryView: View {
             .contentShape(.rect)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            #if !os(macOS)
-            .onTapGesture {
-                manager.isExpanded = true
-            }
-            #endif
         }
     }
 }

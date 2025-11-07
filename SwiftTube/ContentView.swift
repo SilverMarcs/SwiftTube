@@ -13,6 +13,7 @@ struct ContentView: View {
     @Binding var selectedTab: TabSelection
     
     @Namespace private var animation
+    @State private var searchText: String = ""
     
     var body: some View {
         @Bindable var manager = manager
@@ -24,12 +25,18 @@ struct ContentView: View {
                     value: tab,
                     role: tab == .search ? .search : .none)
                 {
-                    tab.tabView
+                    switch tab {
+                    case .search:
+                        SearchView(searchText: $searchText)
+                    default:
+                        tab.tabView
+                    }
                 }
             }
         }
         .tabViewStyle(.sidebarAdaptable)
         .tabViewSearchActivation(.searchTabSelection)
+        .searchable(text: $searchText, placement: .toolbarPrincipal, prompt: "Search videos or channels")
         #if os(macOS)
         .tabViewSidebarBottomBar {
             if let video = manager.currentVideo {
@@ -39,19 +46,14 @@ struct ContentView: View {
             }
         }
         #else
-        .overlay {
-            if selectedTab == .shorts {
-                GeometryReader { geometry in
-                    ShortsView()
-                        .frame(height: geometry.size.height * 0.93)
-                }
-            }
-        }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory {
             if selectedTab != .shorts {
                 MiniPlayerAccessoryView()
                     .matchedTransitionSource(id: "MINIPLAYER", in: animation)
+                    .onTapGesture {
+                        manager.isExpanded = true
+                    }
             }
         }
         .fullScreenCover(isPresented: $manager.isExpanded) {
