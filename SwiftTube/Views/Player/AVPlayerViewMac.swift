@@ -23,7 +23,7 @@ struct AVPlayerViewMac: View {
                         videoManager.persistCurrentTime()
                         videoManager.player?.pause()
                         Task {
-                            await videoLoader.loadAllChannelVideos(shuffleShorts: false)
+                            await videoLoader.loadAllChannelVideos()
                         }
                     }
             }

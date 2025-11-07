@@ -11,7 +11,6 @@ struct ContentView: View {
     @Environment(VideoManager.self) var manager
 
     @Binding var selectedTab: TabSelection
-    @State private var isCustomFullscreen = false
     
     @Namespace private var animation
     
@@ -20,7 +19,11 @@ struct ContentView: View {
 
         TabView(selection: $selectedTab) {
             ForEach(TabSelection.allCases, id: \.self) { tab in
-                Tab(tab.title, systemImage: tab.systemImage, value: tab, role: tab == .search ? .search : .none) {
+                Tab(tab.title,
+                    systemImage: tab.systemImage,
+                    value: tab,
+                    role: tab == .search ? .search : .none)
+                {
                     tab.tabView
                 }
             }
