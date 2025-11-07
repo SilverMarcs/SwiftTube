@@ -7,9 +7,10 @@ struct SearchView: View {
     @State private var results: SearchResults = SearchResults(videos: [], channels: [])
     @State private var isLoading = false
     
-    enum SearchScope: String, Hashable, CaseIterable {
+    enum SearchScope: String, Hashable, CaseIterable, Identifiable {
         case video = "Videos"
         case channel = "Channels"
+        var id: String { rawValue }
     }
     
     var body: some View {
@@ -46,8 +47,10 @@ struct SearchView: View {
             }
             .searchable(text: $searchText, placement: .toolbarPrincipal, prompt: "Search videos or channels")
             .searchScopes($searchScope, activation: .onSearchPresentation) {
-                Text(SearchScope.video.rawValue).tag(SearchScope.video)
-                Text(SearchScope.channel.rawValue).tag(SearchScope.channel)
+                ForEach(SearchScope.allCases) { scope in
+                    Text(scope.rawValue)
+                        .tag(scope)
+                }
             }
             .onSubmit(of: .search) {
                 Task {
