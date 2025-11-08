@@ -23,6 +23,9 @@ struct AVPlayerViewMac: View {
                         videoManager.persistCurrentTime()
                         videoManager.player?.pause()
                         Task {
+                            if let mostRecent = videoLoader.getMostRecentHistoryVideo() {
+                                videoManager.setVideo(mostRecent, autoPlay: false)
+                            }
                             await videoLoader.loadAllChannelVideos()
                         }
                     }
