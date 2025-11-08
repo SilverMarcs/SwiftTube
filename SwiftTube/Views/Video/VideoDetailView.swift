@@ -33,12 +33,10 @@ struct VideoDetailView: View {
                             Label(likesText, systemImage: "hand.thumbsup")
                                 .labelIconToTitleSpacing(3)
                         }
+                        
+                        menu
                     }
-                    #if os(macOS)
                     .font(.system(size: 14))
-                    #else
-                    .font(.system(size: 12))
-                    #endif
                     .foregroundStyle(.secondary)
                     .listRowSeparator(.hidden, edges: .bottom)
                     .listRowInsets([.vertical], 0)
@@ -71,34 +69,6 @@ struct VideoDetailView: View {
                 }
             }
             #if !os(macOS)
-            .overlay(alignment: .bottomTrailing) {
-                Menu {
-                    ShareLink(item: URL(string: video.url)!) {
-                        Label("Share Video", systemImage: "square.and.arrow.up")
-                    }
-                    .tint(.primary)
-                    
-                    Button {
-                        userDefaults.toggleWatchLater(video.id)
-                    } label: {
-                        Label(
-                            userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
-                            systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
-                        )
-                    }
-                    .tint(.primary)
-                } label: {
-                    Image(systemName: "shippingbox.fill")
-                }
-                .tint(Color.accentColor.secondary)
-                .menuStyle(.button)
-                .controlSize(.extraLarge)
-                .buttonStyle(.glassProminent)
-                .buttonBorderShape(.circle)
-                .menuIndicator(.hidden)
-                .padding()
-                .ignoresSafeArea()
-            }
             .statusBar(hidden: false)
             .safeAreaBar(edge: .top) {
                 if showVideo {
@@ -108,5 +78,28 @@ struct VideoDetailView: View {
             }
             #endif
         }
+    }
+    
+    var menu: some View {
+        Menu {
+            ShareLink(item: URL(string: video.url)!) {
+                Label("Share Video", systemImage: "square.and.arrow.up")
+            }
+            .tint(.primary)
+            
+            Button {
+                userDefaults.toggleWatchLater(video.id)
+            } label: {
+                Label(
+                    userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
+                    systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
+                )
+            }
+            .tint(.primary)
+        } label: {
+            Image(systemName: "ellipsis")
+                .padding(10)
+        }
+        .glassEffect()
     }
 }
