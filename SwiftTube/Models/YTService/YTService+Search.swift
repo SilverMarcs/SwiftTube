@@ -52,4 +52,8 @@ extension YTService {
 struct SearchResults {
     let videos: [Video]
     let channels: [Channel]
+    
+    var isEmpty: Bool {
+        videos.isEmpty && channels.isEmpty
+    }
 }

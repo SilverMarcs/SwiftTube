@@ -37,6 +37,8 @@ struct SearchView: View {
             .overlay {
                 if isLoading {
                     UniversalProgressView()
+                } else if results.isEmpty {
+                    ContentUnavailableView.search
                 }
             }
             #if !os(macOS) // ios needs it here to not show in main tabview
