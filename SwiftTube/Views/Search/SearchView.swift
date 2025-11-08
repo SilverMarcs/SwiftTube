@@ -39,6 +39,9 @@ struct SearchView: View {
                     UniversalProgressView()
                 }
             }
+            #if !os(macOS) // ios needs it here to not show in main tabview
+            .searchable(text: $searchText, prompt: "Search videos or channels")
+            #endif
             .searchScopes($searchScope, activation: .onSearchPresentation) {
                 ForEach(SearchScope.allCases) { scope in
                     Text(scope.rawValue)

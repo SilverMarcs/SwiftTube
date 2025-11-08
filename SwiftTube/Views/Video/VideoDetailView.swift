@@ -34,7 +34,11 @@ struct VideoDetailView: View {
                                 .labelIconToTitleSpacing(3)
                         }
                     }
+                    #if os(macOS)
                     .font(.system(size: 14))
+                    #else
+                    .font(.system(size: 12))
+                    #endif
                     .foregroundStyle(.secondary)
                     .listRowSeparator(.hidden, edges: .bottom)
                     .listRowInsets([.vertical], 0)

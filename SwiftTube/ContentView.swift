@@ -36,8 +36,8 @@ struct ContentView: View {
         }
         .tabViewStyle(.sidebarAdaptable)
         .tabViewSearchActivation(.searchTabSelection)
-        .searchable(text: $searchText, placement: .toolbarPrincipal, prompt: "Search videos or channels")
         #if os(macOS)
+        .searchable(text: $searchText, placement: .toolbarPrincipal, prompt: "Search videos or channels") // macos needs it here to auto focus search
         .tabViewSidebarBottomBar {
             if let video = manager.currentVideo {
                 PlayVideoButton(video: video) {
@@ -54,6 +54,8 @@ struct ContentView: View {
                     .onTapGesture {
                         manager.isExpanded = true
                     }
+            } else {
+                Text("No Video Playing")
             }
         }
         .fullScreenCover(isPresented: $manager.isExpanded) {
