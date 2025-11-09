@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftMediaViewer
 import AVKit
-import YouTubeKit
 
 struct VideoDetailView: View {
     @Environment(CloudStoreManager.self) private var userDefaults

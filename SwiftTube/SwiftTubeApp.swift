@@ -10,9 +10,6 @@ import AVKit
 
 @main
 struct SwiftTubeApp: App {
-    #if !os(macOS)
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    #endif
     @Environment(\.scenePhase) var scenePhase
     
     @State var videoLoader = VideoLoader()
@@ -71,5 +68,8 @@ struct SwiftTubeApp: App {
     
     init() {
         AVPlayer.isObservationEnabled = true
+        #if !os(macOS)
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+        #endif
     }
 }
