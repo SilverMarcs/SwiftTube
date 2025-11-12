@@ -72,7 +72,7 @@ struct VideoDetailView: View {
             .safeAreaBar(edge: .top) {
                 if showVideo {
                     AVPlayerViewIos()
-                        .frame(maxWidth: 400) // to handle landscape issue on ios
+                        .background(.bar)
                 }
             }
             #endif

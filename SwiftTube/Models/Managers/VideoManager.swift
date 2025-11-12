@@ -34,8 +34,10 @@ class VideoManager {
         store.addToHistory(video.id)
 
         Task {
-            await loadVideoStream(autoPlay: autoPlay)
-            isSetting = false
+            await loadVideoStream(for: video, autoPlay: autoPlay)
+            if self.currentVideo?.id == video.id {
+                isSetting = false
+            }
         }
     }
 
@@ -50,9 +52,10 @@ class VideoManager {
     }
 
     // MARK: - Private Methods
-    private func loadVideoStream(autoPlay: Bool) async {
+    private func loadVideoStream(for video: Video, autoPlay: Bool) async {
         do {
-            guard let video = currentVideo else { return }
+            // If the requested video is no longer the current one, abort this task.
+            guard currentVideo?.id == video.id else { return }
 
             // Fetch stream URL on demand using YouTubeKit
             let methods = fetchingSettings.methods
@@ -71,6 +74,8 @@ class VideoManager {
                 playerItem.externalMetadata = await createMetadataItems(for: video)
             #endif
 
+            // Ensure we're still targeting the same video before mutating the player
+            guard currentVideo?.id == video.id else { return }
             if let existingPlayer = player {
                 existingPlayer.replaceCurrentItem(with: playerItem)
             } else {
@@ -80,6 +85,8 @@ class VideoManager {
             let savedProgress = store.getWatchProgress(videoId: video.id)
             if savedProgress > 5 {
                 let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
+                // Double-check again before seeking to avoid applying progress to a new item
+                guard currentVideo?.id == video.id else { return }
                 await player?.seek(to: time)
             }
 
