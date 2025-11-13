@@ -12,26 +12,26 @@ import AVKit
 struct SwiftTubeApp: App {
     @Environment(\.scenePhase) var scenePhase
     
-    @State var videoLoader = VideoLoader()
-
-    @State var nativeVideoManager = VideoManager()
-    @State var userDefaultsManager = CloudStoreManager.shared
-    @State var authManager = GoogleAuthManager()
+    let videoLoader = VideoLoader()
+    let videoManager = VideoManager()
+    let store = CloudStoreManager.shared
+    let authManager = GoogleAuthManager()
+    
     @State var selectedTab: TabSelection = .feed
     
     var body: some Scene {
         WindowGroup {
             ContentView(selectedTab: $selectedTab)
                 .environment(videoLoader)
-                .environment(nativeVideoManager)
-                .environment(userDefaultsManager)
+                .environment(videoManager)
+                .environment(store)
                 .environment(authManager)
                 .environment(\.openURL, OpenURLAction { url in
                     if let videoId = url.youtubeVideoID {
                         Task {
                             do {
                                 let video = try await YTService.fetchVideo(byId: videoId)
-                                nativeVideoManager.setVideo(video)
+                                videoManager.setVideo(video)
                             } catch {
                                 print("Failed to fetch video: \(error)")
                             }
@@ -44,9 +44,9 @@ struct SwiftTubeApp: App {
                     if scenePhase == .active {
                         await videoLoader.loadAllChannelVideos()
                         
-                        if nativeVideoManager.currentVideo == nil {
+                        if videoManager.currentVideo == nil {
                             if let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
-                                nativeVideoManager.setVideo(mostRecentVideo, autoPlay: false)
+                                videoManager.setVideo(mostRecentVideo, autoPlay: false)
                             }
                         }
                     }
@@ -58,8 +58,8 @@ struct SwiftTubeApp: App {
         #if os(macOS)
         Window("Media Player", id: "media-player") {
             AVPlayerViewMac()
-                .environment(nativeVideoManager)
-                .environment(userDefaultsManager)
+                .environment(videoManager)
+                .environment(store)
                 .environment(videoLoader)
         }
         .restorationBehavior(.disabled)
