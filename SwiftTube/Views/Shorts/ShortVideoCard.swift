@@ -9,7 +9,6 @@ struct ShortVideoCard: View {
 
     @State private var showDetail = false
     @State private var isLoading = false
-    @State private var loopObserver: NSObjectProtocol?
 
     var body: some View {
         VideoPlayer(player: isActive ? player : nil)
@@ -77,7 +76,6 @@ struct ShortVideoCard: View {
 
         player.pause()
         player.replaceCurrentItem(with: nil)
-        removeLoopObserver()
 
         do {
             guard isActive else { return }
@@ -98,10 +96,7 @@ struct ShortVideoCard: View {
 
             let playerItem = AVPlayerItem(url: stream.url)
             player.replaceCurrentItem(with: playerItem)
-            
-            // Setup looping
-            setupLoopObserver(for: playerItem)
-            
+
             isLoading = false
             player.play()
         } catch {
@@ -110,34 +105,9 @@ struct ShortVideoCard: View {
         }
     }
 
-    private func setupLoopObserver(for playerItem: AVPlayerItem) {
-        // Remove any existing observer first
-        removeLoopObserver()
-        
-        // Add observer for when video finishes playing
-        loopObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: playerItem,
-            queue: .main
-        ) { [weak player] _ in
-            guard let player, player.currentItem === playerItem else { return }
-            // Seek to beginning and play again
-            player.seek(to: .zero)
-            player.play()
-        }
-    }
-    
-    private func removeLoopObserver() {
-        if let observer = loopObserver {
-            NotificationCenter.default.removeObserver(observer)
-            loopObserver = nil
-        }
-    }
-
     private func cleanup() {
         player.pause()
         player.replaceCurrentItem(with: nil)
-        removeLoopObserver()
         isLoading = false
     }
 }
