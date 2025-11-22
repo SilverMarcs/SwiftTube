@@ -9,6 +9,7 @@ struct ShortVideoCard: View {
 
     @State private var showDetail = false
     @State private var isLoading = false
+    @State private var loadTask: Task<Void, Never>?
 
     var body: some View {
         VideoPlayer(player: isActive ? player : nil)
@@ -44,20 +45,18 @@ struct ShortVideoCard: View {
                         .tint(.white)
                 }
             }
-            .onAppear {
+            .task(id: isActive) {
+                cancelLoadTask()
+
                 if isActive {
-                    Task { await loadVideo() }
-                }
-            }
-            .onDisappear {
-                cleanup()
-            }
-            .onChange(of: isActive) { _, newValue in
-                if newValue {
-                    Task { await loadVideo() }
+                    loadTask = Task { await loadVideo() }
                 } else {
                     cleanup()
                 }
+            }
+            .onDisappear {
+                cancelLoadTask()
+                cleanup()
             }
             .sheet(isPresented: $showDetail) {
                 VideoDetailView(video: video)
@@ -70,20 +69,26 @@ struct ShortVideoCard: View {
     }
 
     private func loadVideo() async {
-        guard isActive else { return }
+        guard !Task.isCancelled else { return }
 
-        isLoading = true
-
-        player.pause()
-        player.replaceCurrentItem(with: nil)
+        await MainActor.run {
+            isLoading = true
+            player.pause()
+            player.replaceCurrentItem(with: nil)
+        }
+        defer {
+            Task { @MainActor in
+                isLoading = false
+            }
+        }
 
         do {
-            guard isActive else { return }
-
             // Fetch stream URL on demand using YouTubeKit
             let methods = FetchingSettings().methods
             let youtube = YouTube(videoID: video.id, methods: methods)
             let streams = try await youtube.streams
+            try Task.checkCancellation()
+
             guard let stream = streams
                 .filterVideoAndAudio()
                 .filter({ $0.isNativelyPlayable })
@@ -92,22 +97,35 @@ struct ShortVideoCard: View {
                 throw NSError(domain: "ShortVideoCard", code: 1, userInfo: [NSLocalizedDescriptionKey: "No playable stream found"])
             }
 
-            guard isActive else { return }
+            try Task.checkCancellation()
 
             let playerItem = AVPlayerItem(url: stream.url)
-            player.replaceCurrentItem(with: playerItem)
+            try Task.checkCancellation()
 
-            isLoading = false
-            player.play()
+            await MainActor.run {
+                player.replaceCurrentItem(with: playerItem)
+                player.play()
+            }
+        } catch is CancellationError {
+            await MainActor.run {
+                player.pause()
+                player.replaceCurrentItem(with: nil)
+            }
         } catch {
             print("Failed to load short video: \(error)")
-            isLoading = false
         }
     }
 
+    private func cancelLoadTask() {
+        loadTask?.cancel()
+        loadTask = nil
+    }
+
     private func cleanup() {
-        player.pause()
-        player.replaceCurrentItem(with: nil)
-        isLoading = false
+        Task { @MainActor in
+            player.pause()
+            player.replaceCurrentItem(with: nil)
+            isLoading = false
+        }
     }
 }
