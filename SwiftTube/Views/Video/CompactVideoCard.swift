@@ -47,6 +47,7 @@ struct CompactVideoCard: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(.rect)
         }
         .videoContextMenu(video: video, showChannelLink: true)

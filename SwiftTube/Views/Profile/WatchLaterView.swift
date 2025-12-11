@@ -20,9 +20,6 @@ struct WatchLaterView: View {
         Section {
             ForEach(Array(watchLaterVideos.prefix(3))) { video in
                 CompactVideoCard(video: video)
-//                                .alignmentGuide(.listRowSeparatorLeading) { _ in
-//                                    return 0
-//                                }
             }
             
             NavigationLink {
@@ -44,6 +41,8 @@ struct WatchLaterView: View {
             } label: {
                 Text("View all Watch Later videos")
                     .foregroundStyle(.accent)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
             }
             .navigationLinkIndicatorVisibility(.hidden)
         } header: {

@@ -45,6 +45,8 @@ struct HistoryView: View {
             } label: {
                 Text("View full history")
                     .foregroundStyle(.accent)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
             }
             .navigationLinkIndicatorVisibility(.hidden)
         } header: {
