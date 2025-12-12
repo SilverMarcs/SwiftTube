@@ -39,6 +39,7 @@ struct ChannelListView: View {
                     if availableSubscriptions.isEmpty {
                         #if os(macOS)
                         Text("Subscriptions not loaded yet")
+                            .listRowSeparator(.hidden)
                             .frame(maxWidth: .infinity)
                             .foregroundStyle(.secondary)
                         #else

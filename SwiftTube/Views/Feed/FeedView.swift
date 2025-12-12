@@ -6,30 +6,28 @@ struct FeedView: View {
     @Environment(GoogleAuthManager.self) private var authManager
 
     var body: some View {
-        NavigationStack {
-            VideoGridView(videos: videoLoader.videos)
-                .navigationTitle("Feed")
-                .toolbarTitleDisplayMode(.inlineLarge)
-                .refreshable {
-                    await videoLoader.loadAllChannelVideos()
-                }
-                .toolbar {
-                    #if os(macOS)
-                        ToolbarItem(placement: .primaryAction) {
-                            Button {
-                                Task {
-                                    await videoLoader.loadAllChannelVideos()
-                                }
-                            } label: {
-                                Label("Refresh", systemImage: "arrow.clockwise")
+        VideoGridView(videos: videoLoader.videos)
+            .navigationTitle("Feed")
+            .toolbarTitleDisplayMode(.inlineLarge)
+            .refreshable {
+                await videoLoader.loadAllChannelVideos()
+            }
+            .toolbar {
+                #if os(macOS)
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            Task {
+                                await videoLoader.loadAllChannelVideos()
                             }
-                            .keyboardShortcut("r")
+                        } label: {
+                            Label("Refresh", systemImage: "arrow.clockwise")
                         }
-                    #endif
-                }
-                #if !os(macOS)
-                .modifier(SettingsModifier())
+                        .keyboardShortcut("r")
+                    }
                 #endif
-        }
+            }
+            #if !os(macOS)
+            .modifier(SettingsModifier())
+            #endif
     }
 }

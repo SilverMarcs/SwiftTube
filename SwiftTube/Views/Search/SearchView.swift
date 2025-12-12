@@ -1,60 +1,54 @@
 import SwiftUI
 
 struct SearchView: View {
-    @Binding var searchText: String
     @State private var searchScope: SearchScope = .video
-    
+    @State var searchText: String = ""
     @State private var results: SearchResults = SearchResults(videos: [], channels: [])
     @State private var isLoading = false
     
     var body: some View {
-        NavigationStack {
-            List {
-                if searchScope == .video && !results.videos.isEmpty {
-                    Section("Videos") {
-                        ForEach(results.videos) { video in
-                            CompactVideoCard(video: video)
-                        }
+        List {
+            if searchScope == .video && !results.videos.isEmpty {
+                Section("Videos") {
+                    ForEach(results.videos) { video in
+                        CompactVideoCard(video: video)
                     }
-                } else if searchScope == .channel && !results.channels.isEmpty {
-                    Section("Channels") {
-                        ForEach(results.channels) { channel in
-                            ChannelRowView(channel: channel)
-                        }
+                }
+            } else if searchScope == .channel && !results.channels.isEmpty {
+                Section("Channels") {
+                    ForEach(results.channels) { channel in
+                        ChannelRowView(channel: channel)
                     }
                 }
             }
-            .toolbar {
-                Button {
-                    results = .init(videos: [], channels: [])
-                } label: {
-                    Label("Clear", systemImage: "eraser")
-                        .labelStyle(.titleOnly)
-                }
+        }
+        .toolbar {
+            Button {
+                results = .init(videos: [], channels: [])
+            } label: {
+                Label("Clear", systemImage: "eraser")
+                    .labelStyle(.titleOnly)
             }
-            .navigationTitle("Search")
-            .toolbarTitleDisplayMode(.inlineLarge)
-            .overlay {
-                if isLoading {
-                    UniversalProgressView()
-                } else if results.isEmpty {
-                    ContentUnavailableView.search
-                }
+        }
+        .navigationTitle("Search")
+        .toolbarTitleDisplayMode(.inlineLarge)
+        .overlay {
+            if isLoading {
+                UniversalProgressView()
+            } else if results.isEmpty {
+                ContentUnavailableView.search
             }
-            #if !os(macOS) // ios needs it here to not show in main tabview
-            .searchable(text: $searchText, prompt: "Search videos or channels")
-            #endif
-            .searchScopes($searchScope, activation: .onSearchPresentation) {
-                ForEach(SearchScope.allCases) { scope in
-                    Text(scope.rawValue)
-                        .tag(scope)
-                }
+        }
+        .searchable(text: $searchText, placement: placement, prompt: "Search videos or channels")
+        .searchPresentationToolbarBehavior(.avoidHidingContent)
+        .searchScopes($searchScope) {
+            ForEach(SearchScope.allCases) { scope in
+                Text(scope.rawValue)
+                    .tag(scope)
             }
-            .onSubmit(of: .search) {
-                Task {
-                    await performSearch()
-                }
-            }
+        }
+        .onSubmit(of: .search) {
+            Task { await performSearch() }
         }
     }
     
@@ -72,6 +66,14 @@ struct SearchView: View {
         } catch {
             print("Error in SearchView: \(error.localizedDescription)")
         }
+    }
+    
+    private var placement: SearchFieldPlacement {
+        #if os(tvOS)
+        .automatic
+        #else
+        .toolbarPrincipal
+        #endif
     }
 }
 

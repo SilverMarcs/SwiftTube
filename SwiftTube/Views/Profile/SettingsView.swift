@@ -13,30 +13,28 @@ struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Fetching") {
-                    Toggle("Prefer Local Fetching", isOn: $fetchingSettings.useLocalFetching)
-                        .help(
-                            "When enabled, tries to fetch videos locally first before falling back to remote. Local fetching may be slower but doesn't require internet."
-                        )
-                }
+        Form {
+            Section("Fetching") {
+                Toggle("Prefer Local Fetching", isOn: $fetchingSettings.useLocalFetching)
+                    .help(
+                        "When enabled, tries to fetch videos locally first before falling back to remote. Local fetching may be slower but doesn't require internet."
+                    )
+            }
 
-                Section("Cache") {
-                    CacheManagerView()
-                }
+            Section("Cache") {
+                CacheManagerView()
             }
-            .formStyle(.grouped)
-            .navigationTitle("Settings")
-            .toolbarTitleDisplayMode(.inline)
-            #if !os(macOS)
-            .toolbar {
-                Button(role: .close) {
-                    dismiss()
-                }
-            }
-            #endif
         }
+        .formStyle(.grouped)
+        .navigationTitle("Settings")
+        .toolbarTitleDisplayMode(.inline)
+        #if !os(macOS)
+        .toolbar {
+            Button(role: .close) {
+                dismiss()
+            }
+        }
+        #endif
     }
 }
 

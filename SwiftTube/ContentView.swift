@@ -13,7 +13,6 @@ struct ContentView: View {
     @Binding var selectedTab: TabSelection
     
     @Namespace private var animation
-    @State private var searchText: String = ""
     
     var body: some View {
         @Bindable var manager = manager
@@ -25,10 +24,7 @@ struct ContentView: View {
                     value: tab,
                     role: tab == .search ? .search : .none)
                 {
-                    switch tab {
-                    case .search:
-                        SearchView(searchText: $searchText)
-                    default:
+                    NavigationStack {
                         tab.tabView
                     }
                 }
@@ -37,7 +33,6 @@ struct ContentView: View {
         .tabViewStyle(.sidebarAdaptable)
         .tabViewSearchActivation(.searchTabSelection)
         #if os(macOS)
-        .searchable(text: $searchText, placement: .toolbarPrincipal, prompt: "Search videos or channels") // macos needs it here to auto focus search
         .tabViewSidebarBottomBar {
             if let video = manager.currentVideo {
                 PlayVideoButton(video: video) {

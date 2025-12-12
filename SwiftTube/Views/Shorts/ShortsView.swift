@@ -9,55 +9,53 @@ struct ShortsView: View {
     @State private var activeVideoId: String?
     
     var body: some View {
-        NavigationStack {
-            Group {
+        Group {
 #if os(macOS)
-                ScrollView(.vertical) {
-                    LazyVStack(spacing: 0) {
-                        ForEach(videoLoader.shortVideos) { video in
-                            ShortVideoCard(
-                                video: video,
-                                player: shortsPlayer,
-                                isActive: video.id == activeVideoId
-                            )
-                            .id(video.id)
-                            .containerRelativeFrame([.vertical])
-                        }
-                    }
-                    .scrollTargetLayout()
-                }
-                .navigationTitle("Shorts")
-                .scrollTargetBehavior(.paging)
-                .scrollIndicators(.hidden)
-                .scrollPosition(id: $activeVideoId)
-#else
-                TabView(selection: $activeVideoId) {
+            ScrollView(.vertical) {
+                LazyVStack(spacing: 0) {
                     ForEach(videoLoader.shortVideos) { video in
                         ShortVideoCard(
                             video: video,
                             player: shortsPlayer,
                             isActive: video.id == activeVideoId
                         )
-                        .tag(video.id)
+                        .id(video.id)
+                        .containerRelativeFrame([.vertical])
                     }
                 }
-                .background(.black)
-                .statusBarHidden(false)
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .ignoresSafeArea()
-#endif
+                .scrollTargetLayout()
             }
-            .onAppear {
-                videoManager.player?.pause()
-                // Initialize selection to the first item if not set
-                if activeVideoId == nil {
-                    activeVideoId = videoLoader.shortVideos.first?.id
+            .navigationTitle("Shorts")
+            .scrollTargetBehavior(.paging)
+            .scrollIndicators(.hidden)
+            .scrollPosition(id: $activeVideoId)
+#else
+            TabView(selection: $activeVideoId) {
+                ForEach(videoLoader.shortVideos) { video in
+                    ShortVideoCard(
+                        video: video,
+                        player: shortsPlayer,
+                        isActive: video.id == activeVideoId
+                    )
+                    .tag(video.id)
                 }
             }
-            .onDisappear {
-                shortsPlayer.pause()
-                shortsPlayer.replaceCurrentItem(with: nil)
+            .background(.black)
+            .statusBarHidden(false)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .ignoresSafeArea()
+#endif
+        }
+        .onAppear {
+            videoManager.player?.pause()
+            // Initialize selection to the first item if not set
+            if activeVideoId == nil {
+                activeVideoId = videoLoader.shortVideos.first?.id
             }
+        }
+        .onDisappear {
+            shortsPlayer.pause()
+            shortsPlayer.replaceCurrentItem(with: nil)
         }
     }
 }

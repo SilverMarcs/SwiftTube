@@ -58,7 +58,7 @@ enum TabSelection: String, CaseIterable {
         case .feed: FeedView()
         case .shorts: ShortsView()
         case .profile: ProfileView()
-        case .search: EmptyView()
+        case .search: SearchView()
         case .settings: SettingsView()
         }
     }
