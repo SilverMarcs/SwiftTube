@@ -23,7 +23,6 @@
 				Info.plist,
 			);
 			platformFiltersByRelativePath = {
-				Views/Components/SettingsModifier.swift = (ios, xros, );
 				Views/Player/AVPlayerRepresentable/AVPlayerIos.swift = (ios, xros, );
 				Views/Player/AVPlayerRepresentable/AVPlayerMac.swift = (macos, );
 				Views/Player/AVPlayerViewIos.swift = (ios, xros, );

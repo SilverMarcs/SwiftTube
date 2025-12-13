@@ -47,8 +47,10 @@ struct MiniPlayerAccessoryView: View {
             }
             .contentShape(.rect)
             .padding(.horizontal, 14)
-            .padding(.trailing, 4)
             .padding(.vertical, 8)
+            #if !os(macOS)
+            .padding(.trailing, 4)
+            #endif
         }
     }
 }
