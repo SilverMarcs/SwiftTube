@@ -12,8 +12,9 @@ struct FeedView: View {
             .refreshable {
                 await videoLoader.loadAllChannelVideos()
             }
+            .modifier(SettingsModifier())
+            #if os(macOS)
             .toolbar {
-                #if os(macOS)
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             Task {
@@ -24,10 +25,7 @@ struct FeedView: View {
                         }
                         .keyboardShortcut("r")
                     }
-                #endif
             }
-            #if !os(macOS)
-            .modifier(SettingsModifier())
             #endif
     }
 }

@@ -42,16 +42,15 @@ struct ContentView: View {
         }
         #else
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory {
-            if selectedTab != .shorts {
+        .tabViewBottomAccessory(isEnabled: selectedTab != .shorts) {
+            NavigationStack {
                 MiniPlayerAccessoryView()
-                    .matchedTransitionSource(id: "MINIPLAYER", in: animation)
                     .onTapGesture {
                         manager.isExpanded = true
                     }
-            } else {
-                Text("No Video Playing")
             }
+            .matchedTransitionSource(id: "MINIPLAYER", in: animation)
+   
         }
         .fullScreenCover(isPresented: $manager.isExpanded) {
             if let video = manager.currentVideo {

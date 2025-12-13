@@ -14,11 +14,15 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Fetching") {
+            Section {
                 Toggle("Prefer Local Fetching", isOn: $fetchingSettings.useLocalFetching)
                     .help(
                         "When enabled, tries to fetch videos locally first before falling back to remote. Local fetching may be slower but doesn't require internet."
                     )
+            } header: {
+                Text("Fetching")
+            } footer: {
+                Text("Non local fetching is more reliable but will take longer to laod videos")
             }
 
             Section("Cache") {
