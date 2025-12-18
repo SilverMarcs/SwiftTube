@@ -94,9 +94,12 @@ struct VideoCard: View {
                 .padding(.horizontal, 12)
                 .padding(.bottom, 12)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(.rect(cornerRadius: 12))
             .background(.background.secondary, in: .rect(cornerRadius: 12))
         }
+        #if !os(macOS)
+        .contentShape(.contextMenuPreview, .rect(cornerRadius: 12))
+        #endif
         .videoContextMenu(video: video, showChannelLink: showChannelLink)
     }
 }

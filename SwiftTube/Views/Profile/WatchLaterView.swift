@@ -28,7 +28,9 @@ struct WatchLaterView: View {
                         CompactVideoCard(video: video)
                             .swipeActions {
                                 Button {
-                                    userDefaults.removeFromWatchLater(video.id)
+                                    withAnimation {
+                                        userDefaults.removeFromWatchLater(video.id)
+                                    }
                                 } label: {
                                     Label("Remove", systemImage: "bookmark.slash")
                                 }

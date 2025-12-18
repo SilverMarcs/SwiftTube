@@ -9,7 +9,9 @@ struct VideoContextMenuModifier: ViewModifier {
         content
             .contextMenu {
                 Button {
-                    userDefaults.toggleWatchLater(video.id)
+                    withAnimation {
+                        userDefaults.toggleWatchLater(video.id)
+                    }
                 } label: {
                     Label(
                         userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
@@ -18,7 +20,9 @@ struct VideoContextMenuModifier: ViewModifier {
                 }
                 
                 Button {
-                    video.updateWatchProgress(Double(video.duration ?? 0))
+                    withAnimation {
+                        video.updateWatchProgress(Double(video.duration ?? 0))
+                    }
                 } label: {
                     Label("Mark as Watched", systemImage: "checkmark.circle")
                 }

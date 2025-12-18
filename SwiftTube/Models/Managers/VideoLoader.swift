@@ -5,7 +5,7 @@
 //  Created by Zabir Raihan on 28/09/2025.
 //
 
-import Foundation
+import SwiftUI
 
 @Observable
 final class VideoLoader {
@@ -50,8 +50,9 @@ final class VideoLoader {
         // Sort by publish date (desc)
         let sortedVideos = regularVideos.sorted { $0.publishedAt > $1.publishedAt }
         
-        // Update observable arrays (atomic updates)
-        self.videos = sortedVideos
+        withAnimation {
+            self.videos = sortedVideos
+        }
         self.shortVideos = shorts.shuffled()
         
         let videosForDetails = self.videos.prefix(50)
