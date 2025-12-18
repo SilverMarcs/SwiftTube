@@ -31,14 +31,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")
-        .toolbarTitleDisplayMode(.inline)
-        #if !os(macOS)
-        .toolbar {
-            Button(role: .close) {
-                dismiss()
-            }
-        }
-        #endif
+        .toolbarTitleDisplayMode(.inlineLarge)
     }
 }
 

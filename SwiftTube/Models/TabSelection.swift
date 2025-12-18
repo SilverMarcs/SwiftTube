@@ -14,13 +14,7 @@ enum TabSelection: String, CaseIterable {
     case search = "search"
     case settings = "settings"
     
-    static var allCases: [TabSelection] {
-        #if os(macOS)
-        return [.feed, .shorts, .profile, .search, .settings]
-        #else
-        return [.feed, .shorts, .profile, .search]
-        #endif
-    }
+    static let allCases: [TabSelection] = [.feed, .shorts, .profile, .search, .settings]
     
     var title: String {
         switch self {

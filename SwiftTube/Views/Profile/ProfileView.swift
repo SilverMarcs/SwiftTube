@@ -22,7 +22,7 @@ struct ProfileView: View {
                         return 0
                     }
 
-                TextField("YouTube API Key", text: $apiKey)
+                SecureField("YouTube API Key", text: $apiKey)
                     .autocorrectionDisabled()
             } footer: {
                 Text("API Key is used over signin info when it is added")
@@ -47,6 +47,6 @@ struct ProfileView: View {
         }
         .navigationTitle("Profile")
         .toolbarTitleDisplayMode(.inlineLarge)
-        .modifier(SettingsModifier())
+//        .modifier(SettingsModifier())
     }
 }

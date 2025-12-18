@@ -35,24 +35,8 @@ struct ChannelListView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Subscriptions") {
-                    if availableSubscriptions.isEmpty {
-                        #if os(macOS)
-                        Text("Subscriptions not loaded yet")
-                            .listRowSeparator(.hidden)
-                            .frame(maxWidth: .infinity)
-                            .foregroundStyle(.secondary)
-                        #else
-                        if authManager.isSignedIn && apiKey.isEmpty {
-                            Button {
-                                Task { await loadSubscriptions() }
-                            } label: {
-                                Label("Load Subscriptions", systemImage: "arrow.clockwise")
-                            }
-                            .disabled(isLoadingSubscriptions)
-                        }
-                        #endif
-                    } else {
+                if authManager.isSignedIn {
+                    Section("Subscriptions") {
                         ForEach(filteredSubscriptions) { subscription in
                             HStack {
                                 ChannelRowView(channel: subscription)
@@ -72,9 +56,21 @@ struct ChannelListView: View {
                             .listRowSeparator(.hidden, edges: .top)
                             .listRowSeparator(.visible, edges: .bottom)
                         }
+                        
+                        if searchText.isEmpty {
+                            Button {
+                                Task { await loadSubscriptions() }
+                            } label: {
+                                Label("Load Subscriptions", systemImage: "arrow.clockwise")
+                            }
+                            .disabled(isLoadingSubscriptions)
+                            #if os(macOS)
+                            .listRowSeparator(.hidden)
+                            #endif
+                        }
                     }
                 }
-                
+
                 if !channels.isEmpty {
                     Section("Saved Channels") {
                         ForEach(channels) { channel in
@@ -97,20 +93,6 @@ struct ChannelListView: View {
             .navigationTitle("Channels")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                #if os(macOS)
-                if authManager.isSignedIn && apiKey.isEmpty {
-                    ToolbarItem {
-                        Button {
-                            Task { await loadSubscriptions() }
-                        } label: {
-                            Label("Load Subs", systemImage: "arrow.clockwise")
-                                .labelStyle(.titleOnly)
-                        }
-                        .disabled(isLoadingSubscriptions)
-                    }
-                }
-                #endif
-                
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingAddChannel = true
