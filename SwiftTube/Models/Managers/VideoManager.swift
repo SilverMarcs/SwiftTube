@@ -21,7 +21,7 @@ class VideoManager {
 
     func setVideo(_ video: Video, autoPlay: Bool = true) {
         isExpanded = autoPlay
-           persistCurrentTime()
+        persistCurrentTime()
         
         guard video.id != currentVideo?.id else {
             return

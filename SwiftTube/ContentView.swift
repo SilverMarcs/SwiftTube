@@ -48,13 +48,12 @@ struct ContentView: View {
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory(isEnabled: selectedTab != .shorts) {
-            Button {
-                isPresented = true
-            } label: {
-                MiniPlayerAccessoryView()
+            if let video = manager.currentVideo {
+                PlayVideoButton(video: video) {
+                    MiniPlayerAccessoryView()
+                }
+                .matchedTransitionSource(id: "MINIPLAYER", in: animation)
             }
-            .buttonStyle(.plain)
-            .matchedTransitionSource(id: "MINIPLAYER", in: animation)
         }
         .fullScreenCover(isPresented: $isPresented) {
             if let video = manager.currentVideo {

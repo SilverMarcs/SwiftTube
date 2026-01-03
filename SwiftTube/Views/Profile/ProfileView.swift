@@ -47,6 +47,8 @@ struct ProfileView: View {
         }
         .navigationTitle("Profile")
         .toolbarTitleDisplayMode(.inlineLarge)
-//        .modifier(SettingsModifier())
+        #if os(iOS)
+        .modifier(SettingsModifier())
+        #endif
     }
 }
