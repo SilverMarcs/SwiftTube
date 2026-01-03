@@ -23,6 +23,14 @@ struct HistoryView: View {
         Section {
             ForEach(Array(historyVideos.prefix(3))) { video in
                 CompactVideoCard(video: video)
+                    .swipeActions {
+                        Button {
+                            userDefaults.removeFromHistory(video.id)
+                        } label: {
+                            Label("Remove", systemImage: "trash")
+                        }
+                        .tint(.red)
+                    }
             }
             
             NavigationLink {

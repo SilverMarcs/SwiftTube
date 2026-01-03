@@ -20,6 +20,15 @@ struct WatchLaterView: View {
         Section {
             ForEach(Array(watchLaterVideos.prefix(3))) { video in
                 CompactVideoCard(video: video)
+                    .swipeActions {
+                        Button {
+                            withAnimation {
+                                userDefaults.removeFromWatchLater(video.id)
+                            }
+                        } label: {
+                            Label("Remove", systemImage: "bookmark.slash")
+                        }
+                    }
             }
             
             NavigationLink {
