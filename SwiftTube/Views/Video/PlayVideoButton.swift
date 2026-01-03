@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PlayVideoButton<Label: View>: View {
     @Environment(VideoManager.self) var manager
+    @Environment(\.requestVideoPresentation) private var requestVideoPresentation
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
@@ -16,6 +17,7 @@ struct PlayVideoButton<Label: View>: View {
     var body: some View {
         Button {
             manager.setVideo(video)
+            requestVideoPresentation()
             #if os(macOS)
             openWindow(id: "media-player")
             #endif

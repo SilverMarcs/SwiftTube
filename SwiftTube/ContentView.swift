@@ -14,6 +14,8 @@ struct ContentView: View {
     
     @Namespace private var animation
     
+    @State private var isPresented = false
+    
     var body: some View {
         @Bindable var manager = manager
 
@@ -41,15 +43,20 @@ struct ContentView: View {
             }
         }
         #else
+        .environment(\.requestVideoPresentation) {
+            isPresented = true
+        }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory(isEnabled: selectedTab != .shorts) {
-            MiniPlayerAccessoryView()
-                .matchedTransitionSource(id: "MINIPLAYER", in: animation)
-                .onTapGesture {
-                    manager.isExpanded = true
-                }
+            Button {
+                isPresented = true
+            } label: {
+                MiniPlayerAccessoryView()
+            }
+            .buttonStyle(.plain)
+            .matchedTransitionSource(id: "MINIPLAYER", in: animation)
         }
-        .fullScreenCover(isPresented: $manager.isExpanded) {
+        .fullScreenCover(isPresented: $isPresented) {
             if let video = manager.currentVideo {
                 VideoDetailView(video: video, showVideo: true)
                     .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
