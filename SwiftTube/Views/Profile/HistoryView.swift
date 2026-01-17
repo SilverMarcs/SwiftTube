@@ -9,6 +9,7 @@ import SwiftUI
 struct HistoryView: View {
     @Environment(CloudStoreManager.self) private var userDefaults
     @Environment(VideoLoader.self) private var videoLoader
+    @State private var detailedHistoryVideos: [Video] = []
     
     private var historyVideos: [Video] {
         videoLoader.videos.filter { userDefaults.isInHistory($0.id) }
@@ -20,8 +21,10 @@ struct HistoryView: View {
     }
     
     var body: some View {
+        let displayedVideos = detailedHistoryVideos.isEmpty ? historyVideos : detailedHistoryVideos
+
         Section {
-            ForEach(Array(historyVideos.prefix(3))) { video in
+            ForEach(Array(displayedVideos.prefix(3))) { video in
                 CompactVideoCard(video: video)
                     .swipeActions {
                         Button {
@@ -35,7 +38,7 @@ struct HistoryView: View {
             
             NavigationLink {
                 List {
-                    ForEach(historyVideos) { video in
+                    ForEach(displayedVideos) { video in
                         CompactVideoCard(video: video)
                             .swipeActions {
                                 Button {
@@ -59,6 +62,25 @@ struct HistoryView: View {
             .navigationLinkIndicatorVisibility(.hidden)
         } header: {
             Text("History")
+        }
+        .task(id: historyVideos.map(\.id)) {
+            await loadHistoryVideoDetails(for: historyVideos)
+        }
+    }
+
+    private func loadHistoryVideoDetails(for videos: [Video]) async {
+        guard !videos.isEmpty else {
+            detailedHistoryVideos = []
+            return
+        }
+
+        do {
+            var mutableVideos = videos
+            try await YTService.fetchVideoDetails(for: &mutableVideos)
+            detailedHistoryVideos = mutableVideos
+        } catch {
+            detailedHistoryVideos = videos
+            print("Error updating history video details: \(error.localizedDescription)")
         }
     }
 }

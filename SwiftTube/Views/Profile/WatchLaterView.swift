@@ -10,6 +10,7 @@ import SwiftUI
 struct WatchLaterView: View {
     @Environment(VideoLoader.self) private var videoLoader
     @Environment(CloudStoreManager.self) private var userDefaults
+    @State private var detailedWatchLaterVideos: [Video] = []
     
     private var watchLaterVideos: [Video] {
         videoLoader.videos.filter { userDefaults.isWatchLater($0.id) }
@@ -17,8 +18,10 @@ struct WatchLaterView: View {
     }
     
     var body: some View {
+        let displayedVideos = detailedWatchLaterVideos.isEmpty ? watchLaterVideos : detailedWatchLaterVideos
+
         Section {
-            ForEach(Array(watchLaterVideos.prefix(3))) { video in
+            ForEach(Array(displayedVideos.prefix(3))) { video in
                 CompactVideoCard(video: video)
                     .swipeActions {
                         Button {
@@ -33,7 +36,7 @@ struct WatchLaterView: View {
             
             NavigationLink {
                 List {
-                    ForEach(watchLaterVideos) { video in
+                    ForEach(displayedVideos) { video in
                         CompactVideoCard(video: video)
                             .swipeActions {
                                 Button {
@@ -58,6 +61,25 @@ struct WatchLaterView: View {
             .navigationLinkIndicatorVisibility(.hidden)
         } header: {
             Text("Watch Later")
+        }
+        .task(id: watchLaterVideos.map(\.id)) {
+            await loadWatchLaterVideoDetails(for: watchLaterVideos)
+        }
+    }
+
+    private func loadWatchLaterVideoDetails(for videos: [Video]) async {
+        guard !videos.isEmpty else {
+            detailedWatchLaterVideos = []
+            return
+        }
+
+        do {
+            var mutableVideos = videos
+            try await YTService.fetchVideoDetails(for: &mutableVideos)
+            detailedWatchLaterVideos = mutableVideos
+        } catch {
+            detailedWatchLaterVideos = videos
+            print("Error updating watch later video details: \(error.localizedDescription)")
         }
     }
 }

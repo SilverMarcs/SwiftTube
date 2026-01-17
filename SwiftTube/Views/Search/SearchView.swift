@@ -59,8 +59,12 @@ struct SearchView: View {
 
         do {
             let allResults = try await YTService.search(query: searchText)
+            var videosWithDetails = allResults.videos
+            if !videosWithDetails.isEmpty {
+                try await YTService.fetchVideoDetails(for: &videosWithDetails)
+            }
             results = SearchResults(
-                videos: allResults.videos,
+                videos: videosWithDetails,
                 channels: allResults.channels
             )
         } catch {

@@ -40,7 +40,7 @@ struct CompactVideoCard: View {
                             .fontWeight(.medium)
                             .lineLimit(2)
                         
-                        Text(video.channel.title)
+                        Text("\(video.channel.title) \u{00B7} \(video.viewCount.formatNumber()) views")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
