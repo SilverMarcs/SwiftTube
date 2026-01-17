@@ -18,9 +18,3 @@ struct Channel: Codable, Identifiable, Hashable {
         self.subscriberCount = subscriberCount
     }
 }
-
-extension Channel {
-    var subtitle: String {
-        subscriberCount == 0 ? channelDescription : "\(Int(subscriberCount).formatNumber()) subscribers"
-    }
-}

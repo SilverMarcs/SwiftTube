@@ -16,6 +16,14 @@ struct Video: Codable, Identifiable, Hashable {
 }
 
 extension Video {
+    var viewCountValue: UInt64? {
+        UInt64(viewCount)
+    }
+    
+    var likeCountValue: UInt64? {
+        likeCount.flatMap(UInt64.init)
+    }
+    
     var watchProgressRatio: Double? {
         guard let duration = duration, duration > 0 else { return nil }
         let progress = CloudStoreManager.shared.getWatchProgress(videoId: id)

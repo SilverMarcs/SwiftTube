@@ -46,26 +46,6 @@ extension Int {
             return String(format: "%d:%02d", minutes, seconds)
         }
     }
-    
-    func formatNumber() -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        
-        if self >= 1_000_000 {
-            return String(format: "%.1fM", Double(self) / 1_000_000)
-        } else if self >= 1_000 {
-            return String(format: "%.1fK", Double(self) / 1_000)
-        } else {
-            return formatter.string(from: NSNumber(value: self)) ?? String(self)
-        }
-    }
-}
-
-extension String {
-    func formatNumber() -> String {
-        guard let number = Int(self) else { return self }
-        return number.formatNumber()
-    }
 }
 
 extension Array {

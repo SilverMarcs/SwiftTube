@@ -40,10 +40,17 @@ struct CompactVideoCard: View {
                             .fontWeight(.medium)
                             .lineLimit(2)
                         
-                        Text("\(video.channel.title) \u{00B7} \(video.viewCount.formatNumber()) views")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                        if let viewCount = video.viewCountValue {
+                            Text("\(video.channel.title) \u{00B7} \(viewCount, format: .number.notation(.compactName)) views")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        } else {
+                            Text("\(video.channel.title) \u{00B7} \(video.viewCount) views")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                     }
                 }
             }

@@ -16,10 +16,17 @@ struct ChannelRowView: View {
                     Text(channel.title)
                         .font(.headline)
                     
-                    Text(channel.subtitle)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    if channel.subscriberCount == 0 {
+                        Text(channel.channelDescription)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        Text("\(channel.subscriberCount, format: .number.notation(.compactName)) subscribers")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
                 Spacer()
             }

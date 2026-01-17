@@ -59,8 +59,13 @@ struct VideoCard: View {
 
                         HStack(spacing: 4) {
                             Label {
-                                Text(video.viewCount.formatNumber())
-                                    .font(.footnote)
+                                if let viewCount = video.viewCountValue {
+                                    Text(viewCount, format: .number.notation(.compactName))
+                                        .font(.footnote)
+                                } else {
+                                    Text(video.viewCount)
+                                        .font(.footnote)
+                                }
                             } icon: {
                                 Image(systemName: "eye")
                                     .font(.system(size: 10))
@@ -103,4 +108,3 @@ struct VideoCard: View {
         .videoContextMenu(video: video, showChannelLink: showChannelLink)
     }
 }
-

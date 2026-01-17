@@ -19,8 +19,16 @@ struct VideoDetailView: View {
                 Section(video.title) {
                     // Video Stats (Views, Likes, Published)
                     HStack(spacing: 5) {
-                        Label(video.viewCount.formatNumber(), systemImage: "eye")
-                            .labelIconToTitleSpacing(3)
+                        Label {
+                            if let viewCount = video.viewCountValue {
+                                Text(viewCount, format: .number.notation(.compactName))
+                            } else {
+                                Text(video.viewCount)
+                            }
+                        } icon: {
+                            Image(systemName: "eye")
+                        }
+                        .labelIconToTitleSpacing(3)
                         
                         Text("•")
                         
@@ -28,8 +36,15 @@ struct VideoDetailView: View {
                         
                         Spacer()
                         
-                        if let likesText = video.likeCount?.formatNumber() {
-                            Label(likesText, systemImage: "hand.thumbsup")
+                        if let likeCount = video.likeCountValue {
+                            Label {
+                                Text(likeCount, format: .number.notation(.compactName))
+                            } icon: {
+                                Image(systemName: "hand.thumbsup")
+                            }
+                            .labelIconToTitleSpacing(3)
+                        } else if let likeCountText = video.likeCount {
+                            Label(likeCountText, systemImage: "hand.thumbsup")
                                 .labelIconToTitleSpacing(3)
                         }
                         
