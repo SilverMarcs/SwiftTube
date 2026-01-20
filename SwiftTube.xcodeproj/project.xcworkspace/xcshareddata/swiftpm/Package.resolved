@@ -7,7 +7,7 @@
       "location" : "https://github.com/SilverMarcs/SwiftMediaViewer",
       "state" : {
         "branch" : "main",
-        "revision" : "9645f2bed9c1141f7fa9d106adf8c5c8a06867b6"
+        "revision" : "020e6494660cb0b049c2a54c35b681ec463ab51f"
       }
     },
     {
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/alexeichhorn/YouTubeKit",
       "state" : {
-        "revision" : "481c8e3a924ccad893197bdc4577424fae952853",
-        "version" : "0.4.0"
+        "revision" : "51c67c95f33758dfaace10201b36ae74aca3f4ed",
+        "version" : "0.4.1"
       }
     }
   ],
