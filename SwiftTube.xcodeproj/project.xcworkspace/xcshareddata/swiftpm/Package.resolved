@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/alexeichhorn/YouTubeKit",
       "state" : {
-        "revision" : "51c67c95f33758dfaace10201b36ae74aca3f4ed",
-        "version" : "0.4.1"
+        "revision" : "068403f2b7523c7620eab257e64402f722821e05",
+        "version" : "0.4.3"
       }
     }
   ],
