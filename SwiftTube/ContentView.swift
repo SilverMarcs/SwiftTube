@@ -47,7 +47,7 @@ struct ContentView: View {
             isPresented = true
         }
         .tabBarMinimizeBehavior(.onScrollDown)
-        .tabViewBottomAccessory(isEnabled: selectedTab != .shorts) {
+        .tabViewBottomAccessory(isEnabled: (selectedTab != .shorts && manager.currentVideo != nil)) {
             if let video = manager.currentVideo {
                 PlayVideoButton(video: video) {
                     MiniPlayerAccessoryView()
