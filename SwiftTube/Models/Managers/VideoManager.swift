@@ -31,7 +31,7 @@ class VideoManager {
         isSetting = true
 
         currentVideo = video
-        store.addToHistory(video.id)
+        store.addToHistory(video)
 
         Task {
             await loadVideoStream(for: video, autoPlay: autoPlay)

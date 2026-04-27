@@ -50,7 +50,7 @@ struct AVPlayerViewMac: View {
                                 }
                                 
                                 Button {
-                                    userDefaults.toggleWatchLater(video.id)
+                                    userDefaults.toggleWatchLater(video)
                                 } label: {
                                     Label(
                                         userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",

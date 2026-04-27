@@ -8,18 +8,12 @@ import SwiftUI
 
 struct HistoryView: View {
     @Environment(CloudStoreManager.self) private var userDefaults
-    @Environment(VideoLoader.self) private var videoLoader
     @State private var detailedHistoryVideos: [Video] = []
-    
+
     private var historyVideos: [Video] {
-        videoLoader.videos.filter { userDefaults.isInHistory($0.id) }
-            .sorted {
-                let time1 = userDefaults.getWatchTime($0.id) ?? .distantPast
-                let time2 = userDefaults.getWatchTime($1.id) ?? .distantPast
-                return time1 > time2
-            }
+        userDefaults.historyVideos
     }
-    
+
     var body: some View {
         let displayedVideos = detailedHistoryVideos.isEmpty ? historyVideos : detailedHistoryVideos
 
@@ -35,7 +29,7 @@ struct HistoryView: View {
                         .tint(.red)
                     }
             }
-            
+
             NavigationLink {
                 List {
                     ForEach(displayedVideos) { video in

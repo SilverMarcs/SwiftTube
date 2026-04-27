@@ -10,182 +10,176 @@ import Foundation
 @Observable
 final class CloudStoreManager {
     static let shared = CloudStoreManager()
-    
-//    private let defaults = UserDefaults.standard
-    // Use iCloud key-value store for syncing across devices
+
     private let defaults = NSUbiquitousKeyValueStore.default
-    
-    // Keys
+
     private enum Keys {
         static let savedChannels = "savedChannels"
-        static let watchLaterIds = "watchLaterIds"
-        static let historyIds = "historyIds"
+        static let watchLaterVideos = "watchLaterVideos"
+        static let historyVideos = "historyVideos"
         static let watchProgress = "watchProgress"
     }
-    
+
+    private static let maxItems = 50
+
     // MARK: - Saved Channels
-    
+
     private(set) var savedChannels: [Channel] = [] { didSet { persistChannels() } }
-    
-    // MARK: - Watch Later
-    
-    private(set) var watchLaterIds: Set<String> = [] { didSet { persistWatchLater() } }
-    
-    // MARK: - History
-    
-    private(set) var historyIds: [String: Date] = [:] { didSet { persistHistory() } }
-    
+
+    // MARK: - Watch Later (ordered, capped at 50, full Video objects)
+
+    private(set) var watchLaterVideos: [Video] = [] { didSet { persistWatchLater() } }
+
+    // MARK: - History (most recent first, capped at 50, full Video objects)
+
+    private(set) var historyVideos: [Video] = [] { didSet { persistHistory() } }
+
     // MARK: - Watch Progress
-    
+
     private(set) var watchProgress: [String: Double] = [:] { didSet { persistProgress() } }
-    
+
     private init() {
         load()
         setupCloudSync()
     }
-    
+
     // MARK: - iCloud Sync Setup
-    
+
     private func setupCloudSync() {
-        // Listen for changes from other devices
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleCloudStoreChange),
             name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
             object: defaults
         )
-        
-        // Synchronize to get latest from iCloud
         defaults.synchronize()
     }
-    
+
     @objc private func handleCloudStoreChange(_ notification: Notification) {
-        // Dispatch to main thread to ensure thread safety
-        // The notification arrives on a background queue, but we need to update
-        // @MainActor isolated properties on the main thread
         Task { @MainActor in
             self.load()
         }
     }
-    
+
     private func load() {
         let decoder = JSONDecoder()
-        
+
         if let data = defaults.data(forKey: Keys.savedChannels),
            let decoded = try? decoder.decode([Channel].self, from: data) {
             savedChannels = decoded
         }
-        
-        if let data = defaults.data(forKey: Keys.watchLaterIds),
-           let decoded = try? decoder.decode(Set<String>.self, from: data) {
-            watchLaterIds = decoded
+
+        if let data = defaults.data(forKey: Keys.watchLaterVideos),
+           let decoded = try? decoder.decode([Video].self, from: data) {
+            watchLaterVideos = decoded
         }
-        
-        if let data = defaults.data(forKey: Keys.historyIds),
-           let decoded = try? decoder.decode([String: Date].self, from: data) {
-            historyIds = decoded
+
+        if let data = defaults.data(forKey: Keys.historyVideos),
+           let decoded = try? decoder.decode([Video].self, from: data) {
+            historyVideos = decoded
         }
-        
+
         if let data = defaults.data(forKey: Keys.watchProgress),
            let decoded = try? decoder.decode([String: Double].self, from: data) {
             watchProgress = decoded
         }
     }
-    
+
     private func persistChannels() {
         let data = try? JSONEncoder().encode(savedChannels)
         defaults.set(data, forKey: Keys.savedChannels)
         defaults.synchronize()
     }
-    
+
     private func persistWatchLater() {
-        let data = try? JSONEncoder().encode(watchLaterIds)
-        defaults.set(data, forKey: Keys.watchLaterIds)
+        let data = try? JSONEncoder().encode(watchLaterVideos)
+        defaults.set(data, forKey: Keys.watchLaterVideos)
         defaults.synchronize()
     }
-    
+
     private func persistHistory() {
-        let data = try? JSONEncoder().encode(historyIds)
-        defaults.set(data, forKey: Keys.historyIds)
+        let data = try? JSONEncoder().encode(historyVideos)
+        defaults.set(data, forKey: Keys.historyVideos)
         defaults.synchronize()
     }
-    
+
     private func persistProgress() {
         let data = try? JSONEncoder().encode(watchProgress)
         defaults.set(data, forKey: Keys.watchProgress)
         defaults.synchronize()
     }
-    
+
+    // MARK: - Channels
+
     func addChannel(_ channel: Channel) {
         if !savedChannels.contains(where: { $0.id == channel.id }) {
             savedChannels.append(channel)
         }
     }
-    
+
     func removeChannel(_ channel: Channel) {
         savedChannels.removeAll { $0.id == channel.id }
     }
-    
+
     func updateChannel(_ channel: Channel) {
         if let index = savedChannels.firstIndex(where: { $0.id == channel.id }) {
             savedChannels[index] = channel
         }
     }
-    
-    // MARK: - Watch Later (using Set for O(1) lookups)
-    
+
+    // MARK: - Watch Later
+
     func isWatchLater(_ videoId: String) -> Bool {
-        watchLaterIds.contains(videoId)
+        watchLaterVideos.contains { $0.id == videoId }
     }
-    
-    func toggleWatchLater(_ videoId: String) {
-        if watchLaterIds.contains(videoId) {
-            watchLaterIds.remove(videoId)
+
+    func toggleWatchLater(_ video: Video) {
+        if let index = watchLaterVideos.firstIndex(where: { $0.id == video.id }) {
+            watchLaterVideos.remove(at: index)
         } else {
-            watchLaterIds.insert(videoId)
+            watchLaterVideos.append(video)
+            if watchLaterVideos.count > Self.maxItems {
+                watchLaterVideos.removeFirst()
+            }
         }
     }
-    
-    func addToWatchLater(_ videoId: String) {
-        watchLaterIds.insert(videoId)
-    }
-    
+
     func removeFromWatchLater(_ videoId: String) {
-        watchLaterIds.remove(videoId)
+        watchLaterVideos.removeAll { $0.id == videoId }
     }
-    
-    // MARK: - History (using Dictionary for O(1) lookups with timestamps)
-    
+
+    // MARK: - History (most recent first)
+
     func isInHistory(_ videoId: String) -> Bool {
-        historyIds[videoId] != nil
+        historyVideos.contains { $0.id == videoId }
     }
-    
-    func addToHistory(_ videoId: String) {
-        historyIds[videoId] = Date()
+
+    func addToHistory(_ video: Video) {
+        historyVideos.removeAll { $0.id == video.id }
+        historyVideos.insert(video, at: 0)
+        if historyVideos.count > Self.maxItems {
+            historyVideos.removeLast()
+        }
     }
-    
+
     func removeFromHistory(_ videoId: String) {
-        historyIds.removeValue(forKey: videoId)
+        historyVideos.removeAll { $0.id == videoId }
     }
-    
-    func getWatchTime(_ videoId: String) -> Date? {
-        historyIds[videoId]
-    }
-    
+
     func clearHistory() {
-        historyIds = [:]
+        historyVideos = []
     }
-    
-    // MARK: - Watch Progress (Dictionary for O(1) lookups)
-    
+
+    // MARK: - Watch Progress
+
     func getWatchProgress(videoId: String) -> Double {
         watchProgress[videoId] ?? 0
     }
-    
+
     func setWatchProgress(videoId: String, progress: Double) {
         watchProgress[videoId] = progress
     }
-    
+
     func clearWatchProgress(videoId: String) {
         watchProgress.removeValue(forKey: videoId)
     }

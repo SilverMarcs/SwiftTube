@@ -8,15 +8,13 @@
 import SwiftUI
 
 struct WatchLaterView: View {
-    @Environment(VideoLoader.self) private var videoLoader
     @Environment(CloudStoreManager.self) private var userDefaults
     @State private var detailedWatchLaterVideos: [Video] = []
-    
+
     private var watchLaterVideos: [Video] {
-        videoLoader.videos.filter { userDefaults.isWatchLater($0.id) }
-            .sorted { $0.publishedAt > $1.publishedAt }
+        userDefaults.watchLaterVideos
     }
-    
+
     var body: some View {
         let displayedVideos = detailedWatchLaterVideos.isEmpty ? watchLaterVideos : detailedWatchLaterVideos
 
@@ -33,7 +31,7 @@ struct WatchLaterView: View {
                         }
                     }
             }
-            
+
             NavigationLink {
                 List {
                     ForEach(displayedVideos) { video in

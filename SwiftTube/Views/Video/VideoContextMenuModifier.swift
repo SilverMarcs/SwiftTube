@@ -10,7 +10,7 @@ struct VideoContextMenuModifier: ViewModifier {
             .contextMenu {
                 Button {
                     withAnimation {
-                        userDefaults.toggleWatchLater(video.id)
+                        userDefaults.toggleWatchLater(video)
                     }
                 } label: {
                     Label(
