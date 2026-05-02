@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var fetchingSettings = FetchingSettings()
     @Environment(\.dismiss) var dismiss
     @AppStorage("showGoogleAuth") private var showGoogleAuth = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var easterEggTapCount = 0
 
     var body: some View {
@@ -29,6 +30,13 @@ struct SettingsView: View {
 
             Section("Cache") {
                 CacheManagerView()
+            }
+
+            Section {
+                Button("Show Onboarding Again") {
+                    hasCompletedOnboarding = false
+                    dismiss()
+                }
             }
         }
         .formStyle(.grouped)

@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "08E62F842E871877007AD438"
-               BuildableName = "SwiftTube.app"
+               BuildableName = "Cathode.app"
                BlueprintName = "SwiftTube"
                ReferencedContainer = "container:SwiftTube.xcodeproj">
             </BuildableReference>
@@ -45,7 +45,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "08E62F842E871877007AD438"
-            BuildableName = "SwiftTube.app"
+            BuildableName = "Cathode.app"
             BlueprintName = "SwiftTube"
             ReferencedContainer = "container:SwiftTube.xcodeproj">
          </BuildableReference>
@@ -62,7 +62,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "08E62F842E871877007AD438"
-            BuildableName = "SwiftTube.app"
+            BuildableName = "Cathode.app"
             BlueprintName = "SwiftTube"
             ReferencedContainer = "container:SwiftTube.xcodeproj">
          </BuildableReference>

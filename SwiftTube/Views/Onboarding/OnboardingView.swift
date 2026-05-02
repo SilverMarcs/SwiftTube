@@ -3,10 +3,12 @@ import SwiftUI
 struct OnboardingView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(CloudStoreManager.self) private var store
+    @Environment(VideoLoader.self) private var videoLoader
 
     @State private var selected: Set<String> = []
     @State private var manualInput: String = ""
     @State private var isAdding = false
+    @State private var didAddAny = false
 
     var body: some View {
         NavigationStack {
@@ -63,8 +65,13 @@ struct OnboardingView: View {
             .toolbar {
                 #if !os(macOS)
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Skip") { dismiss() }
-                        .disabled(isAdding)
+                    Button("Skip") {
+                        Task {
+                            if didAddAny { await videoLoader.loadAllChannelVideos() }
+                            dismiss()
+                        }
+                    }
+                    .disabled(isAdding)
                 }
                 #endif
                 ToolbarItem(placement: .confirmationAction) {
@@ -100,6 +107,7 @@ struct OnboardingView: View {
         if let channel = try? await fetchChannel(input: raw) {
             store.addChannel(channel)
             manualInput = ""
+            didAddAny = true
         }
     }
 
@@ -109,7 +117,11 @@ struct OnboardingView: View {
         for handle in selected {
             if let channel = try? await YTService.fetchChannel(forHandle: handle) {
                 store.addChannel(channel)
+                didAddAny = true
             }
+        }
+        if didAddAny {
+            await videoLoader.loadAllChannelVideos()
         }
         dismiss()
     }
