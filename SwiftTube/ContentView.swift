@@ -11,10 +11,11 @@ struct ContentView: View {
     @Environment(VideoManager.self) var manager
 
     @Binding var selectedTab: TabSelection
-    
+
     @Namespace private var animation
-    
+
     @State private var isPresented = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     
     var body: some View {
         @Bindable var manager = manager
@@ -62,5 +63,11 @@ struct ContentView: View {
             }
         }
         #endif
+        .sheet(isPresented: Binding(
+            get: { !hasCompletedOnboarding },
+            set: { if !$0 { hasCompletedOnboarding = true } }
+        )) {
+            OnboardingView()
+        }
     }
 }

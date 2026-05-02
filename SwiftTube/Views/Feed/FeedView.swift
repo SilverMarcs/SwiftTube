@@ -37,7 +37,7 @@ struct FeedView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Randomize", systemImage: "shuffle") {
+                    Button {
                         withAnimation {
                             isRandomOrderEnabled.toggle()
                             if isRandomOrderEnabled {
@@ -46,8 +46,11 @@ struct FeedView: View {
                                 randomizedVideos = []
                             }
                         }
+                    } label: {
+                        Image(systemName: "shuffle")
+                            .foregroundStyle(isRandomOrderEnabled ? .accent : .primary)
                     }
-                    .foregroundStyle(isRandomOrderEnabled ? .accent : .primary)
+                    .accessibilityLabel("Randomize")
                 }
 
                 #if os(macOS)

@@ -11,6 +11,8 @@ import SwiftMediaViewer
 struct SettingsView: View {
     @State private var fetchingSettings = FetchingSettings()
     @Environment(\.dismiss) var dismiss
+    @AppStorage("showGoogleAuth") private var showGoogleAuth = false
+    @State private var easterEggTapCount = 0
 
     var body: some View {
         Form {
@@ -32,6 +34,23 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .navigationTitle("Settings")
         .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(role: .close) { dismiss() }
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear
+                .frame(height: 44)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    easterEggTapCount += 1
+                    if easterEggTapCount >= 7 {
+                        showGoogleAuth = true
+                        easterEggTapCount = 0
+                    }
+                }
+        }
     }
 }
 

@@ -9,7 +9,7 @@ import SwiftUI
 import YouTubeKit
 
 struct FetchingSettings {
-    @AppStorage("useLocalFetching") var useLocalFetching: Bool = false
+    @AppStorage("useLocalFetching") var useLocalFetching: Bool = true
 
     var methods: [YouTube.ExtractionMethod] {
         useLocalFetching ? [.local] : [.remote]
