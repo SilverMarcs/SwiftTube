@@ -23,3 +23,6 @@ xcuserdata/
 *.xcuserstate
 .DS_Store
 YouTubePlayerKit
+
+# Local API key material — never commit
+SwiftTube/Models/Managers/SecretsLocal.swift
