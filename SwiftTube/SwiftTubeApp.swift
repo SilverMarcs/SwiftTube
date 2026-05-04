@@ -69,7 +69,9 @@ struct SwiftTubeApp: App {
     init() {
         AVPlayer.isObservationEnabled = true
         #if !os(macOS)
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .moviePlayback)
+        try? session.setActive(true)
         #endif
     }
 }

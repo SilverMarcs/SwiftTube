@@ -8,6 +8,9 @@
 import AVKit
 import Foundation
 @preconcurrency import YouTubeKit
+#if !os(macOS)
+import MediaPlayer
+#endif
 
 @Observable
 class VideoManager {
@@ -19,10 +22,34 @@ class VideoManager {
     private let store = CloudStoreManager.shared
     private let fetchingSettings = FetchingSettings()
 
+    #if !os(macOS)
+    var timeObserverToken: Any?
+    var rateObservation: NSKeyValueObservation?
+    var statusObservation: NSKeyValueObservation?
+    var durationObservation: NSKeyValueObservation?
+    var nowPlayingInfo: [String: Any] = [:]
+    var hasRegisteredRemoteCommands = false
+    #endif
+
+    init() {
+        #if !os(macOS)
+        registerRemoteCommandsIfNeeded()
+        #endif
+    }
+
+    deinit {
+        #if !os(macOS)
+        if let token = timeObserverToken {
+            player?.removeTimeObserver(token)
+        }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        #endif
+    }
+
     func setVideo(_ video: Video, autoPlay: Bool = true) {
         isExpanded = autoPlay
         persistCurrentTime()
-        
+
         guard video.id != currentVideo?.id else {
             return
         }
@@ -79,7 +106,11 @@ class VideoManager {
             if let existingPlayer = player {
                 existingPlayer.replaceCurrentItem(with: playerItem)
             } else {
-                player = AVPlayer(playerItem: playerItem)
+                let newPlayer = AVPlayer(playerItem: playerItem)
+                player = newPlayer
+                #if !os(macOS)
+                attachPlayerObservers(to: newPlayer)
+                #endif
             }
 
             let savedProgress = store.getWatchProgress(videoId: video.id)
@@ -93,6 +124,11 @@ class VideoManager {
             if autoPlay {
                 player?.play()
             }
+
+            #if !os(macOS)
+            await updateNowPlayingMetadata(for: video)
+            updateNowPlayingPlaybackInfo()
+            #endif
 
         } catch {
             print("YouTubeKit error: \(error)")
