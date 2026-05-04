@@ -51,9 +51,8 @@ struct ContentView: View {
         .tabViewBottomAccessory(isEnabled: (selectedTab != .shorts && manager.currentVideo != nil)) {
             if let video = manager.currentVideo {
                 PlayVideoButton(video: video) {
-                    MiniPlayerAccessoryView()
+                    MiniPlayerAccessoryView(transitionNamespace: animation)
                 }
-                .matchedTransitionSource(id: "MINIPLAYER", in: animation)
             }
         }
         .fullScreenCover(isPresented: $isPresented) {

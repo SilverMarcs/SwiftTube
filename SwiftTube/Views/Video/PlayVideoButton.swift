@@ -17,9 +17,13 @@ struct PlayVideoButton<Label: View>: View {
     var body: some View {
         Button {
             manager.setVideo(video)
-            requestVideoPresentation()
             #if os(macOS)
             openWindow(id: "media-player")
+            requestVideoPresentation()
+            #else
+            Task { @MainActor in
+                requestVideoPresentation()
+            }
             #endif
         } label: {
             label

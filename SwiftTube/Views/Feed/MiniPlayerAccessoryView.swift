@@ -6,7 +6,9 @@ struct MiniPlayerAccessoryView: View {
     @Environment(VideoManager.self) var manager
     @Environment(\.openWindow) private var openWindow
     @Environment(\.tabViewBottomAccessoryPlacement) var placement
-    
+
+    var transitionNamespace: Namespace.ID?
+
     var body: some View {
         if let video = manager.currentVideo {
             HStack {
@@ -14,6 +16,7 @@ struct MiniPlayerAccessoryView: View {
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 40, height: 34)
                 .clipShape(.rect(cornerRadius: 10))
+                .modifier(MiniPlayerSourceModifier(namespace: transitionNamespace))
                 
                 VStack(alignment: .leading) {
                     Text(video.title)
@@ -35,6 +38,7 @@ struct MiniPlayerAccessoryView: View {
                     Image(systemName: manager.player?.timeControlStatus == .playing ? "pause.fill" : "play.fill")
                         .contentTransition(.symbolEffect(.replace))
                 }
+                .disabled(manager.isSetting)
                 #if os(macOS)
                 .keyboardShortcut(.space, modifiers: [])
                 .buttonStyle(.glassProminent)
@@ -51,6 +55,18 @@ struct MiniPlayerAccessoryView: View {
             #if !os(macOS)
             .padding(.trailing, 4)
             #endif
+        }
+    }
+}
+
+private struct MiniPlayerSourceModifier: ViewModifier {
+    let namespace: Namespace.ID?
+
+    func body(content: Content) -> some View {
+        if let namespace {
+            content.matchedTransitionSource(id: "MINIPLAYER", in: namespace)
+        } else {
+            content
         }
     }
 }

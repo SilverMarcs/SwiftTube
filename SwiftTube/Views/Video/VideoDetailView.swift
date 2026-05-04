@@ -7,7 +7,7 @@ struct VideoDetailView: View {
     @Environment(VideoManager.self) var manager
     @Environment(\.colorScheme) var colorScheme
     
-    @State var video: Video
+    let video: Video
     @State var showDetail: Bool = false
     
     var showVideo: Bool = false
