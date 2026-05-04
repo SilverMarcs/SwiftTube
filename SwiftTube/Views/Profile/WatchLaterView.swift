@@ -33,23 +33,7 @@ struct WatchLaterView: View {
             }
 
             NavigationLink {
-                List {
-                    ForEach(displayedVideos) { video in
-                        CompactVideoCard(video: video)
-                            .swipeActions {
-                                Button {
-                                    withAnimation {
-                                        userDefaults.removeFromWatchLater(video.id)
-                                    }
-                                } label: {
-                                    Label("Remove", systemImage: "bookmark.slash")
-                                }
-                            }
-                    }
-                }
-                .navigationTitle("Watch Later")
-                .toolbarTitleDisplayMode(.inline)
-                .contentMargins(.top, 5)
+                FullWatchLaterList(videos: displayedVideos)
             } label: {
                 Text("View all Watch Later videos")
                     .foregroundStyle(.accent)
@@ -79,6 +63,42 @@ struct WatchLaterView: View {
             detailedWatchLaterVideos = videos
             print("Error updating watch later video details: \(error.localizedDescription)")
         }
+    }
+}
+
+private struct FullWatchLaterList: View {
+    @Environment(CloudStoreManager.self) private var userDefaults
+    let videos: [Video]
+
+    private var displayedVideos: [Video] {
+        let ids = Set(userDefaults.watchLaterVideos.map(\.id))
+        let filtered = videos.filter { ids.contains($0.id) }
+        if filtered.count == ids.count {
+            return filtered
+        }
+        let known = Set(filtered.map(\.id))
+        let extras = userDefaults.watchLaterVideos.filter { !known.contains($0.id) }
+        return filtered + extras
+    }
+
+    var body: some View {
+        List {
+            ForEach(displayedVideos) { video in
+                CompactVideoCard(video: video)
+                    .swipeActions {
+                        Button {
+                            withAnimation {
+                                userDefaults.removeFromWatchLater(video.id)
+                            }
+                        } label: {
+                            Label("Remove", systemImage: "bookmark.slash")
+                        }
+                    }
+            }
+        }
+        .navigationTitle("Watch Later")
+        .toolbarTitleDisplayMode(.inline)
+        .contentMargins(.top, 5)
     }
 }
 

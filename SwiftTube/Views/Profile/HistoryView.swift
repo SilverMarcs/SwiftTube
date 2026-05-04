@@ -31,22 +31,7 @@ struct HistoryView: View {
             }
 
             NavigationLink {
-                List {
-                    ForEach(displayedVideos) { video in
-                        CompactVideoCard(video: video)
-                            .swipeActions {
-                                Button {
-                                    userDefaults.removeFromHistory(video.id)
-                                } label: {
-                                    Label("Remove", systemImage: "trash")
-                                }
-                                .tint(.red)
-                            }
-                    }
-                }
-                .navigationTitle("History")
-                .toolbarTitleDisplayMode(.inline)
-                .contentMargins(.top, 5)
+                FullHistoryList(videos: displayedVideos)
             } label: {
                 Text("View full history")
                     .foregroundStyle(.accent)
@@ -76,6 +61,41 @@ struct HistoryView: View {
             detailedHistoryVideos = videos
             print("Error updating history video details: \(error.localizedDescription)")
         }
+    }
+}
+
+private struct FullHistoryList: View {
+    @Environment(CloudStoreManager.self) private var userDefaults
+    let videos: [Video]
+
+    private var displayedVideos: [Video] {
+        let ids = Set(userDefaults.historyVideos.map(\.id))
+        let filtered = videos.filter { ids.contains($0.id) }
+        if filtered.count == ids.count {
+            return filtered
+        }
+        let known = Set(filtered.map(\.id))
+        let extras = userDefaults.historyVideos.filter { !known.contains($0.id) }
+        return filtered + extras
+    }
+
+    var body: some View {
+        List {
+            ForEach(displayedVideos) { video in
+                CompactVideoCard(video: video)
+                    .swipeActions {
+                        Button {
+                            userDefaults.removeFromHistory(video.id)
+                        } label: {
+                            Label("Remove", systemImage: "trash")
+                        }
+                        .tint(.red)
+                    }
+            }
+        }
+        .navigationTitle("History")
+        .toolbarTitleDisplayMode(.inline)
+        .contentMargins(.top, 5)
     }
 }
 
