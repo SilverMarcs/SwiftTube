@@ -5,10 +5,15 @@
 //  Created by Zabir Raihan on 15/10/2025.
 //
 
-#if !os(macOS)
 import AVKit
 import MediaPlayer
+#if canImport(UIKit)
 import UIKit
+typealias PlatformImage = UIImage
+#else
+import AppKit
+typealias PlatformImage = NSImage
+#endif
 
 extension VideoManager {
     func registerRemoteCommandsIfNeeded() {
@@ -100,7 +105,7 @@ extension VideoManager {
 
         if !video.thumbnailURL.isEmpty, let url = URL(string: video.thumbnailURL) {
             if let (data, _) = try? await URLSession.shared.data(from: url),
-               let image = UIImage(data: data) {
+               let image = PlatformImage(data: data) {
                 let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
                 info[MPMediaItemPropertyArtwork] = artwork
             }
@@ -112,6 +117,7 @@ extension VideoManager {
             nowPlayingInfo[key] = value
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        MPNowPlayingInfoCenter.default().playbackState = .playing
     }
 
     func updateNowPlayingPlaybackInfo() {
@@ -130,6 +136,7 @@ extension VideoManager {
         nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = 1.0
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        MPNowPlayingInfoCenter.default().playbackState = (player.rate > 0) ? .playing : .paused
     }
 
     func clearNowPlayingInfo() {
@@ -141,6 +148,6 @@ extension VideoManager {
         statusObservation = nil
         durationObservation = nil
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        MPNowPlayingInfoCenter.default().playbackState = .stopped
     }
 }
-#endif

@@ -7,10 +7,8 @@
 
 import AVKit
 import Foundation
-@preconcurrency import YouTubeKit
-#if !os(macOS)
 import MediaPlayer
-#endif
+@preconcurrency import YouTubeKit
 
 @Observable
 class VideoManager {
@@ -22,28 +20,22 @@ class VideoManager {
     private let store = CloudStoreManager.shared
     private let fetchingSettings = FetchingSettings()
 
-    #if !os(macOS)
     var timeObserverToken: Any?
     var rateObservation: NSKeyValueObservation?
     var statusObservation: NSKeyValueObservation?
     var durationObservation: NSKeyValueObservation?
     var nowPlayingInfo: [String: Any] = [:]
     var hasRegisteredRemoteCommands = false
-    #endif
 
     init() {
-        #if !os(macOS)
         registerRemoteCommandsIfNeeded()
-        #endif
     }
 
     deinit {
-        #if !os(macOS)
         if let token = timeObserverToken {
             player?.removeTimeObserver(token)
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-        #endif
     }
 
     func setVideo(_ video: Video, autoPlay: Bool = true) {
@@ -96,9 +88,8 @@ class VideoManager {
                 throw NSError(domain: "VideoManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "No playable stream found"])
             }
             let playerItem = AVPlayerItem(url: stream.url)
-
             #if !os(macOS)
-                playerItem.externalMetadata = await createMetadataItems(for: video)
+            playerItem.externalMetadata = await createMetadataItems(for: video)
             #endif
 
             // Ensure we're still targeting the same video before mutating the player
@@ -108,9 +99,7 @@ class VideoManager {
             } else {
                 let newPlayer = AVPlayer(playerItem: playerItem)
                 player = newPlayer
-                #if !os(macOS)
                 attachPlayerObservers(to: newPlayer)
-                #endif
             }
 
             let savedProgress = store.getWatchProgress(videoId: video.id)
@@ -125,10 +114,8 @@ class VideoManager {
                 player?.play()
             }
 
-            #if !os(macOS)
             await updateNowPlayingMetadata(for: video)
             updateNowPlayingPlaybackInfo()
-            #endif
 
         } catch {
             print("YouTubeKit error: \(error)")
