@@ -35,7 +35,9 @@ struct SettingsView: View {
             Section {
                 Button("Show Onboarding Again") {
                     hasCompletedOnboarding = false
+                    #if !os(macOS)
                     dismiss()
+                    #endif
                 }
             }
         }

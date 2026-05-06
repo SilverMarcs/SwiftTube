@@ -12,7 +12,7 @@ struct WatchLaterView: View {
     @State private var detailedWatchLaterVideos: [Video] = []
 
     private var watchLaterVideos: [Video] {
-        userDefaults.watchLaterVideos
+        userDefaults.watchLaterVideos.reversed()
     }
 
     var body: some View {
@@ -77,7 +77,7 @@ private struct FullWatchLaterList: View {
             return filtered
         }
         let known = Set(filtered.map(\.id))
-        let extras = userDefaults.watchLaterVideos.filter { !known.contains($0.id) }
+        let extras = userDefaults.watchLaterVideos.reversed().filter { !known.contains($0.id) }
         return filtered + extras
     }
 
