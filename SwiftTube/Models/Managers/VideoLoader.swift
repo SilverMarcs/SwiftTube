@@ -9,11 +9,18 @@ import SwiftUI
 
 @Observable
 final class VideoLoader {
+    static let initialShortsPrefetchCount = 8
+
     private(set) var videos: [Video] = []
     private(set) var shortVideos: [Video] = []
-    
+
     private(set) var isLoading: Bool = false
     private let userDefaults = CloudStoreManager.shared
+
+    /// In-memory order for shorts (video IDs). Shuffled on first feed load of the
+    /// process; subsequent reloads preserve this order so prefetched stream URLs
+    /// stay aligned with what the user actually swipes through.
+    private var shortsOrder: [String] = []
     
     func loadAllChannelVideos() async {
         let channels = userDefaults.savedChannels
@@ -53,7 +60,15 @@ final class VideoLoader {
         withAnimation {
             self.videos = sortedVideos
         }
-        self.shortVideos = shorts.shuffled()
+        self.shortVideos = applyStableShuffle(to: shorts)
+
+        // Kick off prefetch of the first batch so the initial swipes are instant.
+        let initialPrefetch = self.shortVideos.prefix(Self.initialShortsPrefetchCount).map(\.id)
+        if !initialPrefetch.isEmpty {
+            Task.detached(priority: .utility) {
+                await StreamURLCache.shared.prefetch(ids: initialPrefetch)
+            }
+        }
         
         let videosForDetails = self.videos.prefix(50)
         if !videosForDetails.isEmpty {
@@ -77,5 +92,21 @@ final class VideoLoader {
 
     func getMostRecentHistoryVideo() -> Video? {
         userDefaults.historyVideos.first
+    }
+
+    private func applyStableShuffle(to shorts: [Video]) -> [Video] {
+        if shortsOrder.isEmpty {
+            let shuffled = shorts.shuffled()
+            shortsOrder = shuffled.map(\.id)
+            return shuffled
+        }
+        let rank = Dictionary(uniqueKeysWithValues: shortsOrder.enumerated().map { ($1, $0) })
+        let known = shorts
+            .filter { rank[$0.id] != nil }
+            .sorted { rank[$0.id]! < rank[$1.id]! }
+        let new = shorts.filter { rank[$0.id] == nil }.shuffled()
+        let merged = known + new
+        shortsOrder = merged.map(\.id)
+        return merged
     }
 }

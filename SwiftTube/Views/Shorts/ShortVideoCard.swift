@@ -1,6 +1,5 @@
 import AVKit
 import SwiftUI
-@preconcurrency import YouTubeKit
 
 struct ShortVideoCard: View {
     let video: Video
@@ -50,13 +49,15 @@ struct ShortVideoCard: View {
 
                 if isActive {
                     loadTask = Task { await loadVideo() }
-                } else {
-                    cleanup()
                 }
+                // No cleanup on deactivation: the shared player is owned by the
+                // currently-active card. The next active card's loadVideo() will
+                // reset and replace the item. Letting the outgoing card touch the
+                // player races with the incoming card's setup (since cache hits
+                // are now near-instant) and blanks playback.
             }
             .onDisappear {
                 cancelLoadTask()
-                cleanup()
             }
             .sheet(isPresented: $showDetail) {
                 VideoDetailView(video: video)
@@ -68,7 +69,7 @@ struct ShortVideoCard: View {
             }
     }
 
-    private func loadVideo() async {
+    private func loadVideo(allowCacheRetry: Bool = true) async {
         guard !Task.isCancelled else { return }
 
         await MainActor.run {
@@ -82,50 +83,29 @@ struct ShortVideoCard: View {
             }
         }
 
-        do {
-            // Fetch stream URL on demand using YouTubeKit
-            let methods = FetchingSettings().methods
-            let youtube = YouTube(videoID: video.id, methods: methods)
-            let streams = try await youtube.streams
-            try Task.checkCancellation()
+        guard let url = await StreamURLCache.shared.fetch(id: video.id) else {
+            print("Failed to load short video: no playable stream")
+            return
+        }
+        if Task.isCancelled { return }
 
-            guard let stream = streams
-                .filterVideoAndAudio()
-                .filter({ $0.isNativelyPlayable })
-                .highestResolutionStream()
-            else {
-                throw NSError(domain: "ShortVideoCard", code: 1, userInfo: [NSLocalizedDescriptionKey: "No playable stream found"])
-            }
+        let playerItem = AVPlayerItem(url: url)
+        await MainActor.run {
+            player.replaceCurrentItem(with: playerItem)
+            player.play()
+        }
 
-            try Task.checkCancellation()
-
-            let playerItem = AVPlayerItem(url: stream.url)
-            try Task.checkCancellation()
-
-            await MainActor.run {
-                player.replaceCurrentItem(with: playerItem)
-                player.play()
-            }
-        } catch is CancellationError {
-            await MainActor.run {
-                player.pause()
-                player.replaceCurrentItem(with: nil)
-            }
-        } catch {
-            print("Failed to load short video: \(error)")
+        let ready = await awaitPlayerItemReady(playerItem)
+        if Task.isCancelled { return }
+        if !ready && allowCacheRetry {
+            // Likely a stale/expired stream URL — drop it and retry once with a fresh fetch.
+            await StreamURLCache.shared.evict(id: video.id)
+            await loadVideo(allowCacheRetry: false)
         }
     }
 
     private func cancelLoadTask() {
         loadTask?.cancel()
         loadTask = nil
-    }
-
-    private func cleanup() {
-        Task { @MainActor in
-            player.pause()
-            player.replaceCurrentItem(with: nil)
-            isLoading = false
-        }
     }
 }

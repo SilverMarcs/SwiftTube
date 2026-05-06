@@ -8,7 +8,6 @@
 import AVKit
 import Foundation
 import MediaPlayer
-@preconcurrency import YouTubeKit
 
 @Observable
 class VideoManager {
@@ -18,7 +17,6 @@ class VideoManager {
     var isExpanded: Bool = false
     var isSetting: Bool = false
     private let store = CloudStoreManager.shared
-    private let fetchingSettings = FetchingSettings()
 
     var timeObserverToken: Any?
     var rateObservation: NSKeyValueObservation?
@@ -60,6 +58,10 @@ class VideoManager {
         }
     }
 
+    private func loadVideoStream(for video: Video, autoPlay: Bool) async {
+        await loadVideoStream(for: video, autoPlay: autoPlay, allowCacheRetry: true)
+    }
+
     func togglePlayPause() {
         guard let player else { return }
 
@@ -71,54 +73,53 @@ class VideoManager {
     }
 
     // MARK: - Private Methods
-    private func loadVideoStream(for video: Video, autoPlay: Bool) async {
-        do {
-            // If the requested video is no longer the current one, abort this task.
+    private func loadVideoStream(for video: Video, autoPlay: Bool, allowCacheRetry: Bool) async {
+        // If the requested video is no longer the current one, abort this task.
+        guard currentVideo?.id == video.id else { return }
+
+        guard let url = await StreamURLCache.shared.fetch(id: video.id) else {
+            print("YouTubeKit error: no playable stream for \(video.id)")
+            return
+        }
+
+        let playerItem = AVPlayerItem(url: url)
+        #if !os(macOS)
+        playerItem.externalMetadata = await createMetadataItems(for: video)
+        #endif
+
+        // Ensure we're still targeting the same video before mutating the player
+        guard currentVideo?.id == video.id else { return }
+        if let existingPlayer = player {
+            existingPlayer.replaceCurrentItem(with: playerItem)
+        } else {
+            let newPlayer = AVPlayer(playerItem: playerItem)
+            player = newPlayer
+            attachPlayerObservers(to: newPlayer)
+        }
+
+        let savedProgress = store.getWatchProgress(videoId: video.id)
+        if savedProgress > 5 {
+            let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
             guard currentVideo?.id == video.id else { return }
+            await player?.seek(to: time)
+        }
 
-            // Fetch stream URL on demand using YouTubeKit
-            let methods = fetchingSettings.methods
-            let youtube = YouTube(videoID: video.id, methods: methods)
-            let streams = try await youtube.streams
-            guard let stream = streams
-                .filterVideoAndAudio()
-                .filter({ $0.isNativelyPlayable })
-                .highestResolutionStream()
-            else {
-                throw NSError(domain: "VideoManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "No playable stream found"])
-            }
-            let playerItem = AVPlayerItem(url: stream.url)
-            #if !os(macOS)
-            playerItem.externalMetadata = await createMetadataItems(for: video)
-            #endif
+        if autoPlay {
+            player?.play()
+        }
 
-            // Ensure we're still targeting the same video before mutating the player
-            guard currentVideo?.id == video.id else { return }
-            if let existingPlayer = player {
-                existingPlayer.replaceCurrentItem(with: playerItem)
-            } else {
-                let newPlayer = AVPlayer(playerItem: playerItem)
-                player = newPlayer
-                attachPlayerObservers(to: newPlayer)
-            }
+        await updateNowPlayingMetadata(for: video)
+        updateNowPlayingPlaybackInfo()
 
-            let savedProgress = store.getWatchProgress(videoId: video.id)
-            if savedProgress > 5 {
-                let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
-                // Double-check again before seeking to avoid applying progress to a new item
-                guard currentVideo?.id == video.id else { return }
-                await player?.seek(to: time)
-            }
-
-            if autoPlay {
-                player?.play()
-            }
-
-            await updateNowPlayingMetadata(for: video)
-            updateNowPlayingPlaybackInfo()
-
-        } catch {
-            print("YouTubeKit error: \(error)")
+        // If the cached URL turns out to be stale (e.g. expired YouTube CDN ticket),
+        // evict and retry once with a fresh fetch.
+        Task { [weak self] in
+            let ready = await awaitPlayerItemReady(playerItem)
+            guard !ready, allowCacheRetry else { return }
+            guard let self else { return }
+            guard self.currentVideo?.id == video.id else { return }
+            await StreamURLCache.shared.evict(id: video.id)
+            await self.loadVideoStream(for: video, autoPlay: autoPlay, allowCacheRetry: false)
         }
     }
 
