@@ -21,7 +21,8 @@ class FeedParser: NSObject, XMLParserDelegate, Sendable {
         var descriptionChunks: [String] = []
         var videoIdChunks: [String] = []
         var views: String? = nil
-        
+        var likes: String? = nil
+
         mutating func reset() {
             titleChunks.removeAll(keepingCapacity: true)
             link = ""
@@ -32,6 +33,7 @@ class FeedParser: NSObject, XMLParserDelegate, Sendable {
             descriptionChunks.removeAll(keepingCapacity: true)
             videoIdChunks.removeAll(keepingCapacity: true)
             views = nil
+            likes = nil
         }
     }
     
@@ -67,6 +69,8 @@ class FeedParser: NSObject, XMLParserDelegate, Sendable {
             }
         } else if elementName == "media:statistics" && inEntry {
             currentEntryBuilder.views = attributeDict["views"]
+        } else if elementName == "media:starRating" && inEntry {
+            currentEntryBuilder.likes = attributeDict["count"]
         }
     }
 
@@ -123,7 +127,7 @@ class FeedParser: NSObject, XMLParserDelegate, Sendable {
             let author = Author(name: authorName)
             let videoThumbnail = YouTubeVideoThumbnail(videoID: videoId)
             let thumbnail = FeedThumbnail(url: videoThumbnail.url?.absoluteString ?? "", width: 120, height: 90)
-            let mediaGroup = MediaGroup(title: mediaTitle, description: description, thumbnail: thumbnail, videoId: videoId, views: currentEntryBuilder.views)
+            let mediaGroup = MediaGroup(title: mediaTitle, description: description, thumbnail: thumbnail, videoId: videoId, views: currentEntryBuilder.views, likes: currentEntryBuilder.likes)
             let entry = Entry(title: title, link: currentEntryBuilder.link, published: publishedDate, updated: updatedDate, author: author, mediaGroup: mediaGroup)
             entries.append(entry)
         }
@@ -150,7 +154,8 @@ class FeedParser: NSObject, XMLParserDelegate, Sendable {
                 url: entry.link,
                 channel: channel,
                 viewCount: entry.mediaGroup.views ?? "0",
-                isShort: entry.link.contains("/shorts/")
+                isShort: entry.link.contains("/shorts/"),
+                likeCount: entry.mediaGroup.likes
             )
         }
     }

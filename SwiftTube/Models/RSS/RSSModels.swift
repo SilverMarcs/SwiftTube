@@ -33,6 +33,7 @@ struct MediaGroup {
     let thumbnail: FeedThumbnail
     let videoId: String
     let views: String?
+    let likes: String?
 }
 
 struct FeedThumbnail: Codable {
