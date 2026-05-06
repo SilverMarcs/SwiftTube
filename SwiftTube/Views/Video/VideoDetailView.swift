@@ -48,17 +48,26 @@ struct VideoDetailView: View {
                 // Channel Info
                 Section {
                     ChannelRowView(channel: video.channel)
+                    #if os(macOS)
+                        .padding(8)
+                        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 15))
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets())
+                    #endif
                 }
                 #if !os(macOS)
                 .listSectionMargins(.top, 0)
                 #endif
-                
+
                 // Description
                 if !video.videoDescription.isEmpty {
 
                 Section("Description") {
                     ExpandableText(text: video.videoDescription, maxCharacters: 200)
                         .font(.subheadline)
+                        #if os(macOS)
+                        .listRowSeparator(.hidden, edges: .bottom)
+                        #endif
                     }
                 }
                  
