@@ -7,10 +7,11 @@ import SwiftUI
 
 struct AppCommands: Commands {
     @Binding var selectedTab: TabSelection
-    
+    @AppStorage("showGoogleAuth") private var showGoogleAuth = false
+
     var body: some Commands {
         CommandGroup(before: .toolbar) {
-            ForEach(TabSelection.allCases, id: \.self) { tab in
+            ForEach(TabSelection.allCases.filter { $0 != .search || showGoogleAuth }, id: \.self) { tab in
                 Button {
                     selectedTab = tab
                 } label: {

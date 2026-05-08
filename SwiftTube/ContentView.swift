@@ -16,12 +16,13 @@ struct ContentView: View {
 
     @State private var isPresented = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    
+    @AppStorage("showGoogleAuth") private var showGoogleAuth = false
+
     var body: some View {
         @Bindable var manager = manager
 
         TabView(selection: $selectedTab) {
-            ForEach(TabSelection.allCases, id: \.self) { tab in
+            ForEach(TabSelection.allCases.filter { $0 != .search || showGoogleAuth }, id: \.self) { tab in
                 Tab(tab.title,
                     systemImage: tab.systemImage,
                     value: tab,
