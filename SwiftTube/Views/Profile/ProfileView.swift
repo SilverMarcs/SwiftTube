@@ -28,6 +28,14 @@ struct ProfileView: View {
                 } label: {
                     Label("Channels", systemImage: "bell")
                 }
+
+                #if os(iOS)
+                NavigationLink {
+                    DownloadsView()
+                } label: {
+                    Label("Downloads", systemImage: "arrow.down.circle")
+                }
+                #endif
             }
 
             WatchLaterView()

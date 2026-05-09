@@ -11,12 +11,16 @@ import AVKit
 @main
 struct SwiftTubeApp: App {
     @Environment(\.scenePhase) var scenePhase
-    
+
+    #if os(iOS)
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    #endif
+
     let videoLoader = VideoLoader()
     let videoManager = VideoManager()
     let store = CloudStoreManager.shared
     let authManager = GoogleAuthManager()
-    
+
     @State var selectedTab: TabSelection = .feed
     
     var body: some Scene {
@@ -26,6 +30,9 @@ struct SwiftTubeApp: App {
                 .environment(videoManager)
                 .environment(store)
                 .environment(authManager)
+                #if os(iOS)
+                .environment(DownloadManager.shared)
+                #endif
                 .environment(\.openURL, OpenURLAction { url in
                     if let videoId = url.youtubeVideoID {
                         Task {
@@ -43,7 +50,7 @@ struct SwiftTubeApp: App {
                 .task(id: scenePhase) {
                     if scenePhase == .active {
                         await videoLoader.loadAllChannelVideos()
-                        
+
                         if videoManager.currentVideo == nil {
                             if let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
                                 videoManager.setVideo(mostRecentVideo, autoPlay: false)

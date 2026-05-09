@@ -77,7 +77,12 @@ class VideoManager {
         // If the requested video is no longer the current one, abort this task.
         guard currentVideo?.id == video.id else { return }
 
-        guard let url = await StreamURLCache.shared.fetch(id: video.id) else {
+        let url: URL
+        if let local = DownloadManager.shared.localURL(for: video.id) {
+            url = local
+        } else if let streamed = await StreamURLCache.shared.fetch(id: video.id) {
+            url = streamed
+        } else {
             print("YouTubeKit error: no playable stream for \(video.id)")
             return
         }

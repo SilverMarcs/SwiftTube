@@ -13,7 +13,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		08E62F852E871877007AD438 /* SwiftTube.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftTube.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		08E62F852E871877007AD438 /* Cathode.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cathode.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -68,7 +68,7 @@
 		08E62F862E871877007AD438 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				08E62F852E871877007AD438 /* SwiftTube.app */,
+				08E62F852E871877007AD438 /* Cathode.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -98,7 +98,7 @@
 				08E21CC82EAB8A13006E8DC2 /* YouTubeKit */,
 			);
 			productName = SwiftTube;
-			productReference = 08E62F852E871877007AD438 /* SwiftTube.app */;
+			productReference = 08E62F852E871877007AD438 /* Cathode.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */

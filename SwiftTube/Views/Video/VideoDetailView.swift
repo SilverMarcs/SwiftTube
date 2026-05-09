@@ -94,7 +94,7 @@ struct VideoDetailView: View {
                 Label("Share Video", systemImage: "square.and.arrow.up")
             }
             .tint(.primary)
-            
+
             Button {
                 userDefaults.toggleWatchLater(video)
             } label: {
@@ -104,6 +104,13 @@ struct VideoDetailView: View {
                 )
             }
             .tint(.primary)
+
+            #if os(iOS)
+            Divider()
+
+            DownloadMenuButton(video: video)
+                .tint(.primary)
+            #endif
         } label: {
             Image(systemName: "ellipsis")
                 .padding(10)
