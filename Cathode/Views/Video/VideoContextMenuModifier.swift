@@ -40,6 +40,13 @@ struct VideoContextMenuModifier: ViewModifier {
                         Label("Share Video", systemImage: "square.and.arrow.up")
                     }
                 }
+
+                #if os(iOS)
+                Section {
+                    DownloadMenuButton(video: video)
+                        .tint(.primary)
+                }
+                #endif
             }
     }
 }

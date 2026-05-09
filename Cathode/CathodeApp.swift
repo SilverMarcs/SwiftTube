@@ -12,10 +12,6 @@ import AVKit
 struct CathodeApp: App {
     @Environment(\.scenePhase) var scenePhase
 
-    #if os(iOS)
-    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    #endif
-
     let videoLoader = VideoLoader()
     let videoManager = VideoManager()
     let store = CloudStoreManager.shared
@@ -79,6 +75,12 @@ struct CathodeApp: App {
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playback, mode: .moviePlayback)
         try? session.setActive(true)
+        #endif
+        #if os(iOS)
+        // Register BGContinuedProcessingTask handler before any submit() call.
+        DownloadActivityCoordinator.register()
+        // Eagerly init so the manager is ready when the first download starts.
+        _ = DownloadManager.shared
         #endif
     }
 }

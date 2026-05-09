@@ -10,8 +10,6 @@ import SwiftUI
 final class DownloadManager: NSObject {
     static let shared = DownloadManager()
 
-    static let sessionIdentifier = "com.SilverMarcs.Cathode.downloads"
-
     private(set) var downloadedVideos: [Video] = []
     private(set) var downloadingVideos: [Video] = []
     private(set) var progress: [String: Double] = [:]
@@ -23,15 +21,15 @@ final class DownloadManager: NSObject {
     @ObservationIgnored
     private var cancellingIds: Set<String> = []
 
-    @ObservationIgnored
-    var backgroundCompletionHandler: (() -> Void)?
-
+    /// Foreground-only session. Tasks die when the app is suspended unless a
+    /// `BGContinuedProcessingTask` (managed by `DownloadActivityCoordinator`)
+    /// is keeping the app alive.
     @ObservationIgnored
     private lazy var session: URLSession = {
-        let config = URLSessionConfiguration.background(withIdentifier: Self.sessionIdentifier)
-        config.sessionSendsLaunchEvents = true
-        config.isDiscretionary = false
-        return URLSession(configuration: config, delegate: self, delegateQueue: nil)
+        let config = URLSessionConfiguration.default
+        config.allowsCellularAccess = true
+        config.waitsForConnectivity = true
+        return URLSession(configuration: config, delegate: self, delegateQueue: .main)
     }()
 
     override private init() {
@@ -40,7 +38,6 @@ final class DownloadManager: NSObject {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         super.init()
         loadDownloaded()
-        rehydrateActiveDownloads()
     }
 
     func localURL(for id: String) -> URL? {
@@ -86,6 +83,13 @@ final class DownloadManager: NSObject {
         task.taskDescription = video.id
         tasks[video.id] = task
         task.resume()
+
+        #if os(iOS)
+        DownloadActivityCoordinator.shared.startTracking(
+            itemID: video.id,
+            name: video.title
+        )
+        #endif
     }
 
     func cancel(_ id: String) {
@@ -96,6 +100,9 @@ final class DownloadManager: NSObject {
             downloadingVideos.removeAll { $0.id == id }
         }
         task.cancel()
+        #if os(iOS)
+        DownloadActivityCoordinator.shared.stopTracking(itemID: id, success: false)
+        #endif
         // Metadata removal happens in didCompleteWithError once the system
         // confirms the cancel, so a racing didFinishDownloadingTo can't move
         // a stranded .mp4 into place.
@@ -139,76 +146,60 @@ final class DownloadManager: NSObject {
         }
         downloadedVideos = videos
     }
-
-    private func rehydrateActiveDownloads() {
-        session.getAllTasks { [weak self] sessionTasks in
-            guard let self else { return }
-            let pairs: [(String, URLSessionDownloadTask)] = sessionTasks.compactMap { task in
-                guard let id = task.taskDescription, let dl = task as? URLSessionDownloadTask else { return nil }
-                return (id, dl)
-            }
-            Task { @MainActor in
-                for (id, dl) in pairs {
-                    self.tasks[id] = dl
-                    if let video = self.loadVideoMetadata(for: id),
-                       !self.downloadingVideos.contains(where: { $0.id == id }) {
-                        self.downloadingVideos.append(video)
-                    }
-                }
-            }
-        }
-    }
 }
 
 extension DownloadManager: URLSessionDownloadDelegate {
-    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-        Task { @MainActor in
-            self.backgroundCompletionHandler?()
-            self.backgroundCompletionHandler = nil
-        }
-    }
-
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         guard let id = downloadTask.taskDescription, totalBytesExpectedToWrite > 0 else { return }
         let value = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
-        Task { @MainActor in
+        // delegateQueue is .main, so we are on the main thread here.
+        MainActor.assumeIsolated {
             self.progress[id] = value
+            #if os(iOS)
+            DownloadActivityCoordinator.shared.updateProgress(
+                itemID: id,
+                bytesWritten: totalBytesWritten,
+                totalExpected: totalBytesExpectedToWrite
+            )
+            #endif
         }
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let id = downloadTask.taskDescription else { return }
 
-        // Cancel raced ahead — drop the temp file (system cleans it up) and finish cleanup.
-        if cancellingIds.contains(id) {
-            Task { @MainActor in
-                self.cleanupDownloadingState(id: id)
-                try? FileManager.default.removeItem(at: self.metadataURL(for: id))
-                self.cancellingIds.remove(id)
+        MainActor.assumeIsolated {
+            // Cancel raced ahead — drop the temp file (system cleans it up) and finish cleanup.
+            if cancellingIds.contains(id) {
+                cleanupDownloadingState(id: id)
+                try? FileManager.default.removeItem(at: metadataURL(for: id))
+                cancellingIds.remove(id)
+                return
             }
-            return
-        }
 
-        let dest = videoFileURL(for: id)
-        try? FileManager.default.removeItem(at: dest)
-        do {
-            try FileManager.default.moveItem(at: location, to: dest)
-        } catch {
-            print("Download: failed to move file for \(id): \(error)")
-            Task { @MainActor in
-                self.cleanupDownloadingState(id: id)
+            let dest = videoFileURL(for: id)
+            try? FileManager.default.removeItem(at: dest)
+            do {
+                try FileManager.default.moveItem(at: location, to: dest)
+            } catch {
+                print("Download: failed to move file for \(id): \(error)")
+                cleanupDownloadingState(id: id)
+                #if os(iOS)
+                DownloadActivityCoordinator.shared.stopTracking(itemID: id, success: false)
+                #endif
+                return
             }
-            return
-        }
 
-        let video = loadVideoMetadata(for: id)
-        Task { @MainActor in
-            self.cleanupDownloadingState(id: id)
-            if let video, !self.downloadedVideos.contains(where: { $0.id == id }) {
+            let video = loadVideoMetadata(for: id)
+            cleanupDownloadingState(id: id)
+            if let video, !downloadedVideos.contains(where: { $0.id == id }) {
                 withAnimation {
-                    self.downloadedVideos.append(video)
+                    downloadedVideos.append(video)
                 }
             }
+            #if os(iOS)
+            DownloadActivityCoordinator.shared.stopTracking(itemID: id)
+            #endif
         }
     }
 
@@ -220,11 +211,18 @@ extension DownloadManager: URLSessionDownloadDelegate {
         if !isCancel {
             print("Download failed for \(id): \(error)")
         }
-        Task { @MainActor in
-            self.cleanupDownloadingState(id: id)
-            try? FileManager.default.removeItem(at: self.metadataURL(for: id))
-            try? FileManager.default.removeItem(at: self.videoFileURL(for: id))
-            self.cancellingIds.remove(id)
+        MainActor.assumeIsolated {
+            cleanupDownloadingState(id: id)
+            try? FileManager.default.removeItem(at: metadataURL(for: id))
+            try? FileManager.default.removeItem(at: videoFileURL(for: id))
+            cancellingIds.remove(id)
+            #if os(iOS)
+            // For user-cancels the coordinator was already notified in cancel(_:);
+            // stopTracking is idempotent on unknown ids.
+            if !isCancel {
+                DownloadActivityCoordinator.shared.stopTracking(itemID: id, success: false)
+            }
+            #endif
         }
     }
 
