@@ -17,7 +17,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		08F30B942E89115A005B1397 /* Exceptions for "SwiftTube" folder in "SwiftTube" target */ = {
+		08F30B942E89115A005B1397 /* Exceptions for "Cathode" folder in "Cathode" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -28,17 +28,17 @@
 				Views/Player/AVPlayerViewIos.swift = (ios, xros, );
 				Views/Player/AVPlayerViewMac.swift = (macos, );
 			};
-			target = 08E62F842E871877007AD438 /* SwiftTube */;
+			target = 08E62F842E871877007AD438 /* Cathode */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		08E62F872E871877007AD438 /* SwiftTube */ = {
+		08E62F872E871877007AD438 /* Cathode */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				08F30B942E89115A005B1397 /* Exceptions for "SwiftTube" folder in "SwiftTube" target */,
+				08F30B942E89115A005B1397 /* Exceptions for "Cathode" folder in "Cathode" target */,
 			);
-			path = SwiftTube;
+			path = Cathode;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -60,7 +60,7 @@
 		08E62F7C2E871877007AD438 = {
 			isa = PBXGroup;
 			children = (
-				08E62F872E871877007AD438 /* SwiftTube */,
+				08E62F872E871877007AD438 /* Cathode */,
 				08E62F862E871877007AD438 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -76,9 +76,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		08E62F842E871877007AD438 /* SwiftTube */ = {
+		08E62F842E871877007AD438 /* Cathode */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 08E62F902E871879007AD438 /* Build configuration list for PBXNativeTarget "SwiftTube" */;
+			buildConfigurationList = 08E62F902E871879007AD438 /* Build configuration list for PBXNativeTarget "Cathode" */;
 			buildPhases = (
 				08E62F812E871877007AD438 /* Sources */,
 				08E62F822E871877007AD438 /* Frameworks */,
@@ -89,15 +89,15 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				08E62F872E871877007AD438 /* SwiftTube */,
+				08E62F872E871877007AD438 /* Cathode */,
 			);
-			name = SwiftTube;
+			name = Cathode;
 			packageProductDependencies = (
 				08E630512E87AD2A007AD438 /* SwiftMediaViewer */,
 				08E630542E87AD56007AD438 /* SwiftMediaViewer */,
 				08E21CC82EAB8A13006E8DC2 /* YouTubeKit */,
 			);
-			productName = SwiftTube;
+			productName = Cathode;
 			productReference = 08E62F852E871877007AD438 /* Cathode.app */;
 			productType = "com.apple.product-type.application";
 		};
@@ -116,7 +116,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 08E62F802E871877007AD438 /* Build configuration list for PBXProject "SwiftTube" */;
+			buildConfigurationList = 08E62F802E871877007AD438 /* Build configuration list for PBXProject "Cathode" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -134,7 +134,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				08E62F842E871877007AD438 /* SwiftTube */,
+				08E62F842E871877007AD438 /* Cathode */,
 			);
 		};
 /* End PBXProject section */
@@ -289,7 +289,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = SwiftTube/SwiftTube.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Cathode/Cathode.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
@@ -310,7 +310,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = SwiftTube/Info.plist;
+				INFOPLIST_FILE = Cathode/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Cathode;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
@@ -351,7 +351,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = SwiftTube/SwiftTube.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Cathode/Cathode.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
 				DEAD_CODE_STRIPPING = YES;
@@ -371,7 +371,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = SwiftTube/Info.plist;
+				INFOPLIST_FILE = Cathode/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Cathode;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
@@ -409,7 +409,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		08E62F802E871877007AD438 /* Build configuration list for PBXProject "SwiftTube" */ = {
+		08E62F802E871877007AD438 /* Build configuration list for PBXProject "Cathode" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				08E62F8E2E871879007AD438 /* Debug */,
@@ -418,7 +418,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		08E62F902E871879007AD438 /* Build configuration list for PBXNativeTarget "SwiftTube" */ = {
+		08E62F902E871879007AD438 /* Build configuration list for PBXNativeTarget "Cathode" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				08E62F912E871879007AD438 /* Debug */,

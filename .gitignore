@@ -25,7 +25,7 @@ xcuserdata/
 YouTubePlayerKit
 
 # Local API key material — never commit
-SwiftTube/Models/Managers/SecretsLocal.swift
+Cathode/Models/Managers/SecretsLocal.swift
 
 .asc
 Screenshots

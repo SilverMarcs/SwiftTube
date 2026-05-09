@@ -3,7 +3,7 @@ import Security
 
 final class KeychainManager {
     static let shared = KeychainManager()
-    private let service = "com.SilverMarcs.SwiftTube"
+    private let service = "com.SilverMarcs.Cathode"
     
     private init() {}
     

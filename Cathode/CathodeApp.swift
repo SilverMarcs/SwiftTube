@@ -9,7 +9,7 @@ import SwiftUI
 import AVKit
 
 @main
-struct SwiftTubeApp: App {
+struct CathodeApp: App {
     @Environment(\.scenePhase) var scenePhase
 
     #if os(iOS)

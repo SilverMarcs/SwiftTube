@@ -1,4 +1,4 @@
-# SwiftTube
+# Cathode
 
 Simple SwiftUI Youtube client with Liquid Glass.
 

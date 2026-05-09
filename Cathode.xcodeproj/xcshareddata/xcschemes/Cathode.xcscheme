@@ -17,8 +17,8 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "08E62F842E871877007AD438"
                BuildableName = "Cathode.app"
-               BlueprintName = "SwiftTube"
-               ReferencedContainer = "container:SwiftTube.xcodeproj">
+               BlueprintName = "Cathode"
+               ReferencedContainer = "container:Cathode.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -46,8 +46,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "08E62F842E871877007AD438"
             BuildableName = "Cathode.app"
-            BlueprintName = "SwiftTube"
-            ReferencedContainer = "container:SwiftTube.xcodeproj">
+            BlueprintName = "Cathode"
+            ReferencedContainer = "container:Cathode.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -63,8 +63,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "08E62F842E871877007AD438"
             BuildableName = "Cathode.app"
-            BlueprintName = "SwiftTube"
-            ReferencedContainer = "container:SwiftTube.xcodeproj">
+            BlueprintName = "Cathode"
+            ReferencedContainer = "container:Cathode.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

@@ -10,7 +10,7 @@ import SwiftUI
 final class DownloadManager: NSObject {
     static let shared = DownloadManager()
 
-    static let sessionIdentifier = "com.SilverMarcs.SwiftTube.downloads"
+    static let sessionIdentifier = "com.SilverMarcs.Cathode.downloads"
 
     private(set) var downloadedVideos: [Video] = []
     private(set) var downloadingVideos: [Video] = []
