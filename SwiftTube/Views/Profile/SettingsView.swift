@@ -44,11 +44,13 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .navigationTitle("Settings")
         .toolbarTitleDisplayMode(.inline)
+        #if !os(macOS)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(role: .close) { dismiss() }
             }
         }
+        #endif
         .safeAreaInset(edge: .bottom) {
             Color.clear
                 .frame(height: 44)

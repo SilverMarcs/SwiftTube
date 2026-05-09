@@ -63,7 +63,6 @@ struct OnboardingView: View {
             .navigationTitle("Add Channels")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                #if !os(macOS)
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Skip") {
                         Task {
@@ -73,7 +72,6 @@ struct OnboardingView: View {
                     }
                     .disabled(isAdding)
                 }
-                #endif
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
                         Task { await addSelected() }
