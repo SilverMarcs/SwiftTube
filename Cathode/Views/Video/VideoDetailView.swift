@@ -72,9 +72,7 @@ struct VideoDetailView: View {
                 }
                  
                 // Comments Section
-                Section("Comments") {
-                    VideoCommentsView(video: video)
-                }
+                VideoCommentsView(video: video)
             }
             #if !os(macOS)
             .statusBar(hidden: false)
