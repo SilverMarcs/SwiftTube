@@ -4,9 +4,20 @@ import Foundation
 
 actor StreamURLCache {
     static let shared = StreamURLCache()
+    private static let storageKey = "StreamURLCache.urls"
 
-    private var urls: [String: URL] = [:]
+    private var urls: [String: URL]
     private var inflight: [String: Task<URL?, Never>] = [:]
+
+    init() {
+        let raw = UserDefaults.standard.dictionary(forKey: Self.storageKey) as? [String: String] ?? [:]
+        self.urls = raw.compactMapValues { URL(string: $0) }
+    }
+
+    private func persist() {
+        let raw = urls.mapValues { $0.absoluteString }
+        UserDefaults.standard.set(raw, forKey: Self.storageKey)
+    }
 
     func cachedURL(for id: String) -> URL? { urls[id] }
 
@@ -30,12 +41,16 @@ actor StreamURLCache {
         inflight[id] = task
         let url = await task.value
         inflight[id] = nil
-        if let url { urls[id] = url }
+        if let url {
+            urls[id] = url
+            persist()
+        }
         return url
     }
 
     func evict(id: String) {
         urls[id] = nil
+        persist()
     }
 
     func prefetch(ids: [String]) {
@@ -63,7 +78,10 @@ actor StreamURLCache {
 
     private func storePrefetched(id: String, url: URL?) {
         inflight[id] = nil
-        if let url { urls[id] = url }
+        if let url {
+            urls[id] = url
+            persist()
+        }
     }
 }
 

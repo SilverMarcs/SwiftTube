@@ -20,7 +20,7 @@ final class CloudStoreManager {
         static let watchProgress = "watchProgress"
     }
 
-    private static let maxItems = 50
+    private static let maxItems = 100
 
     // MARK: - Saved Channels
 
