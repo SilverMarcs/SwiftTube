@@ -35,6 +35,9 @@ struct VideoGridView: View {
                     .scenePadding(.horizontal)
                     .scenePadding(.bottom)
                 }
+                #if os(macOS)
+                .contentMargins(.top, 10)
+                #endif
             } else {
                 List(videos) { video in
                     VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsWatchLaterIcon: showsWatchLaterIcon)
@@ -44,7 +47,6 @@ struct VideoGridView: View {
                         .listRowInsets(.vertical, 5)
                         .listRowInsets(.horizontal, 10)
                 }
-                .listStyle(.plain)
             }
         }
         .overlay {

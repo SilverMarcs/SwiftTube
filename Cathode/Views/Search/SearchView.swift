@@ -1,33 +1,77 @@
 import SwiftUI
 
 struct SearchView: View {
-    @State private var searchScope: SearchScope = .video
+    @AppStorage("showGoogleAuth") private var showGoogleAuth = false
+    @Environment(VideoLoader.self) private var videoLoader
+    @Environment(CloudStoreManager.self) private var userDefaults
+
+    @State private var searchScope: SearchScope = .watchLater
     @State var searchText: String = ""
-    @State private var results: SearchResults = SearchResults(videos: [], channels: [])
+    @State private var onlineResults: SearchResults = SearchResults(videos: [], channels: [])
     @State private var isLoading = false
-    
+    @FocusState private var isSearchFocused: Bool
+
+    private var availableScopes: [SearchScope] {
+        var scopes: [SearchScope] = [.watchLater, .history, .feed]
+        if showGoogleAuth {
+            scopes.append(.video)
+            scopes.append(.channel)
+        }
+        return scopes
+    }
+
+    private func filter(_ videos: [Video]) -> [Video] {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return videos }
+        return videos.filter { video in
+            video.title.localizedCaseInsensitiveContains(query)
+                || video.channel.title.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private var filteredFeed: [Video] { filter(videoLoader.videos) }
+    private var filteredWatchLater: [Video] { filter(Array(userDefaults.watchLaterVideos.reversed())) }
+    private var filteredHistory: [Video] { filter(userDefaults.historyVideos) }
+
     var body: some View {
-        List {
-            if searchScope == .video && !results.videos.isEmpty {
-                Section("Videos") {
-                    ForEach(results.videos) { video in
-                        CompactVideoCard(video: video)
+        Group {
+            switch searchScope {
+            case .feed:
+                VideoGridView(videos: filteredFeed)
+            case .watchLater:
+                VideoGridView(videos: filteredWatchLater)
+            case .history:
+                VideoGridView(videos: filteredHistory)
+            case .video:
+                List {
+                    if !onlineResults.videos.isEmpty {
+                        Section("Videos") {
+                            ForEach(onlineResults.videos) { video in
+                                CompactVideoCard(video: video)
+                            }
+                        }
                     }
                 }
-            } else if searchScope == .channel && !results.channels.isEmpty {
-                Section("Channels") {
-                    ForEach(results.channels) { channel in
-                        ChannelRowView(channel: channel)
+            case .channel:
+                List {
+                    if !onlineResults.channels.isEmpty {
+                        Section("Channels") {
+                            ForEach(onlineResults.channels) { channel in
+                                ChannelRowView(channel: channel)
+                            }
+                        }
                     }
                 }
             }
         }
         .toolbar {
-            Button {
-                results = .init(videos: [], channels: [])
-            } label: {
-                Label("Clear", systemImage: "eraser")
-                    .labelStyle(.titleOnly)
+            if isOnlineScope {
+                Button {
+                    onlineResults = .init(videos: [], channels: [])
+                } label: {
+                    Label("Clear", systemImage: "eraser")
+                        .labelStyle(.titleOnly)
+                }
             }
         }
         .navigationTitle("Search")
@@ -35,23 +79,39 @@ struct SearchView: View {
         .overlay {
             if isLoading {
                 UniversalProgressView()
-            } else if results.isEmpty {
+            } else if isOnlineScope, onlineResults.isEmpty {
                 ContentUnavailableView.search
             }
         }
-        .searchable(text: $searchText, placement: placement, prompt: "Search videos or channels")
+        .searchable(text: $searchText, placement: placement, prompt: "Search…")
+        .searchFocused($isSearchFocused)
         .searchPresentationToolbarBehavior(.avoidHidingContent)
+        #if os(macOS)
+        .task {
+            isSearchFocused = true
+        }
+        #endif
         .searchScopes($searchScope) {
-            ForEach(SearchScope.allCases) { scope in
+            ForEach(availableScopes) { scope in
                 Text(scope.rawValue)
                     .tag(scope)
             }
         }
+        .onChange(of: showGoogleAuth) { _, newValue in
+            if !newValue, isOnlineScope {
+                searchScope = .watchLater
+            }
+        }
         .onSubmit(of: .search) {
+            guard isOnlineScope else { return }
             Task { await performSearch() }
         }
     }
-    
+
+    private var isOnlineScope: Bool {
+        searchScope == .video || searchScope == .channel
+    }
+
     private func performSearch() async {
         guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         isLoading = true
@@ -63,7 +123,7 @@ struct SearchView: View {
             if !videosWithDetails.isEmpty {
                 try await YTService.fetchVideoDetails(for: &videosWithDetails)
             }
-            results = SearchResults(
+            onlineResults = SearchResults(
                 videos: videosWithDetails,
                 channels: allResults.channels
             )
@@ -71,7 +131,7 @@ struct SearchView: View {
             print("Error in SearchView: \(error.localizedDescription)")
         }
     }
-    
+
     private var placement: SearchFieldPlacement {
         #if os(tvOS)
         .automatic
@@ -82,6 +142,9 @@ struct SearchView: View {
 }
 
 enum SearchScope: String, Hashable, CaseIterable, Identifiable {
+    case feed = "Feed"
+    case watchLater = "Watch Later"
+    case history = "History"
     case video = "Videos"
     case channel = "Channels"
     var id: String { rawValue }

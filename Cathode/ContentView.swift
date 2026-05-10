@@ -23,8 +23,7 @@ struct ContentView: View {
     private var isCompactSize: Bool { horizontalSizeClass == .compact }
 
     private var primaryTabs: [TabSelection] {
-        let tabs = isCompactSize ? TabSelection.compactTabs : TabSelection.extendedTabs
-        return tabs.filter { $0 != .search || showGoogleAuth }
+        isCompactSize ? TabSelection.compactTabs : TabSelection.extendedTabs
     }
 
     var body: some View {
