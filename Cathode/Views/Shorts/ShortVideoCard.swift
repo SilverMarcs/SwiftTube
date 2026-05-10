@@ -32,7 +32,11 @@ struct ShortVideoCard: View {
                         Image(systemName: "info")
                     }
                     .buttonStyle(.glass)
+                    #if os(macOS)
+                    .controlSize(.extraLarge)
+                    #else
                     .controlSize(.large)
+                    #endif
                     .buttonBorderShape(.circle)
                 }
                 .padding(.horizontal, 16)
