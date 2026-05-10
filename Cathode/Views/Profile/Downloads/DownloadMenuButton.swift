@@ -1,3 +1,4 @@
+#if os(iOS)
 //
 //  DownloadMenuButton.swift
 //  SwiftTube
@@ -11,7 +12,7 @@ struct DownloadMenuButton: View {
 
     var body: some View {
         if downloads.isDownloaded(video.id) {
-            Button(role: .destructive) {
+            Button {
                 downloads.delete(video.id)
             } label: {
                 Label("Remove Download", systemImage: "arrow.down.circle.fill")
@@ -30,3 +31,4 @@ struct DownloadMenuButton: View {
         }
     }
 }
+#endif

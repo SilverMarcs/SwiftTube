@@ -1,3 +1,4 @@
+#if os(iOS)
 //
 //  DownloadManager.swift
 //  SwiftTube
@@ -235,3 +236,4 @@ extension DownloadManager: URLSessionDownloadDelegate {
         }
     }
 }
+#endif

@@ -16,16 +16,17 @@ struct ShortVideoCard: View {
             .clipped()
             .overlay(alignment: .bottom) {
                 HStack {
-                    #if !os(macOS)
-                        ChannelRowView(channel: video.channel)
-                            .foregroundStyle(.white)
-                            .shadow(color: .black, radius: 20, x: 0, y: 0)
-                            .navigationLinkIndicatorVisibility(.hidden)
-                            .allowsHitTesting(false)
-                    #endif
+                    ChannelRowView(channel: video.channel)
+                        .foregroundStyle(.white)
+                        .shadow(color: .black, radius: 20, x: 0, y: 0)
+                        .navigationLinkIndicatorVisibility(.hidden)
+                        .buttonStyle(.plain)
+                        .allowsHitTesting(false)
+                        #if os(tvOS)
+                        .focusable(false)
+                        #endif
 
-                    Spacer()
-
+                    #if !os(tvOS)
                     Button {
                         showDetail = true
                     } label: {
@@ -38,6 +39,7 @@ struct ShortVideoCard: View {
                     .controlSize(.large)
                     #endif
                     .buttonBorderShape(.circle)
+                    #endif
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 20)
@@ -66,7 +68,9 @@ struct ShortVideoCard: View {
             .sheet(isPresented: $showDetail) {
                 VideoDetailView(video: video)
                     .presentationDetents([.medium])
+                    #if !os(tvOS)
                     .presentationBackground(.bar)
+                    #endif
                     #if os(macOS)
                         .frame(height: 500)
                     #endif

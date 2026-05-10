@@ -15,7 +15,7 @@ struct VideoDetailView: View {
     var body: some View {
         NavigationStack {
             List {
-                #if !os(macOS)
+                #if os(iOS) || os(visionOS)
                 Section(video.title) {
                     // Video Stats (Views, Likes, Published)
                     HStack(spacing: 5) {
@@ -55,7 +55,7 @@ struct VideoDetailView: View {
                         .listRowInsets(EdgeInsets())
                     #endif
                 }
-                #if !os(macOS)
+                #if os(iOS) || os(visionOS)
                 .listSectionMargins(.top, 0)
                 #endif
 
@@ -74,7 +74,7 @@ struct VideoDetailView: View {
                 // Comments Section
                 VideoCommentsView(video: video)
             }
-            #if !os(macOS)
+            #if os(iOS) || os(visionOS)
             .statusBar(hidden: false)
             .safeAreaBar(edge: .top) {
                 if showVideo {
@@ -88,10 +88,12 @@ struct VideoDetailView: View {
     
     var menu: some View {
         Menu {
+            #if !os(tvOS)
             ShareLink(item: URL(string: video.url)!) {
                 Label("Share Video", systemImage: "square.and.arrow.up")
             }
             .tint(.primary)
+            #endif
 
             Button {
                 userDefaults.toggleWatchLater(video)

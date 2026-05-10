@@ -15,7 +15,7 @@ struct ChannelVideoList: View {
     var body: some View {
         VideoGridView(videos: videos, showChannelLinkInContextMenu: false)
             .navigationTitle(channel.title)
-            .toolbarTitleDisplayMode(.inline)
+            .platformNavigationToolbar(titleDisplayMode: .inline)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     if isSavedChannel {

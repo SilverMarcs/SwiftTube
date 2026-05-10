@@ -31,7 +31,7 @@ struct SearchView: View {
             }
         }
         .navigationTitle("Search")
-        .toolbarTitleDisplayMode(.inlineLarge)
+        .platformNavigationToolbar()
         .overlay {
             if isLoading {
                 UniversalProgressView()

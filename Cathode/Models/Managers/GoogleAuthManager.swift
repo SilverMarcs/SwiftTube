@@ -9,7 +9,7 @@ import Foundation
 import AuthenticationServices
 
 @Observable
-final class GoogleAuthManager: NSObject, ASWebAuthenticationPresentationContextProviding {
+final class GoogleAuthManager: NSObject {
     // Persisted properties (MainActor isolated for SwiftUI/UI safety)
     private(set) var accessToken: String = ""
     private var refreshToken: String = ""
@@ -21,7 +21,9 @@ final class GoogleAuthManager: NSObject, ASWebAuthenticationPresentationContextP
     let clientId = "551349563852-504vr1i2r82rf2ksnpj9qvu8bmc54ns8.apps.googleusercontent.com"
     let redirectUri = "com.googleusercontent.apps.551349563852-504vr1i2r82rf2ksnpj9qvu8bmc54ns8:/oauth2redirect"
     
+    #if !os(tvOS)
     private var authenticationSession: ASWebAuthenticationSession?
+    #endif
     
     // Keychain keys
     private enum Keys {
@@ -70,6 +72,11 @@ final class GoogleAuthManager: NSObject, ASWebAuthenticationPresentationContextP
         KeychainManager.shared.delete(key: Keys.avatar)
     }
     
+    #if os(tvOS)
+    func signIn() async throws {
+        throw NSError(domain: "GoogleAuthManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Sign-in not supported on tvOS"])
+    }
+    #else
     func signIn() async throws {
         let authUrl = URL(string: "https://accounts.google.com/o/oauth2/v2/auth?client_id=\(clientId)&redirect_uri=\(redirectUri)&response_type=code&scope=https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid")!
         let callbackUrlScheme = "com.googleusercontent.apps.551349563852-504vr1i2r82rf2ksnpj9qvu8bmc54ns8"
@@ -104,14 +111,8 @@ final class GoogleAuthManager: NSObject, ASWebAuthenticationPresentationContextP
             authenticationSession?.start()
         }
     }
+    #endif
 
-    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        #if os(iOS)
-        return UIApplication.shared.windows.first ?? ASPresentationAnchor()
-        #elseif os(macOS)
-        return NSApplication.shared.keyWindow ?? ASPresentationAnchor()
-        #endif
-    }
     
     
     
@@ -213,4 +214,18 @@ final class GoogleAuthManager: NSObject, ASWebAuthenticationPresentationContextP
         return try await refreshAccessToken()
     }
 }
+
+#if !os(tvOS)
+extension GoogleAuthManager: ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        #if os(iOS)
+        return UIApplication.shared.windows.first ?? ASPresentationAnchor()
+        #elseif os(macOS)
+        return NSApplication.shared.keyWindow ?? ASPresentationAnchor()
+        #else
+        return ASPresentationAnchor()
+        #endif
+    }
+}
+#endif
 

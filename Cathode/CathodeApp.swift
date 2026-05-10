@@ -55,9 +55,11 @@ struct CathodeApp: App {
                     }
                 }
         }
+        #if !os(tvOS)
         .commands {
             AppCommands(selectedTab: $selectedTab)
         }
+        #endif
         #if os(macOS)
         Window("Media Player", id: "media-player") {
             AVPlayerViewMac()

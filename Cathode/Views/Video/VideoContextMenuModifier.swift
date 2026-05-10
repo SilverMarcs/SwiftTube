@@ -32,13 +32,15 @@ struct VideoContextMenuModifier: ViewModifier {
                         NavigationLink {
                             ChannelVideoList(channel: video.channel)
                         } label: {
-                            Label(video.channel.title, systemImage: "person.circle")
+                            Label(video.channel.title, systemImage: "person")
                         }
                     }
                     
+                    #if !os(tvOS)
                     ShareLink(item: URL(string: video.url)!) {
                         Label("Share Video", systemImage: "square.and.arrow.up")
                     }
+                    #endif
                 }
 
                 #if os(iOS)

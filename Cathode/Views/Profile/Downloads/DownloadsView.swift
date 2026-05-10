@@ -1,3 +1,4 @@
+#if os(iOS)
 //
 //  DownloadsView.swift
 //  SwiftTube
@@ -36,6 +37,7 @@ struct DownloadsView: View {
             }
         }
         .navigationTitle("Downloads")
-        .toolbarTitleDisplayMode(.inline)
+        .platformNavigationToolbar(titleDisplayMode: .inline)
     }
 }
+#endif

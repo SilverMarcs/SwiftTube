@@ -42,7 +42,7 @@ struct ChannelDetailView: View {
                 .padding()
             }
             .navigationTitle("Channel Details")
-            .toolbarTitleDisplayMode(.inline)
+            .platformNavigationToolbar(titleDisplayMode: .inline)
         }
     }
 }

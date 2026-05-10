@@ -20,7 +20,7 @@ struct AddChannelView: View {
             }
             .formStyle(.grouped)
             .navigationTitle("Add Channel")
-            .toolbarTitleDisplayMode(.inline)
+            .platformNavigationToolbar(titleDisplayMode: .inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) { dismiss() }

@@ -23,7 +23,9 @@ struct ExpandableText: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(LocalizedStringKey(displayedText))
+                #if !os(tvOS)
                 .textSelection(.enabled)
+                #endif
                 .lineSpacing(2)
                 .accentColor(.blue)
             

@@ -28,6 +28,6 @@ struct PlayVideoButton<Label: View>: View {
         } label: {
             label
         }
-        .buttonStyle(.plain)
+        .adaptiveCardButtonStyle()
     }
 }

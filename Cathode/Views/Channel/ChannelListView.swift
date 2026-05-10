@@ -53,10 +53,12 @@ struct ChannelListView: View {
                                 .tint(.blue)
                                 .buttonBorderShape(.circle)
                             }
+                            #if !os(tvOS)
                             .listRowSeparator(.hidden, edges: .top)
                             .listRowSeparator(.visible, edges: .bottom)
+                            #endif
                         }
-                        
+
                         if searchText.isEmpty {
                             Button {
                                 Task { await loadSubscriptions() }
@@ -77,8 +79,10 @@ struct ChannelListView: View {
                             ChannelRowView(channel: channel)
                         }
                         .onDelete(perform: deleteChannels)
+                        #if !os(tvOS)
                         .listRowSeparator(.hidden, edges: .top)
                         .listRowSeparator(.visible, edges: .bottom)
+                        #endif
                     }
                 }
             }
@@ -91,7 +95,7 @@ struct ChannelListView: View {
                 await refreshChannels()
             }
             .navigationTitle("Channels")
-            .toolbarTitleDisplayMode(.inline)
+            .platformNavigationToolbar(titleDisplayMode: .inline)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {

@@ -61,7 +61,7 @@ struct OnboardingView: View {
             }
             .formStyle(.grouped)
             .navigationTitle("Add Channels")
-            .toolbarTitleDisplayMode(.inline)
+            .platformNavigationToolbar(titleDisplayMode: .inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Skip") {

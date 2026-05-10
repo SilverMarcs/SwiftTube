@@ -36,6 +36,7 @@ struct ShortsView: View {
             .scrollTargetBehavior(.paging)
             .scrollIndicators(.hidden)
             .scrollPosition(id: $activeVideoId)
+            .toolbarBackground(.visible, for: .windowToolbar)
 #else
             TabView(selection: $activeVideoId) {
                 ForEach(videoLoader.shortVideos) { video in
@@ -48,7 +49,9 @@ struct ShortsView: View {
                 }
             }
             .background(.black)
+            #if !os(tvOS)
             .statusBarHidden(false)
+            #endif
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea()
 #endif

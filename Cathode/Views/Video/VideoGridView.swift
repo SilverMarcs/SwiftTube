@@ -1,34 +1,51 @@
 import SwiftUI
 
-struct VideoGridView: View {    
+struct VideoGridView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     let videos: [Video]
     var showChannelLinkInContextMenu: Bool = true
+    var showsWatchLaterIcon: Bool = true
 
-    private let gridColumns: [GridItem] = [
-        GridItem(.adaptive(minimum: 240, maximum: 420), spacing: 10, alignment: .top)
-    ]
-    
+    private var gridColumns: [GridItem] {
+        #if os(tvOS)
+        [GridItem(.adaptive(minimum: 420, maximum: 560), spacing: gridSpacing, alignment: .top)]
+        #else
+        [GridItem(.adaptive(minimum: 240, maximum: 420), spacing: gridSpacing, alignment: .top)]
+        #endif
+    }
+
+    private var gridSpacing: CGFloat {
+        #if os(tvOS)
+        30
+        #else
+        10
+        #endif
+    }
+
     var body: some View {
         Group {
-#if os(macOS)
-            ScrollView {
-                LazyVGrid(columns: gridColumns, spacing: 10) {
-                    ForEach(videos) { video in
-                        VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu)
+            if horizontalSizeClass == .regular {
+                ScrollView {
+                    LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
+                        ForEach(videos) { video in
+                            VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsWatchLaterIcon: showsWatchLaterIcon)
+                        }
                     }
+                    .scenePadding(.horizontal)
+                    .scenePadding(.bottom)
                 }
-                .scenePadding(.horizontal)
-                .scenePadding(.bottom)
+            } else {
+                List(videos) { video in
+                    VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsWatchLaterIcon: showsWatchLaterIcon)
+                        #if !os(tvOS)
+                        .listRowSeparator(.hidden)
+                        #endif
+                        .listRowInsets(.vertical, 5)
+                        .listRowInsets(.horizontal, 10)
+                }
+                .listStyle(.plain)
             }
-#else
-            List(videos) { video in
-                VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(.vertical, 5)
-                    .listRowInsets(.horizontal, 10)
-            }
-            .listStyle(.plain)
-#endif
         }
         .overlay {
             if videos.isEmpty {

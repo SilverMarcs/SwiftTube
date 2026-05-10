@@ -9,24 +9,74 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct SettingsView: View {
-    @State private var fetchingSettings = FetchingSettings()
-    @Environment(\.dismiss) var dismiss
+    @Environment(GoogleAuthManager.self) private var authManager
+    @AppStorage("useLocalFetching") private var useLocalFetching: Bool = false
     @AppStorage("showGoogleAuth") private var showGoogleAuth = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    #if os(tvOS)
+    @AppStorage("tvOSNavigationStyle") private var tvNavigationStyleSetting = TVNavigationStyle.tabBar
+    #endif
     @State private var easterEggTapCount = 0
 
     var body: some View {
+        SettingsSplitView {
+            form
+        } infoPanel: {
+            VStack(spacing: 16) {
+                Image(systemName: "play.tv.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 220, height: 220)
+                    .foregroundStyle(.tint)
+                Text("Cathode")
+                    .font(.system(size: 56, weight: .bold))
+            }
+        }
+    }
+
+    private var form: some View {
         Form {
+            if showGoogleAuth {
+                Section {
+                    SignInView()
+                        #if !os(tvOS)
+                        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+                        #endif
+                }
+            }
+
             Section {
-                Toggle("Prefer Local Fetching", isOn: $fetchingSettings.useLocalFetching)
+                #if os(tvOS)
+                Button {
+                    useLocalFetching.toggle()
+                    bumpEasterEgg()
+                } label: {
+                    LabeledContent("Prefer Local Fetching",
+                                   value: useLocalFetching ? "On" : "Off")
+                }
+                .foregroundStyle(.primary)
+                #else
+                Toggle("Prefer Local Fetching", isOn: $useLocalFetching)
                     .help(
                         "When enabled, tries to fetch videos locally first before falling back to remote. Local fetching may be slower but doesn't require internet."
                     )
+                    .onChange(of: useLocalFetching) { _, _ in bumpEasterEgg() }
+                #endif
             } header: {
                 Text("Fetching")
             } footer: {
                 Text("Non local fetching is more reliable but will take longer to laod videos")
             }
+
+            #if os(tvOS)
+            Section("View Options") {
+                Button {
+                    tvNavigationStyleSetting = tvNavigationStyleSetting.next()
+                } label: {
+                    LabeledContent("Tab Style", value: tvNavigationStyleSetting.title)
+                }
+            }
+            #endif
 
             Section("Cache") {
                 CacheManagerView()
@@ -35,33 +85,24 @@ struct SettingsView: View {
             Section {
                 Button("Show Onboarding Again") {
                     hasCompletedOnboarding = false
-                    #if !os(macOS)
-                    dismiss()
-                    #endif
                 }
             }
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")
-        .toolbarTitleDisplayMode(.inline)
-        #if !os(macOS)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button(role: .close) { dismiss() }
+        .platformNavigationToolbar(titleDisplayMode: .inline)
+        .task {
+            if showGoogleAuth {
+                try? await authManager.fetchUserInfo()
             }
         }
-        #endif
-        .safeAreaInset(edge: .bottom) {
-            Color.clear
-                .frame(height: 44)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    easterEggTapCount += 1
-                    if easterEggTapCount >= 7 {
-                        showGoogleAuth = true
-                        easterEggTapCount = 0
-                    }
-                }
+    }
+
+    private func bumpEasterEgg() {
+        easterEggTapCount += 1
+        if easterEggTapCount >= 15 {
+            showGoogleAuth = true
+            easterEggTapCount = 0
         }
     }
 }

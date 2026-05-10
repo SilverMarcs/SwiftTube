@@ -1,3 +1,4 @@
+#if os(iOS)
 //
 //  DownloadRow.swift
 //  SwiftTube
@@ -52,3 +53,4 @@ struct DownloadRow: View {
         }
     }
 }
+#endif

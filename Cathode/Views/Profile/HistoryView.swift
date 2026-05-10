@@ -20,6 +20,7 @@ struct HistoryView: View {
         Section {
             ForEach(Array(displayedVideos.prefix(3))) { video in
                 CompactVideoCard(video: video)
+                    #if !os(tvOS)
                     .swipeActions {
                         Button {
                             userDefaults.removeFromHistory(video.id)
@@ -28,10 +29,11 @@ struct HistoryView: View {
                         }
                         .tint(.red)
                     }
+                    #endif
             }
 
             NavigationLink {
-                FullHistoryList(videos: displayedVideos)
+                HistoryFullView()
             } label: {
                 Text("View full history")
                     .foregroundStyle(.accent)
@@ -64,38 +66,58 @@ struct HistoryView: View {
     }
 }
 
-private struct FullHistoryList: View {
+struct HistoryFullView: View {
     @Environment(CloudStoreManager.self) private var userDefaults
-    let videos: [Video]
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var detailedVideos: [Video] = []
+
+    private var rawVideos: [Video] { userDefaults.historyVideos }
 
     private var displayedVideos: [Video] {
-        let ids = Set(userDefaults.historyVideos.map(\.id))
-        let filtered = videos.filter { ids.contains($0.id) }
-        if filtered.count == ids.count {
-            return filtered
-        }
-        let known = Set(filtered.map(\.id))
-        let extras = userDefaults.historyVideos.filter { !known.contains($0.id) }
-        return filtered + extras
+        guard !detailedVideos.isEmpty else { return rawVideos }
+        let detailed = Dictionary(uniqueKeysWithValues: detailedVideos.map { ($0.id, $0) })
+        return rawVideos.map { detailed[$0.id] ?? $0 }
     }
 
     var body: some View {
-        List {
-            ForEach(displayedVideos) { video in
-                CompactVideoCard(video: video)
-                    .swipeActions {
-                        Button {
-                            userDefaults.removeFromHistory(video.id)
-                        } label: {
-                            Label("Remove", systemImage: "trash")
-                        }
-                        .tint(.red)
+        Group {
+            if horizontalSizeClass == .regular {
+                VideoGridView(videos: displayedVideos)
+            } else {
+                List {
+                    ForEach(displayedVideos) { video in
+                        CompactVideoCard(video: video)
+                            #if !os(tvOS)
+                            .swipeActions {
+                                Button {
+                                    userDefaults.removeFromHistory(video.id)
+                                } label: {
+                                    Label("Remove", systemImage: "trash")
+                                }
+                                .tint(.red)
+                            }
+                            #endif
                     }
+                }
             }
         }
         .navigationTitle("History")
-        .toolbarTitleDisplayMode(.inline)
+        .platformNavigationToolbar(titleDisplayMode: .inline)
         .contentMargins(.top, 5)
+        .task(id: rawVideos.map(\.id)) {
+            await loadDetails(for: rawVideos)
+        }
+    }
+
+    private func loadDetails(for videos: [Video]) async {
+        guard !videos.isEmpty else { detailedVideos = []; return }
+        do {
+            var mutableVideos = videos
+            try await YTService.fetchVideoDetails(for: &mutableVideos)
+            detailedVideos = mutableVideos
+        } catch {
+            detailedVideos = videos
+        }
     }
 }
 

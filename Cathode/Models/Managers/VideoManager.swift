@@ -78,6 +78,7 @@ class VideoManager {
         guard currentVideo?.id == video.id else { return }
 
         let url: URL
+        #if os(iOS)
         if let local = DownloadManager.shared.localURL(for: video.id) {
             url = local
         } else if let streamed = await StreamURLCache.shared.fetch(id: video.id) {
@@ -86,6 +87,14 @@ class VideoManager {
             print("YouTubeKit error: no playable stream for \(video.id)")
             return
         }
+        #else
+        if let streamed = await StreamURLCache.shared.fetch(id: video.id) {
+            url = streamed
+        } else {
+            print("YouTubeKit error: no playable stream for \(video.id)")
+            return
+        }
+        #endif
 
         let playerItem = AVPlayerItem(url: url)
         #if !os(macOS)

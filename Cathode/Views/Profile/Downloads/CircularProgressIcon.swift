@@ -1,3 +1,4 @@
+#if os(iOS)
 //
 //  CircularProgressIcon.swift
 //  SwiftTube
@@ -24,3 +25,4 @@ struct CircularProgressIcon: View {
         .frame(width: 24, height: 24)
     }
 }
+#endif

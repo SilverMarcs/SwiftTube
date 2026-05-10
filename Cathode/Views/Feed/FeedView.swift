@@ -24,10 +24,12 @@ struct FeedView: View {
             #if os(macOS)
             .contentMargins(.top, 10)
             #endif
+            .platformNavigationToolbar()
             .navigationTitle("Feed")
-            .toolbarTitleDisplayMode(.inlineLarge)
+            #if !os(tvOS)
             .searchable(text: $searchText, placement: searchPlacement, prompt: "Search feed")
             .searchPresentationToolbarBehavior(.avoidHidingContent)
+            #endif
             .onChange(of: videoLoader.videos) { _, newValue in
                 guard isRandomOrderEnabled else { return }
                 randomizedVideos = newValue.shuffled()

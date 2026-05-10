@@ -47,7 +47,7 @@ struct SubscriptionView: View {
                 await loadSubscriptions()
             }
             .navigationTitle("Subscriptions")
-            .toolbarTitleDisplayMode(.inlineLarge)
+            .platformNavigationToolbar()
         }
         .task {
             if authManager.isSignedIn {

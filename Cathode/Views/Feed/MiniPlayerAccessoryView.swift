@@ -1,3 +1,4 @@
+#if !os(tvOS)
 import SwiftUI
 import SwiftMediaViewer
 import AVKit
@@ -70,3 +71,4 @@ private struct MiniPlayerSourceModifier: ViewModifier {
         }
     }
 }
+#endif

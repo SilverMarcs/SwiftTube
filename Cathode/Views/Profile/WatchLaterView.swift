@@ -21,6 +21,7 @@ struct WatchLaterView: View {
         Section {
             ForEach(Array(displayedVideos.prefix(3))) { video in
                 CompactVideoCard(video: video)
+                    #if !os(tvOS)
                     .swipeActions {
                         Button {
                             withAnimation {
@@ -30,10 +31,11 @@ struct WatchLaterView: View {
                             Label("Remove", systemImage: "bookmark.slash")
                         }
                     }
+                    #endif
             }
 
             NavigationLink {
-                FullWatchLaterList(videos: displayedVideos)
+                WatchLaterFullView()
             } label: {
                 Text("View all Watch Later videos")
                     .foregroundStyle(.accent)
@@ -66,39 +68,59 @@ struct WatchLaterView: View {
     }
 }
 
-private struct FullWatchLaterList: View {
+struct WatchLaterFullView: View {
     @Environment(CloudStoreManager.self) private var userDefaults
-    let videos: [Video]
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var detailedVideos: [Video] = []
+
+    private var rawVideos: [Video] { userDefaults.watchLaterVideos.reversed() }
 
     private var displayedVideos: [Video] {
-        let ids = Set(userDefaults.watchLaterVideos.map(\.id))
-        let filtered = videos.filter { ids.contains($0.id) }
-        if filtered.count == ids.count {
-            return filtered
-        }
-        let known = Set(filtered.map(\.id))
-        let extras = userDefaults.watchLaterVideos.reversed().filter { !known.contains($0.id) }
-        return filtered + extras
+        guard !detailedVideos.isEmpty else { return rawVideos }
+        let detailed = Dictionary(uniqueKeysWithValues: detailedVideos.map { ($0.id, $0) })
+        return rawVideos.map { detailed[$0.id] ?? $0 }
     }
 
     var body: some View {
-        List {
-            ForEach(displayedVideos) { video in
-                CompactVideoCard(video: video)
-                    .swipeActions {
-                        Button {
-                            withAnimation {
-                                userDefaults.removeFromWatchLater(video.id)
+        Group {
+            if horizontalSizeClass == .regular {
+                VideoGridView(videos: displayedVideos, showsWatchLaterIcon: false)
+            } else {
+                List {
+                    ForEach(displayedVideos) { video in
+                        CompactVideoCard(video: video)
+                            #if !os(tvOS)
+                            .swipeActions {
+                                Button {
+                                    withAnimation {
+                                        userDefaults.removeFromWatchLater(video.id)
+                                    }
+                                } label: {
+                                    Label("Remove", systemImage: "bookmark.slash")
+                                }
                             }
-                        } label: {
-                            Label("Remove", systemImage: "bookmark.slash")
-                        }
+                            #endif
                     }
+                }
             }
         }
         .navigationTitle("Watch Later")
-        .toolbarTitleDisplayMode(.inline)
+        .platformNavigationToolbar(titleDisplayMode: .inline)
         .contentMargins(.top, 5)
+        .task(id: rawVideos.map(\.id)) {
+            await loadDetails(for: rawVideos)
+        }
+    }
+
+    private func loadDetails(for videos: [Video]) async {
+        guard !videos.isEmpty else { detailedVideos = []; return }
+        do {
+            var mutableVideos = videos
+            try await YTService.fetchVideoDetails(for: &mutableVideos)
+            detailedVideos = mutableVideos
+        } catch {
+            detailedVideos = videos
+        }
     }
 }
 

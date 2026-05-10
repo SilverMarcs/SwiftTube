@@ -1,3 +1,4 @@
+#if os(iOS)
 //
 //  DownloadActivityCoordinator.swift
 //  Cathode
@@ -163,4 +164,5 @@ final class DownloadActivityCoordinator {
         return "\(first) and \(names.count - 1) more"
     }
 }
+#endif
 #endif
