@@ -4,6 +4,7 @@ import SwiftUI
 struct FeedView: View {
     @Environment(VideoLoader.self) private var videoLoader
     @Environment(GoogleAuthManager.self) private var authManager
+    @Environment(CloudStoreManager.self) private var userDefaults
 
     @State private var isRandomOrderEnabled = false
     @State private var randomizedVideos: [Video] = []
@@ -13,7 +14,17 @@ struct FeedView: View {
     }
 
     var body: some View {
-        VideoGridView(videos: displayedVideos)
+        VideoGridView(videos: displayedVideos) {
+            #if os(tvOS)
+            if let recent = userDefaults.historyVideos.first {
+                 Section("Continue Watching") {
+                    VideoCard(video: recent)
+                        .frame(maxWidth: 560)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            #endif
+        }
             .platformNavigationToolbar()
             .navigationTitle("Feed")
             // Feed-only search moved to SearchView's "Feed" scope.

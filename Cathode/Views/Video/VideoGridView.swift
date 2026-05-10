@@ -1,11 +1,12 @@
 import SwiftUI
 
-struct VideoGridView: View {
+struct VideoGridView<Header: View>: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     let videos: [Video]
     var showChannelLinkInContextMenu: Bool = true
     var showsBookmarkIcon: Bool = true
+    @ViewBuilder var header: () -> Header
 
     private var gridColumns: [GridItem] {
         #if os(tvOS)
@@ -27,9 +28,12 @@ struct VideoGridView: View {
         Group {
             if horizontalSizeClass == .regular {
                 ScrollView {
-                    LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
-                        ForEach(videos) { video in
-                            VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsBookmarkIcon: showsBookmarkIcon)
+                    LazyVStack(spacing: gridSpacing) {
+                        header()
+                        LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
+                            ForEach(videos) { video in
+                                VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsBookmarkIcon: showsBookmarkIcon)
+                            }
                         }
                     }
                     .scenePadding(.horizontal)
@@ -55,5 +59,14 @@ struct VideoGridView: View {
                 UniversalProgressView()
             }
         }
+    }
+}
+
+extension VideoGridView where Header == EmptyView {
+    init(videos: [Video], showChannelLinkInContextMenu: Bool = true, showsBookmarkIcon: Bool = true) {
+        self.videos = videos
+        self.showChannelLinkInContextMenu = showChannelLinkInContextMenu
+        self.showsBookmarkIcon = showsBookmarkIcon
+        self.header = { EmptyView() }
     }
 }
