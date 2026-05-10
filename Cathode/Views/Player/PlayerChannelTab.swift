@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftMediaViewer
 
 struct PlayerChannelTab: View {
     let channel: Channel
@@ -7,17 +8,16 @@ struct PlayerChannelTab: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 30) {
+            LazyHStack(alignment: .top, spacing: 35) {
                 ForEach(videos) { video in
-                    VideoCard(video: video, showChannelLink: false)
-                        // .frame(width: 360)
+                    PlayerChannelVideoCard(video: video)
                 }
             }
-            .padding(24)
         }
+        .scrollClipDisabled()
         .overlay {
             if isLoading {
-                ProgressView()
+                UniversalProgressView()
             }
         }
         .task {
@@ -27,6 +27,46 @@ struct PlayerChannelTab: View {
                 videos = []
             }
             isLoading = false
+        }
+    }
+}
+
+private struct PlayerChannelVideoCard: View {
+    let video: Video
+
+    var body: some View {
+        PlayVideoButton(video: video) {
+            HStack(spacing: 0) {
+                CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 400)
+                    .aspectRatio(16/9, contentMode: .fill)
+                    .frame(width: 360, height: 200)
+                    .clipped()
+                    .overlay(alignment: .bottom) {
+                        if let progress = video.watchProgressRatio {
+                            ProgressView(value: progress).tint(.accent)
+                        }
+                    }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(video.title)
+                        .font(.callout.weight(.semibold))
+                        .lineLimit(3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if let v = video.viewCountValue {
+                        Text("\(v.formatted(.number.notation(.compactName))) views • \(video.publishedAt.customRelativeFormat())")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(video.publishedAt.customRelativeFormat())
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+            .frame(width: 760, height: 200)
         }
     }
 }

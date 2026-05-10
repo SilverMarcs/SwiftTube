@@ -44,13 +44,6 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
     }
 
     private func makeInfoTabs() -> [UIViewController] {
-        let channel = UIHostingController(
-            rootView: PlayerChannelTab(channel: video.channel)
-                .environment(videoManager)
-                .environment(cloudStore)
-        )
-        channel.title = video.channel.title
-
         let comments = UIHostingController(
             rootView: PlayerCommentsTab(video: video)
                 .environment(videoManager)
@@ -58,7 +51,14 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
         )
         comments.title = "Comments"
 
-        return [channel, comments]
+        let channel = UIHostingController(
+            rootView: PlayerChannelTab(channel: video.channel)
+                .environment(videoManager)
+                .environment(cloudStore)
+        )
+        channel.title = video.channel.title
+
+        return [comments, channel]
     }
 
     private func makeBookmarkAction() -> UIAction {
