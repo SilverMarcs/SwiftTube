@@ -155,6 +155,15 @@ class VideoManager {
         artistItem.extendedLanguageTag = "und"
         metadata.append(artistItem)
 
+        // Description
+        if !video.videoDescription.isEmpty {
+            let descItem = AVMutableMetadataItem()
+            descItem.identifier = .commonIdentifierDescription
+            descItem.value = video.videoDescription as NSString
+            descItem.extendedLanguageTag = "und"
+            metadata.append(descItem)
+        }
+
         // Artwork (thumbnail)
         if !video.thumbnailURL.isEmpty, let url = URL(string: video.thumbnailURL) {
             let artworkItem = AVMutableMetadataItem()
