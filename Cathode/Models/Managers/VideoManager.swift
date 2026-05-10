@@ -5,6 +5,7 @@
 //  Created by Zabir Raihan on 15/10/2025.
 //
 
+import AVFoundation
 import AVKit
 import Foundation
 import MediaPlayer
@@ -13,6 +14,8 @@ import MediaPlayer
 class VideoManager {
     private(set) var currentVideo: Video? = nil
     private(set) var player: AVPlayer?
+    private(set) var sponsorSegments: [SponsorSegment] = []
+    private(set) var currentSponsorSegment: SponsorSegment? = nil
 
     var isExpanded: Bool = false
     var isSetting: Bool = false
@@ -48,6 +51,8 @@ class VideoManager {
         isSetting = true
 
         currentVideo = video
+        sponsorSegments = []
+        currentSponsorSegment = nil
         store.addToHistory(video)
 
         Task {
@@ -125,6 +130,8 @@ class VideoManager {
         await updateNowPlayingMetadata(for: video)
         updateNowPlayingPlaybackInfo()
 
+        await applyNavigationMarkers(for: video, on: playerItem)
+
         // If the cached URL turns out to be stale (e.g. expired YouTube CDN ticket),
         // evict and retry once with a fresh fetch.
         Task { [weak self] in
@@ -182,6 +189,91 @@ class VideoManager {
 
         return metadata
     }
+
+    // MARK: - Navigation Markers (chapters + sponsor segments)
+    private func applyNavigationMarkers(for video: Video, on playerItem: AVPlayerItem) async {
+        async let descriptionChapters = DescriptionChapterParser.parse(video.videoDescription)
+        async let sponsors = SponsorBlockService.fetchSponsorSegments(for: video.id)
+        let chapters = await descriptionChapters
+        let segments = await sponsors
+
+        guard self.currentVideo?.id == video.id else { return }
+        self.sponsorSegments = segments
+        refreshSponsorState()
+
+        #if os(tvOS)
+        let duration = Double(video.duration ?? 0)
+        let markers = buildMarkers(chapters: chapters, sponsors: segments, totalDuration: duration > 0 ? duration : nil)
+        guard !markers.isEmpty else { return }
+        playerItem.navigationMarkerGroups = [AVNavigationMarkersGroup(title: nil, timedNavigationMarkers: markers)]
+        #endif
+    }
+
+    func skipCurrentSponsorSegment() {
+        guard let player, let segment = currentSponsorSegment else { return }
+        // Optimistic clear so the button hides immediately on tap.
+        currentSponsorSegment = nil
+        player.seek(to: CMTime(seconds: segment.end, preferredTimescale: 600))
+    }
+
+    /// Called from the existing 1s periodic time observer in
+    /// `attachPlayerObservers` and after sponsor segments load.
+    func refreshSponsorStatePublic() {
+        refreshSponsorState()
+    }
+
+    private func refreshSponsorState() {
+        guard let player else {
+            if currentSponsorSegment != nil { currentSponsorSegment = nil }
+            return
+        }
+        let now = player.currentTime().seconds
+        let next = sponsorSegments.first { now >= $0.start && now < $0.end }
+        if next != currentSponsorSegment {
+            currentSponsorSegment = next
+        }
+    }
+
+    #if os(tvOS)
+    private func buildMarkers(
+        chapters: [DescriptionChapter],
+        sponsors: [SponsorSegment],
+        totalDuration: Double?
+    ) -> [AVTimedMetadataGroup] {
+        struct Marker { let title: String; let start: Double; let end: Double }
+        var markers: [Marker] = []
+
+        // Chapters from description: end is the next chapter's start (or duration).
+        for (i, ch) in chapters.enumerated() {
+            let end: Double = {
+                if i + 1 < chapters.count { return chapters[i + 1].seconds }
+                return totalDuration ?? (ch.seconds + 1)
+            }()
+            guard end > ch.seconds else { continue }
+            markers.append(Marker(title: ch.title, start: ch.seconds, end: end))
+        }
+
+        // Sponsor segments inserted as their own markers.
+        for s in sponsors {
+            markers.append(Marker(title: "Sponsor", start: s.start, end: s.end))
+        }
+
+        markers.sort { $0.start < $1.start }
+
+        return markers.map { m in
+            let titleItem = AVMutableMetadataItem()
+            titleItem.identifier = .commonIdentifierTitle
+            titleItem.value = m.title as NSString
+            titleItem.extendedLanguageTag = "und"
+
+            let timeRange = CMTimeRangeFromTimeToTime(
+                start: CMTime(seconds: m.start, preferredTimescale: 600),
+                end: CMTime(seconds: m.end, preferredTimescale: 600)
+            )
+            return AVTimedMetadataGroup(items: [titleItem], timeRange: timeRange)
+        }
+    }
+    #endif
 
     // MARK: - Persistence
     func persistCurrentTime() {

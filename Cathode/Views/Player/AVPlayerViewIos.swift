@@ -21,6 +21,9 @@ struct AVPlayerViewIos: View {
         }
         .aspectRatio(16/9, contentMode: .fit)
         .overlay {
+            SponsorSkipOverlay()
+        }
+        .overlay {
             if manager.isSetting {
                 UniversalProgressView()
                     .background(.black)

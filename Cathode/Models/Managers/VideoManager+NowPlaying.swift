@@ -82,6 +82,7 @@ extension VideoManager {
         let interval = CMTime(seconds: 1, preferredTimescale: 600)
         timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
             self?.updateNowPlayingPlaybackInfo()
+            self?.refreshSponsorStatePublic()
         }
 
         rateObservation = player.observe(\.rate, options: [.new]) { [weak self] _, _ in

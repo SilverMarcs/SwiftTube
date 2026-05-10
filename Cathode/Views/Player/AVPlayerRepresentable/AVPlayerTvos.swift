@@ -10,6 +10,7 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
     @Environment(CloudStoreManager.self) private var cloudStore
 
     private static let bookmarkActionId = UIAction.Identifier("cathode.bookmark")
+    private static let skipSponsorActionId = UIAction.Identifier("cathode.skipSponsor")
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
@@ -25,11 +26,20 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
         if uiViewController.player !== player {
             uiViewController.player = player
         }
-        let updated = makeBookmarkAction()
+        // Bookmark
+        let bookmark = makeBookmarkAction()
         if let idx = uiViewController.infoViewActions.firstIndex(where: { $0.identifier == Self.bookmarkActionId }) {
-            uiViewController.infoViewActions[idx] = updated
+            uiViewController.infoViewActions[idx] = bookmark
         } else {
-            uiViewController.infoViewActions.append(updated)
+            uiViewController.infoViewActions.append(bookmark)
+        }
+        // Skip Sponsor — only mutate on transition to avoid flicker.
+        let inSponsor = videoManager.currentSponsorSegment != nil
+        let hasAction = uiViewController.contextualActions.contains { $0.identifier == Self.skipSponsorActionId }
+        if inSponsor && !hasAction {
+            uiViewController.contextualActions = [makeSkipSponsorAction()]
+        } else if !inSponsor && hasAction {
+            uiViewController.contextualActions = []
         }
     }
 
@@ -59,6 +69,12 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
             identifier: Self.bookmarkActionId
         ) { _ in
             cloudStore.toggleBookmark(video)
+        }
+    }
+
+    private func makeSkipSponsorAction() -> UIAction {
+        UIAction(title: "Skip Sponsor", identifier: Self.skipSponsorActionId) { [videoManager] _ in
+            videoManager.skipCurrentSponsorSegment()
         }
     }
 }

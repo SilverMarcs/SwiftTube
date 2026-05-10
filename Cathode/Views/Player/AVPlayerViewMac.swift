@@ -31,6 +31,9 @@ struct AVPlayerViewMac: View {
                     }
             }
         }
+        .overlay {
+            SponsorSkipOverlay()
+        }
         .ignoresSafeArea()
         .windowFullScreenBehavior(.disabled)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
