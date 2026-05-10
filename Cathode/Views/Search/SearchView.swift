@@ -84,7 +84,9 @@ struct SearchView: View {
             }
         }
         .searchable(text: $searchText, placement: placement, prompt: "Search…")
+        #if !os(tvOS)
         .searchFocused($isSearchFocused)
+        #endif
         .searchPresentationToolbarBehavior(.avoidHidingContent)
         #if os(macOS)
         .task {
