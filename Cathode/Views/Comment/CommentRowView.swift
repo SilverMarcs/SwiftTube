@@ -34,7 +34,7 @@ struct CommentRowView: View {
                     HStack {
                         if comment.likeCount > 0 {
                             HStack(spacing: 4) {
-                                Image(systemName: "hand.thumbsup")
+                                Image(systemName: "heart")
                                 Text("\(comment.likeCount)")
                             }
                             .font(.caption2)
