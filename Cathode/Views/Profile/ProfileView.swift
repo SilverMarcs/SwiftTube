@@ -29,7 +29,7 @@ struct ProfileView: View {
                 #endif
             }
 
-            WatchLaterView()
+            BookmarkView()
 
             HistoryView()
         }

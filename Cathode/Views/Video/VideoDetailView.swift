@@ -96,11 +96,11 @@ struct VideoDetailView: View {
             #endif
 
             Button {
-                userDefaults.toggleWatchLater(video)
+                userDefaults.toggleBookmark(video)
             } label: {
                 Label(
-                    userDefaults.isWatchLater(video.id) ? "Remove from Watch Later" : "Add to Watch Later",
-                    systemImage: userDefaults.isWatchLater(video.id) ? "bookmark.fill" : "bookmark"
+                    userDefaults.isBookmarked(video.id) ? "Remove Bookmark" : "Add Bookmark",
+                    systemImage: userDefaults.isBookmarked(video.id) ? "bookmark.fill" : "bookmark"
                 )
             }
             .tint(.primary)

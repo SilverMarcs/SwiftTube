@@ -5,7 +5,7 @@ struct VideoGridView: View {
 
     let videos: [Video]
     var showChannelLinkInContextMenu: Bool = true
-    var showsWatchLaterIcon: Bool = true
+    var showsBookmarkIcon: Bool = true
 
     private var gridColumns: [GridItem] {
         #if os(tvOS)
@@ -29,7 +29,7 @@ struct VideoGridView: View {
                 ScrollView {
                     LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
                         ForEach(videos) { video in
-                            VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsWatchLaterIcon: showsWatchLaterIcon)
+                            VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsBookmarkIcon: showsBookmarkIcon)
                         }
                     }
                     .scenePadding(.horizontal)
@@ -40,7 +40,7 @@ struct VideoGridView: View {
                 #endif
             } else {
                 List(videos) { video in
-                    VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsWatchLaterIcon: showsWatchLaterIcon)
+                    VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsBookmarkIcon: showsBookmarkIcon)
                         #if !os(tvOS)
                         .listRowSeparator(.hidden)
                         #endif

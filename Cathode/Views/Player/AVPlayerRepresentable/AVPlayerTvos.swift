@@ -9,7 +9,7 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
     @Environment(VideoManager.self) private var videoManager
     @Environment(CloudStoreManager.self) private var cloudStore
 
-    private static let watchLaterActionId = UIAction.Identifier("cathode.watchLater")
+    private static let bookmarkActionId = UIAction.Identifier("cathode.bookmark")
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
@@ -17,7 +17,7 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
         controller.allowsPictureInPicturePlayback = true
         controller.transportBarIncludesTitleView = true
         controller.customInfoViewControllers = makeInfoTabs()
-        controller.infoViewActions.append(makeWatchLaterAction())
+        controller.infoViewActions.append(makeBookmarkAction())
         return controller
     }
 
@@ -25,8 +25,8 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
         if uiViewController.player !== player {
             uiViewController.player = player
         }
-        let updated = makeWatchLaterAction()
-        if let idx = uiViewController.infoViewActions.firstIndex(where: { $0.identifier == Self.watchLaterActionId }) {
+        let updated = makeBookmarkAction()
+        if let idx = uiViewController.infoViewActions.firstIndex(where: { $0.identifier == Self.bookmarkActionId }) {
             uiViewController.infoViewActions[idx] = updated
         } else {
             uiViewController.infoViewActions.append(updated)
@@ -51,14 +51,14 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
         return [channel, comments]
     }
 
-    private func makeWatchLaterAction() -> UIAction {
-        let isBookmarked = cloudStore.isWatchLater(video.id)
+    private func makeBookmarkAction() -> UIAction {
+        let isBookmarked = cloudStore.isBookmarked(video.id)
         return UIAction(
             title: isBookmarked ? "Remove Bookmark" : "Add Bookmark",
             image: UIImage(systemName: isBookmarked ? "bookmark.fill" : "bookmark"),
-            identifier: Self.watchLaterActionId
+            identifier: Self.bookmarkActionId
         ) { _ in
-            cloudStore.toggleWatchLater(video)
+            cloudStore.toggleBookmark(video)
         }
     }
 }

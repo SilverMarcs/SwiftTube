@@ -14,14 +14,14 @@ enum TabSelection: String, CaseIterable {
     case search = "search"
     case settings = "settings"
     case channels = "channels"
-    case watchLater = "watchLater"
+    case bookmark = "watchLater"
     case history = "history"
 
     static let compactTabs: [TabSelection] = [.search, .feed, .shorts, .profile, .settings]
     static let extendedTabs: [TabSelection] = [.search, .feed, .shorts, .settings]
     static let extendedSubscriptionTabs: [TabSelection] = [.channels]
-    static let extendedLibraryTabs: [TabSelection] = [.watchLater, .history]
-    static let allCases: [TabSelection] = [.feed, .shorts, .profile, .search, .settings, .channels, .watchLater, .history]
+    static let extendedLibraryTabs: [TabSelection] = [.bookmark, .history]
+    static let allCases: [TabSelection] = [.feed, .shorts, .profile, .search, .settings, .channels, .bookmark, .history]
 
     var title: String {
         switch self {
@@ -31,7 +31,7 @@ enum TabSelection: String, CaseIterable {
         case .search: return "Search"
         case .settings: return "Settings"
         case .channels: return "Channels"
-        case .watchLater: return "Watch Later"
+        case .bookmark: return "Bookmarks"
         case .history: return "History"
         }
     }
@@ -44,7 +44,7 @@ enum TabSelection: String, CaseIterable {
         case .search: return "magnifyingglass"
         case .settings: return "gear"
         case .channels: return "bell"
-        case .watchLater: return "bookmark"
+        case .bookmark: return "bookmark"
         case .history: return "clock"
         }
     }
@@ -57,7 +57,7 @@ enum TabSelection: String, CaseIterable {
         case .search: return "f"
         case .settings: return ","
         case .channels: return "4"
-        case .watchLater: return "5"
+        case .bookmark: return "5"
         case .history: return "6"
         }
     }
@@ -71,7 +71,7 @@ enum TabSelection: String, CaseIterable {
         case .search: SearchView()
         case .settings: SettingsView()
         case .channels: ChannelListView()
-        case .watchLater: WatchLaterFullView()
+        case .bookmark: BookmarkFullView()
         case .history: HistoryFullView()
         }
     }

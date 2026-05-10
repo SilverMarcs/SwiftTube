@@ -1,5 +1,5 @@
 //
-//  WatchLaterView.swift
+//  BookmarkView.swift
 //  SwiftTube
 //
 //  Created by Zabir Raihan on 29/09/2025.
@@ -7,16 +7,16 @@
 
 import SwiftUI
 
-struct WatchLaterView: View {
+struct BookmarkView: View {
     @Environment(CloudStoreManager.self) private var userDefaults
-    @State private var detailedWatchLaterVideos: [Video] = []
+    @State private var detailedBookmarkedVideos: [Video] = []
 
-    private var watchLaterVideos: [Video] {
-        userDefaults.watchLaterVideos.reversed()
+    private var bookmarkedVideos: [Video] {
+        userDefaults.bookmarkedVideos.reversed()
     }
 
     var body: some View {
-        let displayedVideos = detailedWatchLaterVideos.isEmpty ? watchLaterVideos : detailedWatchLaterVideos
+        let displayedVideos = detailedBookmarkedVideos.isEmpty ? bookmarkedVideos : detailedBookmarkedVideos
 
         Section {
             ForEach(Array(displayedVideos.prefix(3))) { video in
@@ -25,7 +25,7 @@ struct WatchLaterView: View {
                     .swipeActions {
                         Button {
                             withAnimation {
-                                userDefaults.removeFromWatchLater(video.id)
+                                userDefaults.removeBookmark(video.id)
                             }
                         } label: {
                             Label("Remove", systemImage: "bookmark.slash")
@@ -35,45 +35,45 @@ struct WatchLaterView: View {
             }
 
             NavigationLink {
-                WatchLaterFullView()
+                BookmarkFullView()
             } label: {
-                Text("View all Watch Later videos")
+                Text("View all bookmarked videos")
                     .foregroundStyle(.accent)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(.rect)
             }
             .navigationLinkIndicatorVisibility(.hidden)
         } header: {
-            Text("Watch Later")
+            Text("Bookmarks")
         }
-        .task(id: watchLaterVideos.map(\.id)) {
-            await loadWatchLaterVideoDetails(for: watchLaterVideos)
+        .task(id: bookmarkedVideos.map(\.id)) {
+            await loadBookmarkedVideoDetails(for: bookmarkedVideos)
         }
     }
 
-    private func loadWatchLaterVideoDetails(for videos: [Video]) async {
+    private func loadBookmarkedVideoDetails(for videos: [Video]) async {
         guard !videos.isEmpty else {
-            detailedWatchLaterVideos = []
+            detailedBookmarkedVideos = []
             return
         }
 
         do {
             var mutableVideos = videos
             try await YTService.fetchVideoDetails(for: &mutableVideos)
-            detailedWatchLaterVideos = mutableVideos
+            detailedBookmarkedVideos = mutableVideos
         } catch {
-            detailedWatchLaterVideos = videos
-            print("Error updating watch later video details: \(error.localizedDescription)")
+            detailedBookmarkedVideos = videos
+            print("Error updating bookmarked video details: \(error.localizedDescription)")
         }
     }
 }
 
-struct WatchLaterFullView: View {
+struct BookmarkFullView: View {
     @Environment(CloudStoreManager.self) private var userDefaults
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var detailedVideos: [Video] = []
 
-    private var rawVideos: [Video] { userDefaults.watchLaterVideos.reversed() }
+    private var rawVideos: [Video] { userDefaults.bookmarkedVideos.reversed() }
 
     private var displayedVideos: [Video] {
         guard !detailedVideos.isEmpty else { return rawVideos }
@@ -84,7 +84,7 @@ struct WatchLaterFullView: View {
     var body: some View {
         Group {
             if horizontalSizeClass == .regular {
-                VideoGridView(videos: displayedVideos, showsWatchLaterIcon: false)
+                VideoGridView(videos: displayedVideos, showsBookmarkIcon: false)
             } else {
                 List {
                     ForEach(displayedVideos) { video in
@@ -93,7 +93,7 @@ struct WatchLaterFullView: View {
                             .swipeActions {
                                 Button {
                                     withAnimation {
-                                        userDefaults.removeFromWatchLater(video.id)
+                                        userDefaults.removeBookmark(video.id)
                                     }
                                 } label: {
                                     Label("Remove", systemImage: "bookmark.slash")
@@ -104,7 +104,7 @@ struct WatchLaterFullView: View {
                 }
             }
         }
-        .navigationTitle("Watch Later")
+        .navigationTitle("Bookmarks")
         .platformNavigationToolbar(titleDisplayMode: .inline)
         .contentMargins(.top, 5)
         .task(id: rawVideos.map(\.id)) {
@@ -125,6 +125,6 @@ struct WatchLaterFullView: View {
 }
 
 #Preview {
-    WatchLaterView()
+    BookmarkView()
         .environment(CloudStoreManager.shared)
 }

@@ -5,14 +5,14 @@ struct SearchView: View {
     @Environment(VideoLoader.self) private var videoLoader
     @Environment(CloudStoreManager.self) private var userDefaults
 
-    @State private var searchScope: SearchScope = .watchLater
+    @State private var searchScope: SearchScope = .bookmark
     @State var searchText: String = ""
     @State private var onlineResults: SearchResults = SearchResults(videos: [], channels: [])
     @State private var isLoading = false
     @FocusState private var isSearchFocused: Bool
 
     private var availableScopes: [SearchScope] {
-        var scopes: [SearchScope] = [.watchLater, .history, .feed]
+        var scopes: [SearchScope] = [.bookmark, .history, .feed]
         if showGoogleAuth {
             scopes.append(.video)
             scopes.append(.channel)
@@ -30,7 +30,7 @@ struct SearchView: View {
     }
 
     private var filteredFeed: [Video] { filter(videoLoader.videos) }
-    private var filteredWatchLater: [Video] { filter(Array(userDefaults.watchLaterVideos.reversed())) }
+    private var filteredBookmarks: [Video] { filter(Array(userDefaults.bookmarkedVideos.reversed())) }
     private var filteredHistory: [Video] { filter(userDefaults.historyVideos) }
 
     var body: some View {
@@ -38,8 +38,8 @@ struct SearchView: View {
             switch searchScope {
             case .feed:
                 VideoGridView(videos: filteredFeed)
-            case .watchLater:
-                VideoGridView(videos: filteredWatchLater)
+            case .bookmark:
+                VideoGridView(videos: filteredBookmarks)
             case .history:
                 VideoGridView(videos: filteredHistory)
             case .video:
@@ -101,7 +101,7 @@ struct SearchView: View {
         }
         .onChange(of: showGoogleAuth) { _, newValue in
             if !newValue, isOnlineScope {
-                searchScope = .watchLater
+                searchScope = .bookmark
             }
         }
         .onSubmit(of: .search) {
@@ -145,7 +145,7 @@ struct SearchView: View {
 
 enum SearchScope: String, Hashable, CaseIterable, Identifiable {
     case feed = "Feed"
-    case watchLater = "Watch Later"
+    case bookmark = "Bookmarks"
     case history = "History"
     case video = "Videos"
     case channel = "Channels"

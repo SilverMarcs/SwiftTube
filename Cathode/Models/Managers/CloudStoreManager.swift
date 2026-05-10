@@ -15,7 +15,7 @@ final class CloudStoreManager {
 
     private enum Keys {
         static let savedChannels = "savedChannels"
-        static let watchLaterVideos = "watchLaterVideos"
+        static let bookmarkedVideos = "watchLaterVideos"
         static let historyVideos = "historyVideos"
         static let watchProgress = "watchProgress"
     }
@@ -26,9 +26,9 @@ final class CloudStoreManager {
 
     private(set) var savedChannels: [Channel] = [] { didSet { persistChannels() } }
 
-    // MARK: - Watch Later (ordered, capped at 50, full Video objects)
+    // MARK: - Bookmarks (ordered, capped at 50, full Video objects)
 
-    private(set) var watchLaterVideos: [Video] = [] { didSet { persistWatchLater() } }
+    private(set) var bookmarkedVideos: [Video] = [] { didSet { persistBookmarks() } }
 
     // MARK: - History (most recent first, capped at 50, full Video objects)
 
@@ -69,9 +69,9 @@ final class CloudStoreManager {
             savedChannels = decoded
         }
 
-        if let data = defaults.data(forKey: Keys.watchLaterVideos),
+        if let data = defaults.data(forKey: Keys.bookmarkedVideos),
            let decoded = try? decoder.decode([Video].self, from: data) {
-            watchLaterVideos = decoded
+            bookmarkedVideos = decoded
         }
 
         if let data = defaults.data(forKey: Keys.historyVideos),
@@ -91,9 +91,9 @@ final class CloudStoreManager {
         defaults.synchronize()
     }
 
-    private func persistWatchLater() {
-        let data = try? JSONEncoder().encode(watchLaterVideos)
-        defaults.set(data, forKey: Keys.watchLaterVideos)
+    private func persistBookmarks() {
+        let data = try? JSONEncoder().encode(bookmarkedVideos)
+        defaults.set(data, forKey: Keys.bookmarkedVideos)
         defaults.synchronize()
     }
 
@@ -127,25 +127,25 @@ final class CloudStoreManager {
         }
     }
 
-    // MARK: - Watch Later
+    // MARK: - Bookmarks
 
-    func isWatchLater(_ videoId: String) -> Bool {
-        watchLaterVideos.contains { $0.id == videoId }
+    func isBookmarked(_ videoId: String) -> Bool {
+        bookmarkedVideos.contains { $0.id == videoId }
     }
 
-    func toggleWatchLater(_ video: Video) {
-        if let index = watchLaterVideos.firstIndex(where: { $0.id == video.id }) {
-            watchLaterVideos.remove(at: index)
+    func toggleBookmark(_ video: Video) {
+        if let index = bookmarkedVideos.firstIndex(where: { $0.id == video.id }) {
+            bookmarkedVideos.remove(at: index)
         } else {
-            watchLaterVideos.append(video)
-            if watchLaterVideos.count > Self.maxItems {
-                watchLaterVideos.removeFirst()
+            bookmarkedVideos.append(video)
+            if bookmarkedVideos.count > Self.maxItems {
+                bookmarkedVideos.removeFirst()
             }
         }
     }
 
-    func removeFromWatchLater(_ videoId: String) {
-        watchLaterVideos.removeAll { $0.id == videoId }
+    func removeBookmark(_ videoId: String) {
+        bookmarkedVideos.removeAll { $0.id == videoId }
     }
 
     // MARK: - History (most recent first)

@@ -5,7 +5,7 @@ struct VideoCard: View {
     @Environment(CloudStoreManager.self) private var userDefaults
     let video: Video
     var showChannelLink: Bool = true
-    var showsWatchLaterIcon: Bool = true
+    var showsBookmarkIcon: Bool = true
 
     private var viewCountText: String {
         if let v = video.viewCountValue {
@@ -91,7 +91,7 @@ struct VideoCard: View {
                             .font(.footnote)
                             #endif
 
-                            if showsWatchLaterIcon, userDefaults.isWatchLater(video.id) {
+                            if showsBookmarkIcon, userDefaults.isBookmarked(video.id) {
                                 Image(systemName: "bookmark.fill")
                                     .foregroundStyle(.green)
                                     #if os(tvOS)
