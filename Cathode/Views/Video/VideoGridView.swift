@@ -47,6 +47,7 @@ struct VideoGridView: View {
                         .listRowInsets(.vertical, 5)
                         .listRowInsets(.horizontal, 10)
                 }
+                .listStyle(.plain)
             }
         }
         .overlay {

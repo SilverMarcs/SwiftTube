@@ -42,7 +42,13 @@ struct ShortVideoCard: View {
                     #endif
                 }
                 .padding(.horizontal, 16)
+                #if os(macOS)
+                .padding(.bottom, 35)
+                #elseif os(iOS)
+                .padding(.bottom, 30)
+                #else
                 .padding(.bottom, 20)
+                #endif
             }
             .overlay {
                 if isLoading {

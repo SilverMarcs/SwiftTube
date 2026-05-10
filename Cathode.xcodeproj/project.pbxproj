@@ -29,6 +29,8 @@
 				Views/Player/AVPlayerRepresentable/AVPlayerTvos.swift = (tvos, );
 				Views/Player/AVPlayerViewIos.swift = (ios, xros, );
 				Views/Player/AVPlayerViewMac.swift = (macos, );
+				Views/Player/PlayerChannelTab.swift = (tvos, );
+				Views/Player/PlayerCommentsTab.swift = (tvos, );
 			};
 			target = 08E62F842E871877007AD438 /* Cathode */;
 		};

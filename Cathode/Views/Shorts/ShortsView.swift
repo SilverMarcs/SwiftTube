@@ -36,7 +36,13 @@ struct ShortsView: View {
             .scrollTargetBehavior(.paging)
             .scrollIndicators(.hidden)
             .scrollPosition(id: $activeVideoId)
-            .toolbarBackground(.visible, for: .windowToolbar)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(.background)
+                    .frame(height: 51)
+                    .frame(maxWidth: .infinity)
+                    .ignoresSafeArea()
+            }
 #else
             TabView(selection: $activeVideoId) {
                 ForEach(videoLoader.shortVideos) { video in
