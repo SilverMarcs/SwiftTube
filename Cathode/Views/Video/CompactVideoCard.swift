@@ -26,8 +26,8 @@ struct CompactVideoCard: View {
                                 .font(.caption2)
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 1)
-                                .foregroundStyle(.white)
-                                .background(RoundedRectangle(cornerRadius: 3).fill(.black.secondary))
+                                .background(RoundedRectangle(cornerRadius: 3).fill(.regularMaterial))
+                                .environment(\.colorScheme, .dark)
                                 .padding(6)
                         }
                     }
