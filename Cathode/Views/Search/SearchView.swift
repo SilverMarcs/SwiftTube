@@ -2,7 +2,6 @@ import SwiftUI
 
 struct SearchView: View {
     @AppStorage("showGoogleAuth") private var showGoogleAuth = false
-    @Environment(VideoLoader.self) private var videoLoader
     @Environment(CloudStoreManager.self) private var userDefaults
 
     @State private var searchScope: SearchScope = .bookmark
@@ -12,7 +11,7 @@ struct SearchView: View {
     @FocusState private var isSearchFocused: Bool
 
     private var availableScopes: [SearchScope] {
-        var scopes: [SearchScope] = [.bookmark, .history, .feed]
+        var scopes: [SearchScope] = [.bookmark, .history]
         if showGoogleAuth {
             scopes.append(.video)
             scopes.append(.channel)
@@ -29,15 +28,12 @@ struct SearchView: View {
         }
     }
 
-    private var filteredFeed: [Video] { filter(videoLoader.videos) }
     private var filteredBookmarks: [Video] { filter(Array(userDefaults.bookmarkedVideos.reversed())) }
     private var filteredHistory: [Video] { filter(userDefaults.historyVideos) }
 
     var body: some View {
         Group {
             switch searchScope {
-            case .feed:
-                VideoGridView(videos: filteredFeed)
             case .bookmark:
                 VideoGridView(videos: filteredBookmarks)
             case .history:
@@ -144,7 +140,6 @@ struct SearchView: View {
 }
 
 enum SearchScope: String, Hashable, CaseIterable, Identifiable {
-    case feed = "Feed"
     case bookmark = "Bookmarks"
     case history = "History"
     case video = "Videos"
