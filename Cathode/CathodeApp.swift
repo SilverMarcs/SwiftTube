@@ -73,6 +73,10 @@ struct CathodeApp: App {
     
     init() {
         AVPlayer.isObservationEnabled = true
+
+        // Warm DNS + TLS session + Cloudflare Worker for the extraction server
+        // so the first user-clicked video pays less startup latency.
+        StreamResolver.prewarm()
         #if !os(macOS)
         let session = AVAudioSession.sharedInstance()
         try? session.setCategory(.playback, mode: .moviePlayback)

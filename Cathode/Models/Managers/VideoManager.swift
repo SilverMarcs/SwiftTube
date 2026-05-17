@@ -82,6 +82,7 @@ class VideoManager {
         // If the requested video is no longer the current one, abort this task.
         guard currentVideo?.id == video.id else { return }
 
+        let t0 = Date()
         let url: URL
         #if os(iOS)
         if let local = DownloadManager.shared.localURL(for: video.id) {
@@ -100,6 +101,7 @@ class VideoManager {
             return
         }
         #endif
+        let resolveElapsed = Date().timeIntervalSince(t0)
 
         let playerItem = AVPlayerItem(url: url)
         #if !os(macOS)
@@ -135,6 +137,13 @@ class VideoManager {
         // If AVPlayer fails to ready up (transient extraction or network glitch), retry once.
         Task { [weak self] in
             let ready = await awaitPlayerItemReady(playerItem)
+            let readyElapsed = Date().timeIntervalSince(t0)
+            let avElapsed = readyElapsed - resolveElapsed
+            print(String(
+                format: "play %@: resolve %.2fs · avplayer %.2fs · total %.2fs%@",
+                video.id, resolveElapsed, avElapsed, readyElapsed,
+                ready ? "" : " (FAILED)"
+            ))
             guard !ready, allowCacheRetry else { return }
             guard let self else { return }
             guard self.currentVideo?.id == video.id else { return }

@@ -1,5 +1,5 @@
 {
-  "originHash" : "fc0839d0729a4a5f52787b2fe42ea35eca2cecc255585466bd9ae05ba67da170",
+  "originHash" : "77737297761ed8d56a2ef134d1455360c437873c92a326fb0818f3916997f79c",
   "pins" : [
     {
       "identity" : "swiftmediaviewer",
@@ -8,15 +8,6 @@
       "state" : {
         "branch" : "main",
         "revision" : "8468cac2ff3cb0c6d1a94d5c0cacf438508886e2"
-      }
-    },
-    {
-      "identity" : "youtubekit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SilverMarcs/YouTubeKit",
-      "state" : {
-        "branch" : "main",
-        "revision" : "adc55c09743b7a82f22bd034a86aec5e2862181d"
       }
     }
   ],
