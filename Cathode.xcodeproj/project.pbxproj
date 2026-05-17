@@ -438,10 +438,10 @@
 /* Begin XCRemoteSwiftPackageReference section */
 		08E21CC72EAB8A13006E8DC2 /* XCRemoteSwiftPackageReference "YouTubeKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/alexeichhorn/YouTubeKit";
+			repositoryURL = "https://github.com/SilverMarcs/YouTubeKit";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.3.2;
+				branch = main;
+				kind = branch;
 			};
 		};
 		08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */ = {

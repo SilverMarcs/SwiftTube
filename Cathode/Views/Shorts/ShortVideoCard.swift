@@ -97,7 +97,7 @@ struct ShortVideoCard: View {
             }
         }
 
-        guard let url = await StreamURLCache.shared.fetch(id: video.id) else {
+        guard let url = await StreamResolver.resolve(id: video.id) else {
             print("Failed to load short video: no playable stream")
             return
         }
@@ -112,8 +112,6 @@ struct ShortVideoCard: View {
         let ready = await awaitPlayerItemReady(playerItem)
         if Task.isCancelled { return }
         if !ready && allowCacheRetry {
-            // Likely a stale/expired stream URL — drop it and retry once with a fresh fetch.
-            await StreamURLCache.shared.evict(id: video.id)
             await loadVideo(allowCacheRetry: false)
         }
     }

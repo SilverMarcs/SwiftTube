@@ -62,7 +62,7 @@ final class DownloadManager: NSObject {
     func download(_ video: Video) async {
         guard !isDownloaded(video.id), !isDownloading(video.id) else { return }
 
-        guard let streamURL = await StreamURLCache.shared.fetch(id: video.id) else {
+        guard let streamURL = await StreamResolver.resolveMuxed(id: video.id) else {
             print("Download: no stream for \(video.id)")
             return
         }

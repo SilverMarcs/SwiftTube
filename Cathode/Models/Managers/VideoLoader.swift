@@ -9,7 +9,6 @@ import SwiftUI
 
 @Observable
 final class VideoLoader {
-    static let initialShortsPrefetchCount = 8
 
     private(set) var videos: [Video] = []
     private(set) var shortVideos: [Video] = []
@@ -62,14 +61,6 @@ final class VideoLoader {
         }
         self.shortVideos = applyStableShuffle(to: shorts)
 
-        // Kick off prefetch of the first batch so the initial swipes are instant.
-        let initialPrefetch = self.shortVideos.prefix(Self.initialShortsPrefetchCount).map(\.id)
-        if !initialPrefetch.isEmpty {
-            Task.detached(priority: .utility) {
-                await StreamURLCache.shared.prefetch(ids: initialPrefetch)
-            }
-        }
-        
         let videosForDetails = self.videos.prefix(50)
         if !videosForDetails.isEmpty {
             do {

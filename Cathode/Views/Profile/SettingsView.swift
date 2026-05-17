@@ -10,7 +10,6 @@ import SwiftMediaViewer
 
 struct SettingsView: View {
     @Environment(GoogleAuthManager.self) private var authManager
-    @AppStorage("useLocalFetching") private var useLocalFetching: Bool = false
     @AppStorage("showGoogleAuth") private var showGoogleAuth = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     #if os(tvOS)
@@ -45,29 +44,6 @@ struct SettingsView: View {
                 }
             }
 
-            Section {
-                #if os(tvOS)
-                Button {
-                    useLocalFetching.toggle()
-                    bumpEasterEgg()
-                } label: {
-                    LabeledContent("Prefer Local Fetching",
-                                   value: useLocalFetching ? "On" : "Off")
-                }
-                .foregroundStyle(.primary)
-                #else
-                Toggle("Prefer Local Fetching", isOn: $useLocalFetching)
-                    .help(
-                        "When enabled, tries to fetch videos locally first before falling back to remote. Local fetching may be slower but doesn't require internet."
-                    )
-                    .onChange(of: useLocalFetching) { _, _ in bumpEasterEgg() }
-                #endif
-            } header: {
-                Text("Fetching")
-            } footer: {
-                Text("Non local fetching is more reliable but will take longer to laod videos")
-            }
-
             #if os(tvOS)
             Section("View Options") {
                 Button {
@@ -85,6 +61,7 @@ struct SettingsView: View {
             Section {
                 Button("Show Onboarding Again") {
                     hasCompletedOnboarding = false
+                    bumpEasterEgg()
                 }
             }
         }

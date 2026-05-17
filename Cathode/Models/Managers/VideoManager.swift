@@ -86,14 +86,14 @@ class VideoManager {
         #if os(iOS)
         if let local = DownloadManager.shared.localURL(for: video.id) {
             url = local
-        } else if let streamed = await StreamURLCache.shared.fetch(id: video.id) {
+        } else if let streamed = await StreamResolver.resolve(id: video.id) {
             url = streamed
         } else {
             print("YouTubeKit error: no playable stream for \(video.id)")
             return
         }
         #else
-        if let streamed = await StreamURLCache.shared.fetch(id: video.id) {
+        if let streamed = await StreamResolver.resolve(id: video.id) {
             url = streamed
         } else {
             print("YouTubeKit error: no playable stream for \(video.id)")
@@ -132,14 +132,12 @@ class VideoManager {
 
         await applyNavigationMarkers(for: video, on: playerItem)
 
-        // If the cached URL turns out to be stale (e.g. expired YouTube CDN ticket),
-        // evict and retry once with a fresh fetch.
+        // If AVPlayer fails to ready up (transient extraction or network glitch), retry once.
         Task { [weak self] in
             let ready = await awaitPlayerItemReady(playerItem)
             guard !ready, allowCacheRetry else { return }
             guard let self else { return }
             guard self.currentVideo?.id == video.id else { return }
-            await StreamURLCache.shared.evict(id: video.id)
             await self.loadVideoStream(for: video, autoPlay: autoPlay, allowCacheRetry: false)
         }
     }
