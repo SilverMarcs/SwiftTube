@@ -43,6 +43,7 @@ struct CathodeApp: App {
                     }
                     return .systemAction
                 })
+                #if os(iOS)
                 .task(id: scenePhase) {
                     if scenePhase == .active {
                         await videoLoader.loadAllChannelVideos()
@@ -54,6 +55,17 @@ struct CathodeApp: App {
                         }
                     }
                 }
+                #else
+                .task {
+                    await videoLoader.loadAllChannelVideos()
+
+                    if videoManager.currentVideo == nil {
+                        if let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
+                            videoManager.setVideo(mostRecentVideo, autoPlay: false)
+                        }
+                    }
+                }
+                #endif
         }
         #if !os(tvOS)
         .commands {
