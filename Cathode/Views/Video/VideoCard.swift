@@ -97,11 +97,11 @@ struct VideoCard: View {
                                     #if os(tvOS)
                                     .font(.caption)
                                     #else
-                                    .font(.system(size: 10))
+                                    .font(.footnote)
                                     #endif
+                                    .padding(.bottom, -2)
                             }
                         }
-                        .padding(.bottom, -1)
                     }
                     .foregroundStyle(.secondary)
                 }

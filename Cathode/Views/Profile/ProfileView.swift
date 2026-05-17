@@ -10,32 +10,39 @@ import SwiftUI
 
 struct ProfileView: View {
     @Environment(CloudStoreManager.self) var userDefaults
+    #if os(iOS)
+    @State private var showingSettings = false
+    #endif
 
     var body: some View {
         Form {
-            Section {
-                NavigationLink {
-                    ChannelListView()
-                } label: {
-                    Label("Channels", systemImage: "bell")
-                }
-
-                #if os(iOS)
-                NavigationLink {
-                    DownloadsView()
-                } label: {
-                    Label("Downloads", systemImage: "arrow.down.circle")
-                }
-                #endif
-            }
-
             BookmarkView()
 
             HistoryView()
+
+            #if os(iOS)
+            DownloadsPreviewView()
+            #endif
         }
         .formStyle(.grouped)
         .contentMargins(.top, 5)
-        .navigationTitle("Profile")
+        .navigationTitle("Library")
         .platformNavigationToolbar()
+        #if os(iOS)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingSettings = true
+                } label: {
+                    Label("Settings", systemImage: "gear")
+                }
+            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            NavigationStack {
+                SettingsView()
+            }
+        }
+        #endif
     }
 }

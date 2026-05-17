@@ -10,6 +10,7 @@ import SwiftMediaViewer
 
 struct SettingsView: View {
     @Environment(GoogleAuthManager.self) private var authManager
+    @Environment(\.dismiss) private var dismiss
     @AppStorage("showGoogleAuth") private var showGoogleAuth = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     #if os(tvOS)
@@ -68,6 +69,15 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .navigationTitle("Settings")
         .platformNavigationToolbar(titleDisplayMode: .inline)
+        #if os(iOS)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(role: .close) {
+                    dismiss()
+                }
+            }
+        }
+        #endif
         .task {
             if showGoogleAuth {
                 try? await authManager.fetchUserInfo()

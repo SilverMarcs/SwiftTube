@@ -31,6 +31,19 @@ struct SearchView: View {
     private var filteredBookmarks: [Video] { filter(Array(userDefaults.bookmarkedVideos.reversed())) }
     private var filteredHistory: [Video] { filter(userDefaults.historyVideos) }
 
+    private var filteredSavedChannels: [Channel] {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return userDefaults.savedChannels }
+        return userDefaults.savedChannels.filter {
+            $0.title.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private var discoveredChannels: [Channel] {
+        let savedIDs = Set(userDefaults.savedChannels.map(\.id))
+        return onlineResults.channels.filter { !savedIDs.contains($0.id) }
+    }
+
     var body: some View {
         Group {
             switch searchScope {
@@ -50,9 +63,16 @@ struct SearchView: View {
                 }
             case .channel:
                 List {
-                    if !onlineResults.channels.isEmpty {
-                        Section("Channels") {
-                            ForEach(onlineResults.channels) { channel in
+                    if !discoveredChannels.isEmpty {
+                        Section("Discover") {
+                            ForEach(discoveredChannels) { channel in
+                                ChannelRowView(channel: channel)
+                            }
+                        }
+                    }
+                    if !filteredSavedChannels.isEmpty {
+                        Section("Your Channels") {
+                            ForEach(filteredSavedChannels) { channel in
                                 ChannelRowView(channel: channel)
                             }
                         }
@@ -75,7 +95,11 @@ struct SearchView: View {
         .overlay {
             if isLoading {
                 UniversalProgressView()
-            } else if isOnlineScope, onlineResults.isEmpty {
+            } else if searchScope == .video, onlineResults.videos.isEmpty {
+                ContentUnavailableView.search
+            } else if searchScope == .channel,
+                      discoveredChannels.isEmpty,
+                      filteredSavedChannels.isEmpty {
                 ContentUnavailableView.search
             }
         }

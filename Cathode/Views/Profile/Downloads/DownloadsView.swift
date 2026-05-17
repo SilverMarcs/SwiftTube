@@ -40,4 +40,31 @@ struct DownloadsView: View {
         .platformNavigationToolbar(titleDisplayMode: .inline)
     }
 }
+
+struct DownloadsPreviewView: View {
+    @Environment(DownloadManager.self) private var downloads
+
+    var body: some View {
+        let combined = downloads.downloadingVideos + downloads.downloadedVideos
+        let items = Array(combined.prefix(3))
+
+        Section {
+            ForEach(items) { video in
+                CompactVideoCard(video: video)
+            }
+
+            NavigationLink {
+                DownloadsView()
+            } label: {
+                Text("View all downloads")
+                    .foregroundStyle(.accent)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
+            }
+            .navigationLinkIndicatorVisibility(.hidden)
+        } header: {
+            Text("Downloads")
+        }
+    }
+}
 #endif
