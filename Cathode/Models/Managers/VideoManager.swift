@@ -28,6 +28,11 @@ class VideoManager {
     var nowPlayingInfo: [String: Any] = [:]
     var hasRegisteredRemoteCommands = false
 
+    /// Tracks the in-flight `loadVideoStream` task so a rapid second
+    /// `setVideo` can cancel the stale one and avoid races where a
+    /// late-arriving resolve replaces the newer video's player item.
+    private var loadingTask: Task<Void, Never>?
+
     init() {
         registerRemoteCommandsIfNeeded()
     }
@@ -47,7 +52,13 @@ class VideoManager {
             return
         }
 
-        player?.pause()
+        // Cancel any pending load from a previous tap so its late-arriving
+        // resolve can't clobber this new request. The old player keeps
+        // playing until the new playerItem is ready — replaceCurrentItem
+        // does the transition atomically. Eager pausing here would leave
+        // the user staring at a frozen previous video if the new resolve
+        // failed for any reason.
+        loadingTask?.cancel()
         isSetting = true
 
         currentVideo = video
@@ -55,10 +66,10 @@ class VideoManager {
         currentSponsorSegment = nil
         store.addToHistory(video)
 
-        Task {
-            await loadVideoStream(for: video, autoPlay: autoPlay)
-            if self.currentVideo?.id == video.id {
-                isSetting = false
+        loadingTask = Task { [weak self] in
+            await self?.loadVideoStream(for: video, autoPlay: autoPlay)
+            if self?.currentVideo?.id == video.id {
+                self?.isSetting = false
             }
         }
     }
@@ -80,7 +91,7 @@ class VideoManager {
     // MARK: - Private Methods
     private func loadVideoStream(for video: Video, autoPlay: Bool, allowCacheRetry: Bool) async {
         // If the requested video is no longer the current one, abort this task.
-        guard currentVideo?.id == video.id else { return }
+        guard currentVideo?.id == video.id, !Task.isCancelled else { return }
 
         let t0 = Date()
         let url: URL
@@ -101,6 +112,7 @@ class VideoManager {
             return
         }
         #endif
+        if Task.isCancelled { return }
         let resolveElapsed = Date().timeIntervalSince(t0)
 
         let playerItem = AVPlayerItem(url: url)
@@ -109,7 +121,7 @@ class VideoManager {
         #endif
 
         // Ensure we're still targeting the same video before mutating the player
-        guard currentVideo?.id == video.id else { return }
+        guard currentVideo?.id == video.id, !Task.isCancelled else { return }
         if let existingPlayer = player {
             existingPlayer.replaceCurrentItem(with: playerItem)
         } else {
