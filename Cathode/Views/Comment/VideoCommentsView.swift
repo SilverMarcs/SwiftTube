@@ -6,14 +6,10 @@ struct VideoCommentsView: View {
     @State private var hasLoaded = false
     @State private var comments: [Comment] = []
 
-    private var topLevelComments: [Comment] {
-        comments.filter { $0.isTopLevel }.sorted { $0.publishedAt > $1.publishedAt }
-    }
-
     var body: some View {
         if hasLoaded {
             Section("Comments") {
-                ForEach(topLevelComments) { comment in
+                ForEach(comments) { comment in
                     CommentRowView(comment: comment)
                 }
             }
@@ -30,32 +26,10 @@ struct VideoCommentsView: View {
 
     private func loadComments() async {
         defer { hasLoaded = true }
-
         do {
-            var fetchedComments = try await YTService.fetchComments(for: video)
-
-            // Create a dictionary to track top-level comments for reply relationships
-            var topLevelCommentsDict: [String: Int] = [:]
-
-            // Find indices of top-level comments
-            for (index, comment) in fetchedComments.enumerated() {
-                if comment.isTopLevel {
-                    topLevelCommentsDict[comment.id] = index
-                }
-            }
-
-            // Set up parent-child relationships for replies
-            for i in 0..<fetchedComments.count {
-                if !fetchedComments[i].isTopLevel, let parentId = fetchedComments[i].parentCommentId {
-                    if let parentIndex = topLevelCommentsDict[parentId] {
-                        fetchedComments[parentIndex].replies.append(fetchedComments[i])
-                    }
-                }
-            }
-
-            comments = fetchedComments
+            comments = try await InnerTubeAPI.shared.fetchComments(videoId: video.id)
         } catch APIError.commentsDisabled {
-            // Comments are disabled for this video
+            // Comments are disabled for this video.
         } catch {
             print("Error in VideoCommentsView: \(error.localizedDescription)")
         }

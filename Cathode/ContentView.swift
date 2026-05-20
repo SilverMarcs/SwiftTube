@@ -16,7 +16,6 @@ struct ContentView: View {
     @Namespace private var animation
 
     @State private var isPresented = false
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage("tvOSNavigationStyle") private var tvNavigationStyleSetting = TVNavigationStyle.tabBar
 
     private var isCompactSize: Bool { horizontalSizeClass == .compact }
@@ -124,11 +123,5 @@ struct ContentView: View {
             }
         }
         #endif
-        .sheet(isPresented: Binding(
-            get: { !hasCompletedOnboarding },
-            set: { if !$0 { hasCompletedOnboarding = true } }
-        )) {
-            OnboardingView()
-        }
     }
 }

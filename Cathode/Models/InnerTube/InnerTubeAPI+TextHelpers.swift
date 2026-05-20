@@ -4,6 +4,11 @@ import Foundation
 
 extension InnerTubeAPI {
 
+    func normalizeThumbURL(_ str: String) -> URL? {
+        let s = str.hasPrefix("//") ? "https:\(str)" : str
+        return URL(string: s)
+    }
+
     func extractText(_ dict: [String: Any]) -> String? {
         if let simple = dict["simpleText"] as? String { return simple }
         if let runs = dict["runs"] as? [[String: Any]] {

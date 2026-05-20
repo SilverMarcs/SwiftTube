@@ -2,28 +2,32 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct VideoCard: View {
-    @Environment(CloudStoreManager.self) private var userDefaults
+    @Environment(LibraryStore.self) private var library
     let video: Video
     var showChannelLink: Bool = true
     var showsBookmarkIcon: Bool = true
 
     private var viewCountText: String {
-        if let v = video.viewCountValue {
-            return v.formatted(.number.notation(.compactName))
-        }
-        return video.viewCount
+        guard let v = video.viewCount else { return "" }
+        return v.formatted(.number.notation(.compactName))
+    }
+
+    private var watchProgressRatio: Double? {
+        guard let seconds = library.resumeSeconds(for: video),
+              let duration = video.duration, duration > 0 else { return nil }
+        return min(seconds / duration, 1.0)
     }
 
     var body: some View {
         PlayVideoButton(video: video) {
             VStack(alignment: .leading) {
-                CachedAsyncImage(url:  URL(string: video.thumbnailURL),targetSize: 500)
+                CachedAsyncImage(url: video.thumbnailURL, targetSize: 500)
                     .aspectRatio(16/9, contentMode: .fill)
                     .frame(maxWidth: .infinity)
                     .clipped()
                     .overlay(alignment: .bottomTrailing) {
                         if let duration = video.duration {
-                            Text(duration.formatDuration())
+                            Text(Int(duration).formatDuration())
                                 .font(.caption)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
@@ -33,7 +37,7 @@ struct VideoCard: View {
                         }
                     }
                     .overlay(alignment: .bottom) {
-                        if let progress = video.watchProgressRatio {
+                        if let progress = watchProgressRatio {
                             ProgressView(value: progress)
                                 .tint(.accent)
                                 #if os(macOS)
@@ -42,7 +46,7 @@ struct VideoCard: View {
                                 #endif
                         }
                     }
-                
+
                 VStack(alignment: .leading) {
                     Text(video.title)
                         #if os(tvOS)
@@ -57,17 +61,7 @@ struct VideoCard: View {
                         #endif
 
                     HStack(alignment: .center, spacing: 4) {
-                        if let url = URL(string: video.channel.thumbnailURL) {
-                            CachedAsyncImage(url: url, targetSize: 50)
-                                #if os(tvOS)
-                                .frame(width: 32, height: 32)
-                                #else
-                                .frame(width: 20, height: 20)
-                                #endif
-                                .clipShape(.circle)
-                        }
-
-                        Text(video.channel.title)
+                        Text(video.channelTitle)
                             .lineLimit(1)
                             #if os(tvOS)
                             .font(.caption)
@@ -76,22 +70,26 @@ struct VideoCard: View {
                             #endif
                             .fontWeight(.medium)
                             .padding(.leading, 2)
-                        
+
                         Spacer()
 
                         HStack(spacing: 4) {
-                            (
-                                Text(viewCountText)
-                                + Text(" • ").font(.body)
-                                + Text(video.publishedAt.customRelativeFormat())
-                            )
+                            Group {
+                                if let date = video.publishedAt {
+                                    Text(viewCountText)
+                                    + Text(" • ").font(.body)
+                                    + Text(date.customRelativeFormat())
+                                } else {
+                                    Text(viewCountText)
+                                }
+                            }
                             #if os(tvOS)
                             .font(.caption)
                             #else
                             .font(.footnote)
                             #endif
 
-                            if showsBookmarkIcon, userDefaults.isBookmarked(video.id) {
+                            if showsBookmarkIcon, library.isBookmarked(video.id) {
                                 Image(systemName: "bookmark.fill")
                                     .foregroundStyle(.green)
                                     #if os(tvOS)

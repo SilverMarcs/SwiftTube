@@ -7,7 +7,7 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
     let video: Video
 
     @Environment(VideoManager.self) private var videoManager
-    @Environment(CloudStoreManager.self) private var cloudStore
+    @Environment(LibraryStore.self) private var cloudStore
 
     private static let bookmarkActionId = UIAction.Identifier("cathode.bookmark")
     private static let skipSponsorActionId = UIAction.Identifier("cathode.skipSponsor")
@@ -52,11 +52,11 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
         comments.title = "Comments"
 
         let channel = UIHostingController(
-            rootView: PlayerChannelTab(channel: video.channel)
+            rootView: PlayerChannelTab(channelId: video.channelId ?? "")
                 .environment(videoManager)
                 .environment(cloudStore)
         )
-        channel.title = video.channel.title
+        channel.title = video.channelTitle
 
         return [comments, channel]
     }

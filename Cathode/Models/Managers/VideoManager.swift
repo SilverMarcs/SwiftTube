@@ -19,7 +19,6 @@ class VideoManager {
 
     var isExpanded: Bool = false
     var isSetting: Bool = false
-    private let store = CloudStoreManager.shared
 
     var timeObserverToken: Any?
     var rateObservation: NSKeyValueObservation?
@@ -32,22 +31,6 @@ class VideoManager {
     /// `setVideo` can cancel the stale one and avoid races where a
     /// late-arriving resolve replaces the newer video's player item.
     private var loadingTask: Task<Void, Never>?
-
-    // MARK: - Watchtime reporting state
-    //
-    // Per-session CPN (Client Playback Nonce) and account-bound playback
-    // tracking URLs. Pings are fire-and-forget; reportPlaybackStarted runs
-    // once when a video begins, then reportWatchtime runs throttled
-    // (~5s) and on session end / video change / app background.
-    private var watchtimeCPN: String?
-    private var watchtimeTrackingURLs: PlaybackTrackingURLs?
-    private var watchtimeVideoId: String?
-    private var watchtimeSegmentStart: TimeInterval = 0
-    private var watchtimeLastPing: Date = .distantPast
-    private var watchtimeStarted: Bool = false
-    private var watchtimeFetchTask: Task<Void, Never>?
-    /// Throttle: report watchtime no more often than this.
-    private let watchtimeInterval: TimeInterval = 5
 
     init() {
         registerRemoteCommandsIfNeeded()
@@ -68,9 +51,6 @@ class VideoManager {
             return
         }
 
-        // Flush watchtime for the outgoing session before switching.
-        finalizeWatchtimeForCurrentSession()
-
         // Cancel any pending load from a previous tap so its late-arriving
         // resolve can't clobber this new request. The old player keeps
         // playing until the new playerItem is ready — replaceCurrentItem
@@ -83,9 +63,10 @@ class VideoManager {
         currentVideo = video
         sponsorSegments = []
         currentSponsorSegment = nil
-        store.addToHistory(video)
 
-        beginWatchtimeSession(for: video)
+        Task { @MainActor in
+            LibraryStore.shared.addToHistory(video)
+        }
 
         loadingTask = Task { [weak self] in
             await self?.loadVideoStream(for: video, autoPlay: autoPlay)
@@ -151,7 +132,7 @@ class VideoManager {
             attachPlayerObservers(to: newPlayer)
         }
 
-        let savedProgress = store.getWatchProgress(videoId: video.id)
+        let savedProgress = await MainActor.run { LibraryStore.shared.resumeSeconds(for: video) ?? 0 }
         if savedProgress > 5 {
             let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
             guard currentVideo?.id == video.id else { return }
@@ -198,21 +179,21 @@ class VideoManager {
         // Artist (Channel name)
         let artistItem = AVMutableMetadataItem()
         artistItem.identifier = .iTunesMetadataTrackSubTitle
-        artistItem.value = video.channel.title as NSString
+        artistItem.value = video.channelTitle as NSString
         artistItem.extendedLanguageTag = "und"
         metadata.append(artistItem)
 
         // Description
-        if !video.videoDescription.isEmpty {
+        if let description = video.description, !description.isEmpty {
             let descItem = AVMutableMetadataItem()
             descItem.identifier = .commonIdentifierDescription
-            descItem.value = video.videoDescription as NSString
+            descItem.value = description as NSString
             descItem.extendedLanguageTag = "und"
             metadata.append(descItem)
         }
 
         // Artwork (thumbnail)
-        if !video.thumbnailURL.isEmpty, let url = URL(string: video.thumbnailURL) {
+        if let url = video.thumbnailURL {
             let artworkItem = AVMutableMetadataItem()
             artworkItem.identifier = .commonIdentifierArtwork
             artworkItem.dataType = kCMMetadataBaseDataType_PNG as String
@@ -232,7 +213,7 @@ class VideoManager {
 
     // MARK: - Navigation Markers (chapters + sponsor segments)
     private func applyNavigationMarkers(for video: Video, on playerItem: AVPlayerItem) async {
-        async let descriptionChapters = DescriptionChapterParser.parse(video.videoDescription)
+        async let descriptionChapters = DescriptionChapterParser.parse(video.description ?? "")
         async let sponsors = SponsorBlockService.fetchSponsorSegments(for: video.id)
         let chapters = await descriptionChapters
         let segments = await sponsors
@@ -242,7 +223,7 @@ class VideoManager {
         refreshSponsorState()
 
         #if os(tvOS)
-        let duration = Double(video.duration ?? 0)
+        let duration = video.duration ?? 0
         let markers = buildMarkers(chapters: chapters, sponsors: segments, totalDuration: duration > 0 ? duration : nil)
         guard !markers.isEmpty else { return }
         playerItem.navigationMarkerGroups = [AVNavigationMarkersGroup(title: nil, timedNavigationMarkers: markers)]
@@ -316,104 +297,17 @@ class VideoManager {
     #endif
 
     // MARK: - Persistence
+
+    /// Persists the current playback position to iCloud-backed LibraryStore.
+    /// Called from the 1s periodic time observer; LibraryStore handles its own
+    /// debouncing of iCloud writes.
     func persistCurrentTime() {
-        // Avoid saving while we're in the middle of switching videos
         if isSetting { return }
         guard let player = player, let videoId = currentVideo?.id else { return }
         let seconds = player.currentTime().seconds
         guard seconds.isFinite, seconds > 0 else { return }
-        store.setWatchProgress(videoId: videoId, progress: seconds)
-        // Throttled watchtime ping → YouTube watch history server.
-        maybeReportWatchtime(videoId: videoId, position: seconds, isFinal: false)
-    }
-
-    // MARK: - Watchtime (YouTube watch-history reporting)
-
-    /// Starts a new watchtime session. Generates a CPN and pre-fetches
-    /// account-bound tracking URLs. No-op when not signed in.
-    private func beginWatchtimeSession(for video: Video) {
-        // Reset session state regardless of sign-in so stale URLs from a
-        // previous session don't leak across.
-        watchtimeFetchTask?.cancel()
-        watchtimeFetchTask = nil
-        watchtimeCPN = nil
-        watchtimeTrackingURLs = nil
-        watchtimeVideoId = nil
-        watchtimeSegmentStart = 0
-        watchtimeLastPing = .distantPast
-        watchtimeStarted = false
-
-        guard YTTVAuthManager.shared.isSignedIn else { return }
-
-        let cpn = InnerTubeAPI.generateCPN()
-        let videoId = video.id
-        watchtimeCPN = cpn
-        watchtimeVideoId = videoId
-
-        watchtimeFetchTask = Task { [weak self] in
-            let urls = await InnerTubeAPI.shared.fetchAuthenticatedTrackingURLs(videoId: videoId)
-            await MainActor.run {
-                guard let self else { return }
-                guard self.watchtimeVideoId == videoId else { return }
-                self.watchtimeTrackingURLs = urls
-            }
+        Task { @MainActor in
+            LibraryStore.shared.setResumePosition(videoId: videoId, seconds: seconds)
         }
-    }
-
-    /// Sends `videostatsPlaybackUrl` once at the start, then throttled
-    /// `videostatsWatchtimeUrl` pings every `watchtimeInterval` seconds.
-    /// Pass `isFinal: true` to bypass throttling for a final ping.
-    private func maybeReportWatchtime(videoId: String, position: TimeInterval, isFinal: Bool) {
-        guard YTTVAuthManager.shared.isSignedIn else { return }
-        guard let cpn = watchtimeCPN, watchtimeVideoId == videoId else { return }
-
-        let urls = watchtimeTrackingURLs
-        let now = Date()
-
-        if !watchtimeStarted {
-            watchtimeStarted = true
-            watchtimeSegmentStart = 0
-            watchtimeLastPing = now
-            Task {
-                await InnerTubeAPI.shared.reportPlaybackStarted(videoId: videoId, cpn: cpn, trackingURLs: urls)
-            }
-            return
-        }
-
-        if !isFinal && now.timeIntervalSince(watchtimeLastPing) < watchtimeInterval {
-            return
-        }
-
-        let segStart = watchtimeSegmentStart
-        let segEnd = position
-        // Guard against zero-length segments (YouTube ignores st == et).
-        guard segEnd > segStart else { return }
-        watchtimeSegmentStart = segEnd
-        watchtimeLastPing = now
-        Task {
-            await InnerTubeAPI.shared.reportWatchtime(
-                videoId: videoId,
-                cpn: cpn,
-                trackingURLs: urls,
-                segmentStart: segStart,
-                segmentEnd: segEnd
-            )
-        }
-    }
-
-    /// Fires a final watchtime ping for the current session (call on app
-    /// background or video change). Safe to call when no session is active.
-    private func finalizeWatchtimeForCurrentSession() {
-        guard let videoId = watchtimeVideoId,
-              let player = player else { return }
-        let seconds = player.currentTime().seconds
-        guard seconds.isFinite, seconds > 0 else { return }
-        maybeReportWatchtime(videoId: videoId, position: seconds, isFinal: true)
-    }
-
-    /// Public entry point so the app can flush watchtime on background /
-    /// scene phase change.
-    func flushWatchtime() {
-        finalizeWatchtimeForCurrentSession()
     }
 }

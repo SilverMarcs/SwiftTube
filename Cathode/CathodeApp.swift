@@ -14,11 +14,11 @@ struct CathodeApp: App {
 
     let videoLoader = VideoLoader()
     let videoManager = VideoManager()
-    let store = CloudStoreManager.shared
+    let store = LibraryStore.shared
     let ytAuth = YTTVAuthManager.shared
 
     @State var selectedTab: TabSelection = .feed
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView(selectedTab: $selectedTab)
@@ -33,8 +33,8 @@ struct CathodeApp: App {
                     if let videoId = url.youtubeVideoID {
                         Task {
                             do {
-                                let video = try await YTService.fetchVideo(byId: videoId)
-                                videoManager.setVideo(video)
+                                let info = try await InnerTubeAPI.shared.fetchPlayerInfo(videoId: videoId)
+                                videoManager.setVideo(info.video)
                             } catch {
                                 print("Failed to fetch video: \(error)")
                             }
@@ -44,18 +44,18 @@ struct CathodeApp: App {
                     return .systemAction
                 })
                 .task(id: ytAuth.isSignedIn) {
-                    // Re-fetch the feed when sign-in completes — the cold-launch
-                    // load fired before auth was restored and left the list empty.
+                    // Re-fetch the feed and the library when sign-in completes
+                    // — the cold-launch load fired before auth was restored
+                    // and left the lists empty.
                     guard ytAuth.isSignedIn else { return }
+                    await store.refresh()
                     await videoLoader.loadAllChannelVideos()
                 }
                 #if os(iOS)
                 .task(id: scenePhase) {
                     if scenePhase == .active {
-                        // Pull subscribed channels / Watch Later / history from
-                        // the user's YouTube account into local state.
                         if ytAuth.isSignedIn {
-                            store.refreshFromYouTube()
+                            await store.refresh()
                         }
                         await videoLoader.loadAllChannelVideos()
 
@@ -65,13 +65,13 @@ struct CathodeApp: App {
                             }
                         }
                     } else if scenePhase == .background || scenePhase == .inactive {
-                        videoManager.flushWatchtime()
+                        videoManager.persistCurrentTime()
                     }
                 }
                 #else
                 .task {
                     if ytAuth.isSignedIn {
-                        store.refreshFromYouTube()
+                        await store.refresh()
                     }
                     await videoLoader.loadAllChannelVideos()
 
@@ -98,7 +98,7 @@ struct CathodeApp: App {
         .restorationBehavior(.disabled)
         #endif
     }
-    
+
     init() {
         AVPlayer.isObservationEnabled = true
 

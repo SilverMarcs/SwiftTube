@@ -1,70 +1,72 @@
 import SwiftUI
 
 struct ChannelVideoList: View {
-    let channel: Channel
-    @Environment(CloudStoreManager.self) private var userDefaults
+    let channelId: String
+    let initialTitle: String?
+
+    @State private var channel: Channel?
     @State private var videos: [Video] = []
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-    @State private var showingDetails = false
-    
-    private var isSavedChannel: Bool {
-        userDefaults.savedChannels.contains { $0.id == channel.id }
+    @State private var nextPageToken: String?
+    /// Re-entry guard for `loadMore`.
+    @State private var isLoadingMore = false
+
+    init(channelId: String, title: String? = nil) {
+        self.channelId = channelId
+        self.initialTitle = title
+        // Seed from the channel cache so the nav title / avatar render
+        // immediately if we already know this channel from the user's subs
+        // list (or a previous session).
+        _channel = State(initialValue: LibraryStore.shared.channel(forId: channelId))
     }
-    
+
+    private var displayTitle: String {
+        channel?.title ?? initialTitle ?? "Channel"
+    }
+
     var body: some View {
-        VideoGridView(videos: videos, showChannelLinkInContextMenu: false)
-            .navigationTitle(channel.title)
-            .platformNavigationToolbar(titleDisplayMode: .inline)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    if isSavedChannel {
-                        Button(role: .confirm) {
-                            userDefaults.removeChannel(channel)
-                        } label: {
-                            Label("Remove Channel", systemImage: "minus")
-                        }
-                    } else {
-                        Button(role: .confirm) {
-                            userDefaults.addChannel(channel)
-                        } label: {
-                            Label("Add Channel", systemImage: "plus")
-                        }
-                    }
-                }
-            }
-            .refreshable {
+        VideoGridView(
+            videos: videos,
+            showChannelLinkInContextMenu: false,
+            onReachEnd: {
+                Task { await loadMore() }
+            },
+            onRefresh: {
                 await loadChannelVideos()
             }
-            .task {
-                if videos.isEmpty {
-                    await loadChannelVideos()
-                }
+        )
+        .navigationTitle(displayTitle)
+        .platformNavigationToolbar(titleDisplayMode: .inline)
+        .task {
+            if videos.isEmpty {
+                await loadChannelVideos()
             }
-            .sheet(isPresented: $showingDetails) {
-                ChannelDetailView(channel: channel)
-            }
-    }
-    
-    private func loadChannelVideos() async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            let group = try await InnerTubeAPI.shared.fetchChannelVideos(channelId: channel.id)
-            videos = group.videos.map { Video($0, channel: channel) }
-        } catch {
-            print("Error in ChannelVideoList \(error.localizedDescription)")
         }
     }
-}
 
-#Preview {
-    let channel = Channel(
-        id: "UCBJycsmduvYEL83R_U4JriQ",
-        title: "Marques Brownlee",
-        channelDescription: "Technology reviews and discussions",
-        thumbnailURL: "https://example.com/thumbnail.jpg"
-    )
-    
-    ChannelVideoList(channel: channel)
+    private func loadChannelVideos() async {
+        guard !channelId.isEmpty else { return }
+        do {
+            let (ch, group) = try await InnerTubeAPI.shared.fetchChannel(channelId: channelId)
+            self.channel = ch
+            LibraryStore.shared.remember(ch)
+            self.videos = group.videos
+            self.nextPageToken = group.nextPageToken
+        } catch {
+            print("ChannelVideoList: \(error.localizedDescription)")
+        }
+    }
+
+    private func loadMore() async {
+        guard let token = nextPageToken, !isLoadingMore else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+        do {
+            let group = try await InnerTubeAPI.shared.fetchChannelVideos(channelId: channelId, continuationToken: token)
+            let existing = Set(videos.map(\.id))
+            videos.append(contentsOf: group.videos.filter { !existing.contains($0.id) })
+            nextPageToken = group.nextPageToken
+        } catch {
+            print("ChannelVideoList loadMore: \(error.localizedDescription)")
+        }
+    }
 }

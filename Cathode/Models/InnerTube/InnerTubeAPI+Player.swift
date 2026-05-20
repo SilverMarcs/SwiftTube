@@ -98,126 +98,6 @@ extension InnerTubeAPI {
         return cards
     }
 
-    // MARK: - Playback Tracking (Watch History)
-
-    /// Generates a Client Playback Nonce (CPN) — a random 16-character base64url string.
-    /// YouTube uses this to attribute a view to an account and record it in watch history.
-    /// Must be generated once per playback session and used in every tracking ping.
-    public static func generateCPN() -> String {
-        let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-        let chars = Array(alphabet)
-        return String((0..<16).map { _ in chars[Int.random(in: 0..<chars.count)] })
-    }
-
-    /// Fires `videostatsPlaybackUrl` to record the video start in the user's YouTube watch history.
-    /// Must be called once when AVPlayerItem becomes `readyToPlay`.
-    /// Mirrors Android's `VideoStateController` stats-ping behaviour in MediaServiceCore.
-    /// - Parameters:
-    ///   - videoId: The YouTube video ID being watched.
-    ///   - cpn: The Client Playback Nonce for this session (see `generateCPN()`).
-    ///   - trackingURLs: Tracking URLs from the player response; if nil, falls back to constructed URLs.
-    public func reportPlaybackStarted(videoId: String, cpn: String, trackingURLs: PlaybackTrackingURLs?) async {
-        let url = trackingURLs?.playbackURL ?? Self.fallbackPlaybackURL(videoId: videoId)
-        let extraParams: [String: String] = [
-            "ver":   "2",
-            "cpn":   cpn,
-            "docid": videoId,
-            "cmt":   "0",
-        ]
-        await pingTrackingURL(url, extraParams: extraParams)
-        tubeLog.notice("reportPlaybackStarted: videoId=\(videoId, privacy: .public) cpn=\(cpn.prefix(4), privacy: .public)… usedFallback=\(trackingURLs == nil, privacy: .public)")
-    }
-
-    /// Fires `videostatsWatchtimeUrl` to record a watched interval in the user's YouTube watch history.
-    /// Should be called when playback stops/pauses/ends.
-    /// - Parameters:
-    ///   - videoId: The YouTube video ID being watched.
-    ///   - cpn: The same Client Playback Nonce used in `reportPlaybackStarted`.
-    ///   - trackingURLs: Tracking URLs from the player response; if nil, falls back to constructed URLs.
-    ///   - segmentStart: Playhead position (seconds) when the current play segment began.
-    ///   - segmentEnd: Playhead position (seconds) when the current play segment ended (i.e. now).
-    public func reportWatchtime(
-        videoId: String,
-        cpn: String,
-        trackingURLs: PlaybackTrackingURLs?,
-        segmentStart: TimeInterval,
-        segmentEnd: TimeInterval
-    ) async {
-        let url = trackingURLs?.watchtimeURL ?? Self.fallbackWatchtimeURL(videoId: videoId)
-        let extraParams: [String: String] = [
-            "ver":   "2",
-            "cpn":   cpn,
-            "docid": videoId,
-            "cmt":   String(format: "%.3f", segmentEnd),
-            "st":    String(format: "%.3f", segmentStart),
-            "et":    String(format: "%.3f", segmentEnd),
-        ]
-        await pingTrackingURL(url, extraParams: extraParams)
-        tubeLog.notice("reportWatchtime: videoId=\(videoId, privacy: .public) st=\(Int(segmentStart))s et=\(Int(segmentEnd))s")
-    }
-
-    /// Fetches account-bound playback tracking URLs by making an authenticated TV-client
-    /// `/player` request. The iOS-client player request (used for HLS stream URLs) is
-    /// unauthenticated, so its `playbackTracking` URLs carry no account context. A TV-client
-    /// request with the OAuth Bearer token returns URLs that YouTube has pre-bound to the
-    /// signed-in account server-side — pinging those URLs records the view in watch history.
-    ///
-    /// Called in parallel with the primary iOS player fetch; only the tracking URLs are kept.
-    public func fetchAuthenticatedTrackingURLs(videoId: String) async -> PlaybackTrackingURLs? {
-        guard authToken != nil else { return nil }
-        do {
-            var body = makeBody(client: tvClientContext)
-            body["videoId"] = videoId
-            body["racyCheckOk"] = true
-            body["contentCheckOk"] = true
-            let data = try await postTV(endpoint: "player", body: body)
-            guard
-                let tracking  = data["playbackTracking"] as? [String: Any],
-                let pbStr      = (tracking["videostatsPlaybackUrl"]  as? [String: Any])?["baseUrl"] as? String,
-                let wtStr      = (tracking["videostatsWatchtimeUrl"] as? [String: Any])?["baseUrl"] as? String,
-                let pbURL      = URL(string: pbStr),
-                let wtURL      = URL(string: wtStr)
-            else {
-                tubeLog.notice("fetchAuthenticatedTrackingURLs: no tracking data in TV player response for \(videoId, privacy: .public)")
-                return nil
-            }
-            tubeLog.notice("fetchAuthenticatedTrackingURLs: account-bound URLs obtained for \(videoId, privacy: .public)")
-            return PlaybackTrackingURLs(playbackURL: pbURL, watchtimeURL: wtURL)
-        } catch {
-            tubeLog.error("fetchAuthenticatedTrackingURLs failed for \(videoId, privacy: .public): \(error, privacy: .public)")
-            return nil
-        }
-    }
-
-    /// Same as `fetchAuthenticatedTrackingURLs(videoId:)` but uses the supplied token directly
-    /// instead of reading `self.authToken`. Use this when the caller holds the token but cannot
-    /// guarantee that `setAuthToken` has already propagated to the actor (e.g. prefetch tasks
-    /// that start before `PlaybackViewModel.updateAuthToken` has had a chance to run).
-    public func fetchAuthenticatedTrackingURLs(videoId: String, usingToken token: String) async -> PlaybackTrackingURLs? {
-        do {
-            var body = makeBody(client: tvClientContext)
-            body["videoId"] = videoId
-            body["racyCheckOk"] = true
-            body["contentCheckOk"] = true
-            let data = try await postTV(endpoint: "player", body: body, explicitBearerToken: token)
-            guard
-                let tracking  = data["playbackTracking"] as? [String: Any],
-                let pbStr      = (tracking["videostatsPlaybackUrl"]  as? [String: Any])?["baseUrl"] as? String,
-                let wtStr      = (tracking["videostatsWatchtimeUrl"] as? [String: Any])?["baseUrl"] as? String,
-                let pbURL      = URL(string: pbStr),
-                let wtURL      = URL(string: wtStr)
-            else {
-                tubeLog.notice("fetchAuthenticatedTrackingURLs: no tracking data in TV player response for \(videoId, privacy: .public)")
-                return nil
-            }
-            tubeLog.notice("fetchAuthenticatedTrackingURLs: account-bound URLs obtained for \(videoId, privacy: .public)")
-            return PlaybackTrackingURLs(playbackURL: pbURL, watchtimeURL: wtURL)
-        } catch {
-            tubeLog.error("fetchAuthenticatedTrackingURLs failed for \(videoId, privacy: .public): \(error, privacy: .public)")
-            return nil
-        }
-    }
-
     // MARK: - Private player helpers
 
     private func parsePlayerInfo(from json: [String: Any], videoId: String) throws -> PlayerInfo {
@@ -322,30 +202,11 @@ extension InnerTubeAPI {
         }()
         tubeLog.notice("parsePlayerInfo: captionTracks=\(captionTracks.count, privacy: .public)")
 
-        // Playback tracking — parse the stat URLs that must be pinged to record
-        // the view in YouTube's official watch history.
-        // Shape: playbackTracking.videostatsPlaybackUrl.baseUrl (String)
-        //        playbackTracking.videostatsWatchtimeUrl.baseUrl (String)
-        let trackingURLs: PlaybackTrackingURLs? = {
-            guard let tracking = json["playbackTracking"] as? [String: Any],
-                  let playbackStr = (tracking["videostatsPlaybackUrl"] as? [String: Any])?["baseUrl"] as? String,
-                  let watchtimeStr = (tracking["videostatsWatchtimeUrl"] as? [String: Any])?["baseUrl"] as? String,
-                  let playbackURL = URL(string: playbackStr),
-                  let watchtimeURL = URL(string: watchtimeStr)
-            else {
-                tubeLog.notice("parsePlayerInfo: no playbackTracking URLs in response")
-                return nil
-            }
-            tubeLog.notice("parsePlayerInfo: got playbackTracking URLs")
-            return PlaybackTrackingURLs(playbackURL: playbackURL, watchtimeURL: watchtimeURL)
-        }()
-
-        let video = ITVideo(
+        let video = Video(
             id: videoId,
             title: title,
             channelTitle: channelTitle,
             description: description,
-            thumbnailURL: thumbURL,
             duration: duration,
             viewCount: viewCount,
             isLive: isLive
@@ -365,7 +226,7 @@ extension InnerTubeAPI {
         }
         let endCards = parseEndCards(from: json)
         tubeLog.notice("parsePlayerInfo: endCards=\(endCards.count, privacy: .public)")
-        return PlayerInfo(video: video, formats: formats, hlsURL: hlsURL, dashURL: dashURL, captionTracks: captionTracks, trackingURLs: trackingURLs, endCards: endCards)
+        return PlayerInfo(video: video, formats: formats, hlsURL: hlsURL, dashURL: dashURL, captionTracks: captionTracks, endCards: endCards)
     }
 
     // MARK: – End cards parser
@@ -433,75 +294,4 @@ extension InnerTubeAPI {
         }
     }
 
-    // MARK: - Tracking URL helpers
-
-    /// Appends extra query parameters to a YouTube stats URL and fires a fire-and-forget GET.
-    /// Only adds parameters that are not already present in the base URL — preserving
-    /// the `cpn`, `docid`, and other session params YouTube embedded in the tracking URL.
-    private func pingTrackingURL(_ baseURL: URL, extraParams: [String: String]) async {
-        var comps = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
-        var items = comps?.queryItems ?? []
-        for (key, value) in extraParams {
-            // Preserve params already in the base URL (e.g. cpn, docid, ver that
-            // YouTube's stats server embedded and validates). Only append missing ones.
-            if !items.contains(where: { $0.name == key }) {
-                items.append(URLQueryItem(name: key, value: value))
-            }
-        }
-        comps?.queryItems = items
-        guard let url = comps?.url else {
-            tubeLog.error("pingTrackingURL: failed to build URL from \(baseURL, privacy: .public)")
-            return
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue(iosUserAgent, forHTTPHeaderField: "User-Agent")
-        // Auth header is required — without it YouTube treats the ping as anonymous
-        // and does not record the view in the account's watch history.
-        if let token = authToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        // BUG-006 fix: log errors and retry once for transient failures instead of silently discarding.
-        do {
-            let (_, response) = try await session.data(for: request)
-            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                tubeLog.warning("pingTrackingURL: HTTP \(http.statusCode) for \(url.absoluteString.prefix(120), privacy: .public)")
-            }
-        } catch is CancellationError {
-            // Task was cancelled (user navigated away) — expected, do not retry.
-        } catch {
-            tubeLog.warning("pingTrackingURL: transient error (\(error.localizedDescription, privacy: .public)) — retrying once")
-            do {
-                let (_, response) = try await session.data(for: request)
-                if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                    tubeLog.error("pingTrackingURL: retry HTTP \(http.statusCode) for \(url.absoluteString.prefix(120), privacy: .public)")
-                }
-            } catch {
-                tubeLog.error("pingTrackingURL: retry also failed — \(error.localizedDescription, privacy: .public)")
-            }
-        }
-    }
-
-    /// Constructs a fallback playback stats URL for when the player response omits `playbackTracking`.
-    /// Matches the pattern used by YouTube.js and Android MediaServiceCore.
-    private static func fallbackPlaybackURL(videoId: String) -> URL {
-        var comps = URLComponents(string: "https://www.youtube.com/api/stats/playback")!
-        comps.queryItems = [
-            URLQueryItem(name: "ns",    value: "yt"),
-            URLQueryItem(name: "el",    value: "detailpage"),
-            URLQueryItem(name: "docid", value: videoId),
-        ]
-        return comps.url!
-    }
-
-    /// Constructs a fallback watchtime stats URL for when the player response omits `playbackTracking`.
-    private static func fallbackWatchtimeURL(videoId: String) -> URL {
-        var comps = URLComponents(string: "https://www.youtube.com/api/stats/watchtime")!
-        comps.queryItems = [
-            URLQueryItem(name: "ns",    value: "yt"),
-            URLQueryItem(name: "el",    value: "detailpage"),
-            URLQueryItem(name: "docid", value: videoId),
-        ]
-        return comps.url!
-    }
 }

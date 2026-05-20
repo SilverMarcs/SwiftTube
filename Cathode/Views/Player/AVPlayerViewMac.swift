@@ -4,7 +4,7 @@ import AVKit
 struct AVPlayerViewMac: View {
     // TODO: pass vdieo dirtvy to it rathe rthan videomanager.
     @Environment(VideoManager.self) var videoManager
-    @Environment(CloudStoreManager.self) private var userDefaults
+    @Environment(LibraryStore.self) private var userDefaults
     @Environment(VideoLoader.self) private var videoLoader
     
     @State private var showDetail = false
@@ -36,7 +36,7 @@ struct AVPlayerViewMac: View {
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .gesture(WindowDragGesture())
         .navigationTitle(videoManager.currentVideo?.title ?? "Loading")
-        .navigationSubtitle(videoManager.currentVideo?.channel.title ?? "Channel")
+        .navigationSubtitle(videoManager.currentVideo?.channelTitle ?? "Channel")
         .preferredColorScheme(.dark)
         .inspector(isPresented: $showDetail) {
             if let video = videoManager.currentVideo {
@@ -45,10 +45,12 @@ struct AVPlayerViewMac: View {
                     .toolbar {
                         ToolbarItemGroup(placement: .primaryAction) {
                             if let video = videoManager.currentVideo {
-                                ShareLink(item: URL(string: video.url)!) {
-                                    Label("Share Video", systemImage: "square.and.arrow.up")
+                                if let url = video.watchURL {
+                                    ShareLink(item: url) {
+                                        Label("Share Video", systemImage: "square.and.arrow.up")
+                                    }
                                 }
-                                
+
                                 Button {
                                     userDefaults.toggleBookmark(video)
                                 } label: {

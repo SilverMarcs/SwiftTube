@@ -67,8 +67,8 @@ public struct SearchFilter: Sendable, Equatable {
         public var label: String {
             switch self {
             case .any:      return "Any type"
-            case .video:    return "ITVideo"
-            case .channel:  return "ITChannel"
+            case .video:    return "Video"
+            case .channel:  return "Channel"
             case .playlist: return "Playlist"
             case .movie:    return "Movie"
             }

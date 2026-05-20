@@ -109,7 +109,7 @@ extension InnerTubeAPI {
     /// Uses the WEB client: calls `/next` with the videoId to extract the
     /// comments continuation token from `engagementPanels`, then fetches comments.
     /// Returns an empty array when comments are disabled or the token is absent.
-    public func fetchComments(videoId: String) async throws -> [ITComment] {
+    public func fetchComments(videoId: String) async throws -> [Comment] {
         var body = makeBody(client: webClientContext)
         body["videoId"] = videoId
         let nextData = try await post(endpoint: "next", body: body)
@@ -169,8 +169,8 @@ extension InnerTubeAPI {
 
     /// Parses related / suggested videos from a `/next` response.
     /// Related videos appear as `compactVideoRenderer` in `secondaryResults`.
-    private func parseRelatedVideos(from json: [String: Any]) -> [ITVideo] {
-        var videos: [ITVideo] = []
+    private func parseRelatedVideos(from json: [String: Any]) -> [Video] {
+        var videos: [Video] = []
         func walk(_ obj: Any, depth: Int = 0) {
             guard depth < 50 else { return }
             if let dict = obj as? [String: Any] {
@@ -271,8 +271,8 @@ extension InnerTubeAPI {
     }
 
     /// Parses `commentRenderer` objects from a comments continuation `/next` response.
-    private func parseComments(from json: [String: Any]) -> [ITComment] {
-        var comments: [ITComment] = []
+    private func parseComments(from json: [String: Any]) -> [Comment] {
+        var comments: [Comment] = []
 
         // New entity-based format (YouTube InnerTube v2):
         // frameworkUpdates.entityBatchUpdate.mutations[].payload.commentEntityPayload
@@ -295,7 +295,7 @@ extension InnerTubeAPI {
                 let toolbarState = properties?["toolbarState"] as? [String: Any]
                 let likeCount = toolbarState?["likeCountNotliked"] as? String ?? ""
                 let isLiked = (toolbarState?["likeState"] as? String) == "LIKE_STATE_LIKED"
-                comments.append(ITComment(
+                comments.append(Comment(
                     id: id,
                     author: authorName,
                     authorAvatarURL: avatarURL,
@@ -324,7 +324,7 @@ extension InnerTubeAPI {
                     let likeCount = (cr["voteCount"] as? [String: Any]).flatMap { extractText($0) } ?? ""
                     let publishedTime = (cr["publishedTimeText"] as? [String: Any]).flatMap { extractText($0) } ?? ""
                     let isLiked = cr["isLiked"] as? Bool ?? false
-                    comments.append(ITComment(
+                    comments.append(Comment(
                         id: id,
                         author: author,
                         authorAvatarURL: avatarURL,

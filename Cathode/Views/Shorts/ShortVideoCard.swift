@@ -16,15 +16,11 @@ struct ShortVideoCard: View {
             .clipped()
             .overlay(alignment: .bottom) {
                 HStack {
-                    ChannelRowView(channel: video.channel)
+                    Text(video.channelTitle)
+                        .font(.headline)
                         .foregroundStyle(.white)
                         .shadow(color: .black, radius: 20, x: 0, y: 0)
-                        .navigationLinkIndicatorVisibility(.hidden)
-                        .buttonStyle(.plain)
-                        .allowsHitTesting(false)
-                        #if os(tvOS)
-                        .focusable(false)
-                        #endif
+                        .lineLimit(1)
 
                     #if !os(tvOS)
                     Button {

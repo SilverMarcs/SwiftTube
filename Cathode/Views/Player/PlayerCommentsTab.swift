@@ -32,11 +32,8 @@ struct PlayerCommentsTab: View {
         .task {
             defer { hasLoaded = true }
             do {
-                let fetched = try await YTService.fetchComments(for: video)
-                let topLevel = fetched
-                    .filter { $0.isTopLevel }
-                    .sorted { $0.publishedAt > $1.publishedAt }
-                topComments = Array(topLevel.prefix(25))
+                let fetched = try await InnerTubeAPI.shared.fetchComments(videoId: video.id)
+                topComments = Array(fetched.prefix(25))
             } catch APIError.commentsDisabled {
                 // No comments.
             } catch {
@@ -52,31 +49,31 @@ private struct CommentCardContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                CachedAsyncImage(url: URL(string: comment.authorProfileImageUrl ?? ""), targetSize: 60)
+                CachedAsyncImage(url: comment.authorAvatarURL, targetSize: 60)
                     .frame(width: 44, height: 44)
                     .clipShape(.circle)
 
-                Text(comment.authorDisplayName)
+                Text(comment.author)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
 
                 Text("•")
                     .foregroundStyle(.secondary)
 
-                Text(comment.publishedAt.customRelativeFormat())
+                Text(comment.publishedTime)
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
                 Spacer()
 
-                if comment.likeCount > 0 {
-                    Label("\(comment.likeCount)", systemImage: "heart")
+                if !comment.likeCount.isEmpty, comment.likeCount != "0" {
+                    Label(comment.likeCount, systemImage: "heart")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
-            Text(comment.textOriginal)
+            Text(comment.text)
                 .font(.subheadline)
                 .lineLimit(5)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -95,28 +92,28 @@ private struct CommentDetailSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack(spacing: 14) {
-                    CachedAsyncImage(url: URL(string: comment.authorProfileImageUrl ?? ""), targetSize: 100)
+                    CachedAsyncImage(url: comment.authorAvatarURL, targetSize: 100)
                         .frame(width: 50, height: 50)
                         .clipShape(.circle)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(comment.authorDisplayName)
+                        Text(comment.author)
                             .font(.headline)
-                        Text(comment.publishedAt.customRelativeFormat())
+                        Text(comment.publishedTime)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
 
                     Spacer()
 
-                    if comment.likeCount > 0 {
-                        Label("\(comment.likeCount)", systemImage: "heart")
+                    if !comment.likeCount.isEmpty, comment.likeCount != "0" {
+                        Label(comment.likeCount, systemImage: "heart")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                Text(comment.textOriginal)
+                Text(comment.text)
                     .font(.body)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

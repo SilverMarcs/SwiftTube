@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Duration formatting
 //
 // Single source of truth for H:MM:SS / M:SS time formatting used by
-// ITVideo.formattedDuration and PlayerView's progress display.
+// Video.formattedDuration and PlayerView's progress display.
 
 /// Formats a `TimeInterval` as `H:MM:SS` (hours present) or `M:SS`.
 /// Negative values are clamped to zero.

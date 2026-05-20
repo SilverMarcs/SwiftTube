@@ -6,12 +6,12 @@ struct VideoGridView<Header: View>: View {
     let videos: [Video]
     var showChannelLinkInContextMenu: Bool = true
     var showsBookmarkIcon: Bool = true
-    /// True while the owner is fetching the first page. Drives the placeholder
-    /// spinner so it doesn't linger forever on an empty result.
-    var isLoading: Bool = false
     /// Called when the user reaches the last card. Wire this to a paginator
     /// (e.g. `VideoLoader.loadMore`) for infinite scroll.
     var onReachEnd: (() -> Void)? = nil
+    /// Called by pull-to-refresh and the toolbar refresh button. When `nil`,
+    /// neither affordance is shown.
+    var onRefresh: (() async -> Void)? = nil
     @ViewBuilder var header: () -> Header
 
     private var gridColumns: [GridItem] {
@@ -51,26 +51,62 @@ struct VideoGridView<Header: View>: View {
                 #if os(macOS)
                 .contentMargins(.top, 10)
                 #endif
+                .modifier(RefreshableModifier(onRefresh: onRefresh))
             } else {
-                List(videos) { video in
-                    VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsBookmarkIcon: showsBookmarkIcon)
-                        #if !os(tvOS)
-                        .listRowSeparator(.hidden)
-                        #endif
-                        .listRowInsets(.vertical, 5)
-                        .listRowInsets(.horizontal, 10)
-                        .task {
-                            if video.id == videos.last?.id { onReachEnd?() }
-                        }
+                List {
+                    ForEach(videos) { video in
+                        VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsBookmarkIcon: showsBookmarkIcon)
+                            #if !os(tvOS)
+                            .listRowSeparator(.hidden)
+                            #endif
+                            .listRowInsets(.vertical, 5)
+                            .listRowInsets(.horizontal, 10)
+                            .task {
+                                if video.id == videos.last?.id { onReachEnd?() }
+                            }
+                    }
                 }
                 .listStyle(.plain)
+                .modifier(RefreshableModifier(onRefresh: onRefresh))
             }
         }
         .overlay {
-            if videos.isEmpty && isLoading {
+            if videos.isEmpty {
                 UniversalProgressView()
             }
         }
+        .toolbar {
+            #if !os(tvOS)
+            if let onRefresh {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        Task { await onRefresh() }
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    #if os(macOS)
+                    .keyboardShortcut("r")
+                    #endif
+                }
+            }
+            #endif
+        }
+    }
+}
+
+private struct RefreshableModifier: ViewModifier {
+    let onRefresh: (() async -> Void)?
+
+    func body(content: Content) -> some View {
+        #if os(tvOS)
+        content
+        #else
+        if let onRefresh {
+            content.refreshable { await onRefresh() }
+        } else {
+            content
+        }
+        #endif
     }
 }
 
@@ -79,14 +115,14 @@ extension VideoGridView where Header == EmptyView {
         videos: [Video],
         showChannelLinkInContextMenu: Bool = true,
         showsBookmarkIcon: Bool = true,
-        isLoading: Bool = false,
-        onReachEnd: (() -> Void)? = nil
+        onReachEnd: (() -> Void)? = nil,
+        onRefresh: (() async -> Void)? = nil
     ) {
         self.videos = videos
         self.showChannelLinkInContextMenu = showChannelLinkInContextMenu
         self.showsBookmarkIcon = showsBookmarkIcon
-        self.isLoading = isLoading
         self.onReachEnd = onReachEnd
+        self.onRefresh = onRefresh
         self.header = { EmptyView() }
     }
 }

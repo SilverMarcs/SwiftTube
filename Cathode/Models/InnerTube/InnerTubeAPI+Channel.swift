@@ -3,11 +3,11 @@ import os
 
 private let tubeLog = Logger(subsystem: appSubsystem, category: "InnerTube")
 
-// MARK: - ITChannel endpoints
+// MARK: - Channel endpoints
 
 extension InnerTubeAPI {
 
-    public func fetchChannel(channelId: String) async throws -> (channel: ITChannel, videos: VideoGroup) {
+    public func fetchChannel(channelId: String) async throws -> (channel: Channel, videos: VideoGroup) {
         // @handle strings are not valid browseIds — resolve to the real UC… channel ID first.
         let resolvedId: String
         if channelId.hasPrefix("@") {
@@ -56,6 +56,16 @@ extension InnerTubeAPI {
         return try parseVideoGroup(from: data, title: nil)
     }
 
+    public func searchChannels(query: String) async throws -> [Channel] {
+        var body = makeBody(client: webClientContext)
+        body["query"] = query
+        if let params = SearchFilter(type: .channel).encodedParams() {
+            body["params"] = params
+        }
+        let data = try await post(endpoint: "search", body: body)
+        return parseChannelRenderers(from: data)
+    }
+
     // MARK: - Private channel helpers
 
     /// Resolves a YouTube `@handle` to the canonical `UC…` channel ID using the
@@ -76,7 +86,7 @@ extension InnerTubeAPI {
         throw ITAPIError.decodingError("Could not resolve handle \(handle) to a channel ID")
     }
 
-    private func parseChannel(from json: [String: Any], channelId: String) throws -> (ITChannel, VideoGroup) {
+    private func parseChannel(from json: [String: Any], channelId: String) throws -> (Channel, VideoGroup) {
         let headerDict = json["header"] as? [String: Any]
         tubeLog.notice("parseChannel header keys=[\((headerDict?.keys.joined(separator: ",")) ?? "nil", privacy: .public)]")
         let header = headerDict?["c4TabbedHeaderRenderer"] as? [String: Any]
@@ -99,25 +109,25 @@ extension InnerTubeAPI {
         // avatar: c4TabbedHeaderRenderer uses avatar.thumbnails, pageHeaderRenderer uses banner or content avatar
         let thumbURL: URL? = {
             // c4TabbedHeaderRenderer path
-            if let url = ((header?["avatar"] as? [String: Any])?["thumbnails"] as? [[String: Any]])?
-                .last.flatMap({ $0["url"] as? String }).flatMap({ URL(string: $0) }) {
-                return url
+            if let urlStr = ((header?["avatar"] as? [String: Any])?["thumbnails"] as? [[String: Any]])?
+                .last.flatMap({ $0["url"] as? String }) {
+                return normalizeThumbURL(urlStr)
             }
             // pageHeaderViewModel path: content.pageHeaderViewModel.image.decoratedAvatarViewModel.avatar.avatarViewModel.image.sources
             if let hvm = (header?["content"] as? [String: Any])?["pageHeaderViewModel"] as? [String: Any],
                let sources = ((((hvm["image"] as? [String: Any])?["decoratedAvatarViewModel"] as? [String: Any])?["avatar"] as? [String: Any])?["avatarViewModel"] as? [String: Any])?["image"] as? [String: Any],
                let urlStr = (sources["sources"] as? [[String: Any]])?.last?["url"] as? String {
-                return URL(string: urlStr)
+                return normalizeThumbURL(urlStr)
             }
             // metadata fallback: json.metadata.channelMetadataRenderer.avatar.thumbnails
             if let urlStr = (((json["metadata"] as? [String: Any])?["channelMetadataRenderer"] as? [String: Any])?["avatar"] as? [String: Any]).flatMap({ ($0["thumbnails"] as? [[String: Any]])?.last?["url"] as? String }) {
-                return URL(string: urlStr)
+                return normalizeThumbURL(urlStr)
             }
             return nil
         }()
         let subscribers = header.flatMap { $0["subscriberCountText"] as? [String: Any] }.flatMap { extractText($0) }
 
-        let channel = ITChannel(
+        let channel = Channel(
             id: channelId,
             title: title,
             description: description,
@@ -128,96 +138,17 @@ extension InnerTubeAPI {
         return (channel, videoGroup)
     }
 
-    // MARK: – Guide channels parser (/guide endpoint)
-    //
-    // The TV guide sidebar returns guideEntryRenderer items inside
-    // guideSubscriptionsSectionRenderer which carry:
-    //   navigationEndpoint.browseEndpoint.browseId  → channel ID
-    //   formattedTitle / title                       → channel name
-    //   thumbnail.thumbnails                         → avatar URL
-    func parseGuideChannels(from json: [String: Any]) -> [ITChannel] {
-        var channels: [ITChannel] = []
-        var seen = Set<String>()
-        var firstEntryDumped = false
-
-        func walk(_ obj: Any, depth: Int = 0) {
-            guard depth < 50 else {
-                tubeLog.warning("parseGuideChannels: walk depth limit (50) reached — skipping subtree")
-                return
-            }
-            if let dict = obj as? [String: Any] {
-                if let entry = dict["guideEntryRenderer"] as? [String: Any] {
-                    let browseEndpoint = (entry["navigationEndpoint"] as? [String: Any])?["browseEndpoint"] as? [String: Any]
-                    let channelId = browseEndpoint?["browseId"] as? String
-
-                    // Dump the first entry that has a browseId (channel entry) regardless of thumbnail
-                    if !firstEntryDumped, let channelId, !channelId.isEmpty {
-                        firstEntryDumped = true
-                        let allKeys = entry.keys.sorted()
-                        tubeLog.notice("guideEntryRenderer (channel) keys: \(allKeys, privacy: .public)")
-                        if let data = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]),
-                           let str = String(data: data, encoding: .utf8) {
-                            tubeLog.notice("guideEntryRenderer (channel) JSON: \(String(str.prefix(1500)), privacy: .public)")
-                        }
-                    }
-
-                    guard let channelId, !channelId.isEmpty else { return }
-
-                    let title = (entry["formattedTitle"] as? [String: Any]).flatMap { extractText($0) }
-                        ?? entry["title"] as? String
-                        ?? ""
-
-                    // Try several known thumbnail paths in the TV guide
-                    let thumbURL: URL? = {
-                        // Standard path
-                        if let url = ((entry["thumbnail"] as? [String: Any])?["thumbnails"] as? [[String: Any]])?
-                            .last.flatMap({ $0["url"] as? String }).flatMap({ URL(string: $0) }) { return url }
-                        // thumbnailDetails path
-                        if let url = ((entry["thumbnailDetails"] as? [String: Any])?["thumbnails"] as? [[String: Any]])?
-                            .last.flatMap({ $0["url"] as? String }).flatMap({ URL(string: $0) }) { return url }
-                        // Icon path
-                        if let iconDict = entry["icon"] as? [String: Any],
-                           let thumbs = iconDict["thumbnails"] as? [[String: Any]],
-                           let urlStr = thumbs.last?["url"] as? String,
-                           let url = URL(string: urlStr) { return url }
-                        return nil
-                    }()
-
-                    // Only add channel-looking browseIds (UC... or @handle) — skip Home/Trending/etc.
-                    guard channelId.hasPrefix("UC") || channelId.hasPrefix("@") else { return }
-
-                    let channel = ITChannel(id: channelId, title: title, thumbnailURL: thumbURL)
-                    if seen.insert(channelId).inserted {
-                        channels.append(channel)
-                    }
-                    return
-                }
-                for value in dict.values { walk(value, depth: depth + 1) }
-            } else if let arr = obj as? [Any] {
-                for item in arr { walk(item, depth: depth + 1) }
-            }
-        }
-
-        walk(json)
-        let withThumbs = channels.filter { $0.thumbnailURL != nil }.count
-        // Sort alphabetically so the list is stable and predictable regardless of
-        // the order YouTube's guide API returns entries. Matches LocalSubscriptionStore.
-        channels.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-        tubeLog.notice("parseGuideChannels → \(channels.count, privacy: .public) channels, \(withThumbs, privacy: .public) with thumbnail")
-        return channels
-    }
-
-    // MARK: – ITChannel renderer parser (TV/WEB client subscriptions "Channels" tab)
+    // MARK: – Channel renderer parser (TV/WEB client subscriptions "Channels" tab)
     //
     // Handles channelRenderer, gridChannelRenderer, compactChannelRenderer, and
     // TVHTML5 tileRenderer with TILE_CONTENT_TYPE_CHANNEL.
-    private func parseChannelRenderers(from json: [String: Any]) -> [ITChannel] {
-        var channels: [ITChannel] = []
+    private func parseChannelRenderers(from json: [String: Any]) -> [Channel] {
+        var channels: [Channel] = []
         var seen = Set<String>()
         // Collect all distinct renderer key names encountered for diagnostics
         var encounteredRendererKeys = Set<String>()
 
-        func extractChannel(from renderer: [String: Any]) -> ITChannel? {
+        func extractChannel(from renderer: [String: Any]) -> Channel? {
             // channelId: direct "channelId" key, or from navigationEndpoint.browseEndpoint.browseId
             let channelId: String? = renderer["channelId"] as? String
                 ?? (renderer["navigationEndpoint"] as? [String: Any])
@@ -234,13 +165,13 @@ extension InnerTubeAPI {
             let ctsr = (renderer["channelThumbnailSupportedRenderers"] as? [String: Any])?["channelThumbnailRenderer"] as? [String: Any]
             let secondaryThumb = (ctsr?["thumbnail"] as? [String: Any])?["thumbnails"] as? [[String: Any]]
             let thumbSources: [[String: Any]]? = primaryThumb ?? secondaryThumb
-            let thumbURL = thumbSources?.last.flatMap { $0["url"] as? String }.flatMap { URL(string: $0) }
+            let thumbURL = thumbSources?.last.flatMap { $0["url"] as? String }.flatMap { normalizeThumbURL($0) }
 
             let subscriberCount = (renderer["subscriberCountText"] as? [String: Any])
                 .flatMap { extractText($0) }
                 ?? (renderer["videoCountText"] as? [String: Any]).flatMap { extractText($0) }
 
-            return ITChannel(
+            return Channel(
                 id: channelId,
                 title: title,
                 thumbnailURL: thumbURL,
@@ -248,7 +179,7 @@ extension InnerTubeAPI {
             )
         }
 
-        func extractChannelFromTile(_ tile: [String: Any]) -> ITChannel? {
+        func extractChannelFromTile(_ tile: [String: Any]) -> Channel? {
             guard (tile["contentType"] as? String) == "TILE_CONTENT_TYPE_CHANNEL" else { return nil }
             let onSelectCommand = tile["onSelectCommand"] as? [String: Any]
             let channelId: String? = (onSelectCommand?["browseEndpoint"] as? [String: Any])?["browseId"] as? String
@@ -259,8 +190,8 @@ extension InnerTubeAPI {
             let title = (tileMetadata?["title"] as? [String: Any]).flatMap { extractText($0) } ?? ""
             let tileHeader = (tile["header"] as? [String: Any])?["tileHeaderRenderer"] as? [String: Any]
             let thumbURL = ((tileHeader?["thumbnail"] as? [String: Any])?["thumbnails"] as? [[String: Any]])?
-                .last.flatMap { $0["url"] as? String }.flatMap { URL(string: $0) }
-            return ITChannel(id: channelId, title: title, thumbnailURL: thumbURL)
+                .last.flatMap { $0["url"] as? String }.flatMap { normalizeThumbURL($0) }
+            return Channel(id: channelId, title: title, thumbnailURL: thumbURL)
         }
 
         var avatarLockupDumped = false
@@ -322,74 +253,58 @@ extension InnerTubeAPI {
 
     // MARK: – Subscribed channels parser (TVHTML5 fallback)
     //
-    // Extracts unique ITChannel objects from a TVHTML5 FEsubscriptions response.
-    // Each video tileRenderer carries the channelId and channel name in its metadata;
-    // thumbnail URLs and subscriber counts are not present and remain nil.
-    func parseSubscribedChannels(from json: [String: Any]) -> [ITChannel] {
-        var channels: [ITChannel] = []
+    // Extracts every subscribed channel from a TVHTML5 FEchannels response.
+    // Each subscription appears as a `tileRenderer` with `contentType` ==
+    // `TILE_CONTENT_TYPE_CHANNEL` and rich metadata (avatar thumbnail, @handle,
+    // subscriber count). This is the most complete subscriptions source —
+    // `/guide` and FEsubscriptions video-tile parsing miss accounts where the
+    // server returns an empty or partial guide.
+    func parseChannelsTab(from json: [String: Any]) -> [Channel] {
+        var channels: [Channel] = []
         var seen = Set<String>()
 
-        func channelFromTile(_ tile: [String: Any]) -> ITChannel? {
-            guard (tile["contentType"] as? String) == "TILE_CONTENT_TYPE_VIDEO" else { return nil }
-            let onSelectCommand = tile["onSelectCommand"] as? [String: Any]
-            let navigationEndpoint = tile["navigationEndpoint"] as? [String: Any]
-            let watchEndpoint: [String: Any]? = {
-                if let ep = onSelectCommand?["watchEndpoint"] as? [String: Any] { return ep }
-                if let inner = onSelectCommand?["innertubeCommand"] as? [String: Any],
-                   let ep = inner["watchEndpoint"] as? [String: Any] { return ep }
-                if let ep = navigationEndpoint?["watchEndpoint"] as? [String: Any] { return ep }
-                return nil
-            }()
-            let channelId: String? = watchEndpoint?["channelId"] as? String
-                ?? (onSelectCommand?["browseEndpoint"] as? [String: Any])?["browseId"] as? String
-                ?? {
-                    guard let showMenu = (tile["onLongPressCommand"] as? [String: Any])?["showMenuCommand"] as? [String: Any],
-                          let subtitleText = (showMenu["subtitle"] as? [String: Any])?["simpleText"] as? String,
-                          let atIndex = subtitleText.firstIndex(of: "@")
-                    else { return nil }
-                    return subtitleText[atIndex...]
-                        .components(separatedBy: .whitespacesAndNewlines)
-                        .first
-                        .map { String($0) }
-                }()
-            guard let channelId, !channelId.isEmpty else { return nil }
+        func channelFromTile(_ tile: [String: Any]) -> Channel? {
+            guard (tile["contentType"] as? String) == "TILE_CONTENT_TYPE_CHANNEL" else { return nil }
+            let channelId: String? = tile["contentId"] as? String
+                ?? ((tile["onSelectCommand"] as? [String: Any])?["browseEndpoint"] as? [String: Any])?["browseId"] as? String
+            guard let channelId, channelId.hasPrefix("UC") else { return nil }
 
             let tileMetadata = (tile["metadata"] as? [String: Any])?["tileMetadataRenderer"] as? [String: Any]
-            let channelTitle: String = {
-                guard let lines = tileMetadata?["lines"] as? [[String: Any]],
-                      let firstLine = lines.first,
-                      let lineRenderer = firstLine["lineRenderer"] as? [String: Any],
+            let title = extractText((tileMetadata?["title"] as? [String: Any]) ?? [:]) ?? ""
+            // lines[0] → @handle (or whatever the first line is)
+            // lines[1] → subscriber count
+            let lines = tileMetadata?["lines"] as? [[String: Any]] ?? []
+            func lineText(_ index: Int) -> String? {
+                guard index < lines.count,
+                      let lineRenderer = lines[index]["lineRenderer"] as? [String: Any],
                       let items = lineRenderer["items"] as? [[String: Any]],
                       let firstItem = items.first,
                       let lineItemRenderer = firstItem["lineItemRenderer"] as? [String: Any],
                       let text = lineItemRenderer["text"] as? [String: Any]
-                else { return "" }
-                return extractText(text) ?? ""
-            }()
-            return ITChannel(id: channelId, title: channelTitle)
+                else { return nil }
+                return extractText(text)
+            }
+            let subscriberCount = lineText(1)
+            // Avatar thumbnail — pick the largest, fall back to none.
+            let thumbnails = ((tile["header"] as? [String: Any])?["tileHeaderRenderer"] as? [String: Any])
+                .flatMap { ($0["thumbnail"] as? [String: Any])?["thumbnails"] as? [[String: Any]] }
+            let thumbURL = thumbnails?.last.flatMap { $0["url"] as? String }.flatMap { normalizeThumbURL($0) }
+
+            return Channel(
+                id: channelId,
+                title: title,
+                description: nil,
+                thumbnailURL: thumbURL,
+                subscriberCount: subscriberCount
+            )
         }
 
-        var tileDumped = false
         func walk(_ obj: Any, depth: Int = 0) {
-            guard depth < 50 else {
-                tubeLog.warning("parseSubscribedChannels: walk depth limit (50) reached — skipping subtree")
-                return
-            }
+            guard depth < 50 else { return }
             if let dict = obj as? [String: Any] {
-                if let tile = dict["tileRenderer"] as? [String: Any] {
-                    // Dump the first tile to reveal its full structure
-                    if !tileDumped {
-                        tileDumped = true
-                        if let data = try? JSONSerialization.data(withJSONObject: tile, options: [.sortedKeys]),
-                           let str = String(data: data, encoding: .utf8) {
-                            tubeLog.notice("parseSubscribedChannels first tileRenderer JSON: \(String(str.prefix(2000)), privacy: .public)")
-                        }
-                    }
-                    if let channel = channelFromTile(tile) {
-                        if seen.insert(channel.id).inserted {
-                            channels.append(channel)
-                        }
-                    }
+                if let tile = dict["tileRenderer"] as? [String: Any],
+                   let channel = channelFromTile(tile) {
+                    if seen.insert(channel.id).inserted { channels.append(channel) }
                     return
                 }
                 for value in dict.values { walk(value, depth: depth + 1) }
@@ -399,9 +314,8 @@ extension InnerTubeAPI {
         }
 
         walk(json)
-        // Sort alphabetically so the channel list is stable. Matches LocalSubscriptionStore.
         channels.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-        tubeLog.notice("parseSubscribedChannels → \(channels.count, privacy: .public) unique channels")
         return channels
     }
+
 }

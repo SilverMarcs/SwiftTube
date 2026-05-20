@@ -377,7 +377,7 @@ extension YTTVAuthManager {
         pushTokenToAPI()
         scheduleProactiveRefresh()
         if !wasSignedIn && isSignedIn {
-            NotificationCenter.default.post(name: CloudStoreManager.signInChangedNotification, object: nil)
+            NotificationCenter.default.post(name: LibraryStore.signInChangedNotification, object: nil)
         }
     }
 

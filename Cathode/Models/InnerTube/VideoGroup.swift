@@ -6,7 +6,7 @@ import Foundation
 public struct VideoGroup: Identifiable, Sendable {
     public let id: UUID
     public var title: String?
-    public var videos: [ITVideo]
+    public var videos: [Video]
     public var nextPageToken: String?
     public var action: Action
     /// How this group should be laid out in the UI.
@@ -29,7 +29,7 @@ public struct VideoGroup: Identifiable, Sendable {
     public init(
         id: UUID = UUID(),
         title: String? = nil,
-        videos: [ITVideo] = [],
+        videos: [Video] = [],
         nextPageToken: String? = nil,
         action: Action = .replace,
         layout: Layout = .grid
@@ -124,11 +124,11 @@ public struct BrowseSection: Identifiable, Hashable, Sendable {
 
 public struct SearchResult: Identifiable, Sendable {
     public let id: UUID
-    public var videos: [ITVideo]
+    public var videos: [Video]
     public var query: String
     public var nextPageToken: String?
 
-    public init(id: UUID = UUID(), videos: [ITVideo] = [], query: String, nextPageToken: String? = nil) {
+    public init(id: UUID = UUID(), videos: [Video] = [], query: String, nextPageToken: String? = nil) {
         self.id = id
         self.videos = videos
         self.query = query
@@ -136,9 +136,9 @@ public struct SearchResult: Identifiable, Sendable {
     }
 }
 
-// MARK: - ITChannel
+// MARK: - Channel
 
-public struct ITChannel: Identifiable, Hashable, Codable, Sendable {
+public struct Channel: Identifiable, Hashable, Codable, Sendable {
     public let id: String   // channelId
     public var title: String
     public var description: String?

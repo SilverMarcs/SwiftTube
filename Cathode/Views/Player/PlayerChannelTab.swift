@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct PlayerChannelTab: View {
-    let channel: Channel
+    let channelId: String
     @State private var videos: [Video] = []
     @State private var isLoading = true
 
@@ -21,9 +21,10 @@ struct PlayerChannelTab: View {
             }
         }
         .task {
+            guard !channelId.isEmpty else { isLoading = false; return }
             do {
-                let group = try await InnerTubeAPI.shared.fetchChannelVideos(channelId: channel.id)
-                videos = group.videos.map { Video($0, channel: channel) }
+                let group = try await InnerTubeAPI.shared.fetchChannelVideos(channelId: channelId)
+                videos = group.videos
             } catch {
                 videos = []
             }
@@ -38,15 +39,10 @@ private struct PlayerChannelVideoCard: View {
     var body: some View {
         PlayVideoButton(video: video) {
             HStack(spacing: 0) {
-                CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 400)
+                CachedAsyncImage(url: video.thumbnailURL, targetSize: 400)
                     .aspectRatio(16/9, contentMode: .fill)
                     .frame(width: 360, height: 200)
                     .clipped()
-                    .overlay(alignment: .bottom) {
-                        if let progress = video.watchProgressRatio {
-                            ProgressView(value: progress).tint(.accent)
-                        }
-                    }
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(video.title)
@@ -54,12 +50,18 @@ private struct PlayerChannelVideoCard: View {
                         .lineLimit(3)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    if let v = video.viewCountValue {
-                        Text("\(v.formatted(.number.notation(.compactName))) views • \(video.publishedAt.customRelativeFormat())")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text(video.publishedAt.customRelativeFormat())
+                    if let v = video.viewCount {
+                        if let date = video.publishedAt {
+                            Text("\(v.formatted(.number.notation(.compactName))) views • \(date.customRelativeFormat())")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("\(v.formatted(.number.notation(.compactName))) views")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if let date = video.publishedAt {
+                        Text(date.customRelativeFormat())
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

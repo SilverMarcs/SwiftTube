@@ -86,37 +86,16 @@ extension InnerTubeAPI {
 
     /// Fetches the list of channels the authenticated user subscribes to (requires auth).
     ///
-    /// Strategy:
-    ///  1. `/guide` endpoint with TV client + auth — returns the TV sidebar guide which
-    ///     includes every subscribed channel with avatar thumbnail URLs via guideEntryRenderer.
-    ///  2. If that yields no channels, fall back to parsing unique channels from the
-    ///     TVHTML5 video-tile subscription feed (channel IDs + names, no avatars).
-    public func fetchSubscribedChannels() async throws -> [ITChannel] {
-        // Primary: TV guide sidebar — includes subscribed channels with avatar thumbnails
-        let guideBody = makeBody(client: tvClientContext)
-        let guideData = try await postTV(endpoint: "guide", body: guideBody)
-        let guideKeys = Array(guideData.keys.sorted().prefix(8))
-        tubeLog.notice("fetchSubscribedChannels guide top-level keys: \(guideKeys, privacy: .public)")
-        let guideChannels = parseGuideChannels(from: guideData)
-        tubeLog.notice("fetchSubscribedChannels guide → \(guideChannels.count, privacy: .public) channels")
-        if !guideChannels.isEmpty { return guideChannels }
-
-        // Fallback: TV subscription video-tile feed — extract unique channels (no avatars)
-        tubeLog.notice("fetchSubscribedChannels: guide returned 0 — falling back to video tile parse")
-        var tvBody = makeBody(client: tvClientContext)
-        tvBody["browseId"] = "FEsubscriptions"
-        let tvData = try await postTV(endpoint: "browse", body: tvBody)
-        return parseSubscribedChannels(from: tvData)
-    }
-
-    /// Fetches watch history (requires auth).
-    public func fetchHistory(continuationToken: String? = nil) async throws -> VideoGroup {
-        var body = makeBody(client: tvClientContext, continuationToken: continuationToken)
-        if continuationToken == nil {
-            body["browseId"] = "FEhistory"
-        }
+    /// Calls TV `/browse?FEchannels` — the "Subscriptions → Channels" tab. Returns
+    /// every subscribed channel as a `TILE_CONTENT_TYPE_CHANNEL` tile with avatar,
+    /// @handle, and subscriber count.
+    public func fetchSubscribedChannels() async throws -> [Channel] {
+        var body = makeBody(client: tvClientContext)
+        body["browseId"] = "FEchannels"
         let data = try await postTV(endpoint: "browse", body: body)
-        return try parseVideoGroup(from: data, title: "History")
+        let channels = parseChannelsTab(from: data)
+        tubeLog.notice("fetchSubscribedChannels FEchannels → \(channels.count, privacy: .public) channels")
+        return channels
     }
 
     // MARK: - Search

@@ -7,29 +7,12 @@
 import SwiftUI
 
 struct HistoryView: View {
-    @Environment(CloudStoreManager.self) private var userDefaults
-    @State private var detailedHistoryVideos: [Video] = []
-
-    private var historyVideos: [Video] {
-        userDefaults.historyVideos
-    }
+    @Environment(LibraryStore.self) private var library
 
     var body: some View {
-        let displayedVideos = detailedHistoryVideos.isEmpty ? historyVideos : detailedHistoryVideos
-
         Section {
-            ForEach(Array(displayedVideos.prefix(3))) { video in
+            ForEach(Array(library.history.prefix(3))) { video in
                 CompactVideoCard(video: video)
-                    #if !os(tvOS)
-                    .swipeActions {
-                        Button {
-                            userDefaults.removeFromHistory(video.id)
-                        } label: {
-                            Label("Remove", systemImage: "trash")
-                        }
-                        .tint(.red)
-                    }
-                    #endif
             }
 
             NavigationLink {
@@ -44,89 +27,28 @@ struct HistoryView: View {
         } header: {
             Text("History")
         }
-        .task(id: historyVideos.map(\.id)) {
-            await loadHistoryVideoDetails(for: historyVideos)
-        }
-    }
-
-    private func loadHistoryVideoDetails(for videos: [Video]) async {
-        guard !videos.isEmpty else {
-            detailedHistoryVideos = []
-            return
-        }
-
-        do {
-            var mutableVideos = videos
-            try await YTService.fetchVideoDetails(for: &mutableVideos)
-            detailedHistoryVideos = mutableVideos
-        } catch {
-            detailedHistoryVideos = videos
-            print("Error updating history video details: \(error.localizedDescription)")
-        }
     }
 }
 
 struct HistoryFullView: View {
-    @Environment(CloudStoreManager.self) private var userDefaults
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var detailedVideos: [Video] = []
+    @Environment(LibraryStore.self) private var library
 
-    private var rawVideos: [Video] { userDefaults.historyVideos }
-
-    private var displayedVideos: [Video] {
-        guard !detailedVideos.isEmpty else { return rawVideos }
-        let detailed = Dictionary(uniqueKeysWithValues: detailedVideos.map { ($0.id, $0) })
-        return rawVideos.map { detailed[$0.id] ?? $0 }
-    }
+    private var videos: [Video] { library.history }
 
     var body: some View {
-        Group {
-            if horizontalSizeClass == .regular {
-                VideoGridView(videos: displayedVideos)
-            } else {
-                List {
-                    ForEach(displayedVideos) { video in
-                        CompactVideoCard(video: video)
-                            #if !os(tvOS)
-                            .swipeActions {
-                                Button {
-                                    userDefaults.removeFromHistory(video.id)
-                                } label: {
-                                    Label("Remove", systemImage: "trash")
-                                }
-                                .tint(.red)
-                            }
-                            #endif
+        VideoGridView(videos: videos)
+            .navigationTitle("History")
+            .platformNavigationToolbar(titleDisplayMode: .inline)
+            .contentMargins(.top, 5)
+            .toolbar {
+                if !videos.isEmpty {
+                    Button(role: .destructive) {
+                        library.clearHistory()
+                    } label: {
+                        Label("Clear History", systemImage: "trash")
+                            .labelStyle(.titleOnly)
                     }
                 }
             }
-        }
-        .navigationTitle("History")
-        .platformNavigationToolbar(titleDisplayMode: .inline)
-        .contentMargins(.top, 5)
-        #if !os(tvOS)
-        .refreshable {
-            CloudStoreManager.shared.refreshFromYouTube()
-        }
-        #endif
-        .task(id: rawVideos.map(\.id)) {
-            await loadDetails(for: rawVideos)
-        }
     }
-
-    private func loadDetails(for videos: [Video]) async {
-        guard !videos.isEmpty else { detailedVideos = []; return }
-        do {
-            var mutableVideos = videos
-            try await YTService.fetchVideoDetails(for: &mutableVideos)
-            detailedVideos = mutableVideos
-        } catch {
-            detailedVideos = videos
-        }
-    }
-}
-
-#Preview {
-    HistoryView()
-        .environment(CloudStoreManager.shared)
 }

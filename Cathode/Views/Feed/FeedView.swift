@@ -3,7 +3,7 @@ import SwiftUI
 
 struct FeedView: View {
     @Environment(VideoLoader.self) private var videoLoader
-    @Environment(CloudStoreManager.self) private var userDefaults
+    @Environment(LibraryStore.self) private var library
 
     @State private var isRandomOrderEnabled = false
     @State private var randomizedVideos: [Video] = []
@@ -15,15 +15,17 @@ struct FeedView: View {
     var body: some View {
         VideoGridView(
             videos: displayedVideos,
-            isLoading: videoLoader.isLoading && !videoLoader.hasLoaded,
             onReachEnd: {
                 guard !isRandomOrderEnabled else { return }
                 Task { await videoLoader.loadMore() }
+            },
+            onRefresh: {
+                await videoLoader.loadAllChannelVideos()
             }
         ) {
             #if os(tvOS)
-            if let recent = userDefaults.historyVideos.first {
-                 Section("Continue Watching") {
+            if let recent = library.history.first {
+                Section("Continue Watching") {
                     VideoCard(video: recent)
                         .frame(maxWidth: 560)
                 }
@@ -33,17 +35,9 @@ struct FeedView: View {
         }
             .platformNavigationToolbar()
             .navigationTitle("Feed")
-            // Feed-only search moved to SearchView's "Feed" scope.
-            // #if !os(tvOS)
-            // .searchable(text: $searchText, placement: searchPlacement, prompt: "Search feed")
-            // .searchPresentationToolbarBehavior(.avoidHidingContent)
-            // #endif
             .onChange(of: videoLoader.videos) { _, newValue in
                 guard isRandomOrderEnabled else { return }
                 randomizedVideos = newValue.shuffled()
-            }
-            .refreshable {
-                await videoLoader.loadAllChannelVideos()
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -62,19 +56,6 @@ struct FeedView: View {
                     }
                     .accessibilityLabel("Randomize")
                 }
-
-                #if os(macOS)
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        Task {
-                            await videoLoader.loadAllChannelVideos()
-                        }
-                    } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
-                    }
-                    .keyboardShortcut("r")
-                }
-                #endif
             }
     }
 }

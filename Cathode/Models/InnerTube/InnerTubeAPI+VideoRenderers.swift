@@ -3,7 +3,7 @@ import os
 
 private let tubeLog = Logger(subsystem: appSubsystem, category: "InnerTube")
 
-// MARK: - ITVideo renderer parsers
+// MARK: - Video renderer parsers
 
 extension InnerTubeAPI {
 
@@ -42,12 +42,12 @@ extension InnerTubeAPI {
             return str.count > 2000 ? String(str.prefix(2000)) + "\n...(truncated)" : str
         }
 
-        func walkShelfContents(_ obj: Any, depth: Int = 0) -> [ITVideo] {
+        func walkShelfContents(_ obj: Any, depth: Int = 0) -> [Video] {
             guard depth < 50 else {
                 tubeLog.warning("walkShelfContents: depth limit (50) reached — skipping subtree")
                 return []
             }
-            var videos: [ITVideo] = []
+            var videos: [Video] = []
             if let dict = obj as? [String: Any] {
                 if let vr = dict["videoRenderer"] as? [String: Any], let v = parseVideoRenderer(vr) {
                     videos.append(v)
@@ -153,7 +153,7 @@ extension InnerTubeAPI {
     // MARK: - Flat video group parser
 
     func parseVideoGroup(from json: [String: Any], title: String?) throws -> VideoGroup {
-        var videos: [ITVideo] = []
+        var videos: [Video] = []
         var nextPageToken: String? = nil
         // Tracks the approximate watched/published date from section group headers.
         // History (and similar sections) use itemSectionRenderer with a header title
@@ -258,7 +258,7 @@ extension InnerTubeAPI {
 
     // MARK: – TVHTML5 tileRenderer parser (Android TileItem methodology)
     // Mirrors: TileItem.getVideoId(), getTitle(), getThumbnails(), getBadgeText(), getChannelId()
-    private func parseTileRenderer(_ tile: [String: Any]) -> ITVideo? {
+    private func parseTileRenderer(_ tile: [String: Any]) -> Video? {
         // Only parse video tiles — require the content type to be explicitly set.
         // Tiles with nil or non-video contentType (e.g. ads with customData/onFirstVisibleCommand)
         // are silently dropped. Android: TILE_CONTENT_TYPE_VIDEO
@@ -398,7 +398,8 @@ extension InnerTubeAPI {
         // home recommendations). Guard with a 180 s ceiling — the maximum YouTube Shorts
         // length — so only genuine Shorts are matched. When duration is unknown (nil),
         // default to trusting the signal.
-        let isUstreamerShorts = ustreamerConfig == "GgIIBQ==" && (duration.map { $0 <= 180 } ?? true)
+        // Live streams also carry GgIIBQ== and have nil duration (text is "LIVE") — exclude them.
+        let isUstreamerShorts = ustreamerConfig == "GgIIBQ==" && !isLive && (duration.map { $0 <= 180 } ?? true)
 
         let isShort = (tile["style"] as? String) == "TILE_STYLE_YTLR_SHORTS"
             || reelWatchEndpoint != nil
@@ -435,12 +436,11 @@ extension InnerTubeAPI {
             return nil
         }()
 
-        return ITVideo(
+        return Video(
             id: videoId,
             title: title,
             channelTitle: channelTitle,
             channelId: channelId,
-            thumbnailURL: thumbURL,
             duration: duration,
             viewCount: {
                 // BUG-011 fix: extract viewCount from tileMetadata lines instead of hardcoding nil.
@@ -467,7 +467,7 @@ extension InnerTubeAPI {
 
     // MARK: – WEB lockupViewModel parser (Android LockupItem methodology)
     // Mirrors: LockupItem.getVideoId(), getTitle(), getThumbnails() in CommonHelper.kt
-    private func parseLockupViewModel(_ lockup: [String: Any]) -> ITVideo? {
+    private func parseLockupViewModel(_ lockup: [String: Any]) -> Video? {
         // videoId: rendererContext.commandContext.onTap.innertubeCommand.{watchEndpoint|reelWatchEndpoint}.videoId
         // Shorts use reelWatchEndpoint; regular videos use watchEndpoint.
         guard let rendererContext = lockup["rendererContext"] as? [String: Any],
@@ -548,9 +548,8 @@ extension InnerTubeAPI {
             return nil
         }()
 
-        return ITVideo(
+        return Video(
             id: videoId, title: title, channelTitle: channelTitle, channelId: channelId,
-            thumbnailURL: thumbURL, duration: nil,
             viewCount: {
                 // BUG-011 fix: extract viewCount from contentMetadataViewModel metadataRows.
                 // Row index 1 (second row) often contains "N views" or compact count.
@@ -571,7 +570,7 @@ extension InnerTubeAPI {
     }
 
     // MARK: – Shorts reelItemRenderer parser
-    private func parseReelItemRenderer(_ r: [String: Any]) -> ITVideo? {
+    private func parseReelItemRenderer(_ r: [String: Any]) -> Video? {
         guard let videoId = r["videoId"] as? String else { return nil }
         let title = (r["headline"] as? [String: Any]).flatMap { extractText($0) } ?? ""
         let thumbnails = (r["thumbnail"] as? [String: Any])?["thumbnails"] as? [[String: Any]]
@@ -598,9 +597,8 @@ extension InnerTubeAPI {
             return browse["browseId"] as? String
         }()
 
-        return ITVideo(
+        return Video(
             id: videoId, title: title, channelTitle: channelTitle, channelId: channelId,
-            thumbnailURL: thumbURL, duration: nil,
             viewCount: {
                 // BUG-011 fix: extract viewCount from viewCountText (runs or simpleText).
                 let vcText = (r["viewCountText"] as? [String: Any]).flatMap { extractText($0) }
@@ -611,7 +609,7 @@ extension InnerTubeAPI {
     }
 
     // MARK: – WEB videoRenderer parser
-    func parseVideoRenderer(_ r: [String: Any]) -> ITVideo? {
+    func parseVideoRenderer(_ r: [String: Any]) -> Video? {
         guard let videoId = r["videoId"] as? String else { return nil }
         let title = (r["title"] as? [String: Any]).flatMap { extractText($0) }
             ?? (r["headline"] as? [String: Any]).flatMap { extractText($0) }
@@ -726,12 +724,11 @@ extension InnerTubeAPI {
             .flatMap { extractText($0) }
             .flatMap { parseRelativeDate($0) }
 
-        return ITVideo(
+        return Video(
             id: videoId,
             title: title,
             channelTitle: channelTitle,
             channelId: channelId,
-            thumbnailURL: thumbURL,
             duration: duration,
             viewCount: viewCount,
             publishedAt: publishedAt,
@@ -748,7 +745,7 @@ extension InnerTubeAPI {
     // MARK: – WEB playlistVideoRenderer parser (BUG-012 fix)
     // Playlist video items use shortBylineText/shortViewCountText instead of
     // ownerText/viewCountText which parseVideoRenderer expects.
-    private func parsePlaylistVideoRenderer(_ r: [String: Any]) -> ITVideo? {
+    private func parsePlaylistVideoRenderer(_ r: [String: Any]) -> Video? {
         guard let videoId = r["videoId"] as? String else { return nil }
         let title = (r["title"] as? [String: Any]).flatMap { extractText($0) } ?? ""
 
@@ -788,12 +785,11 @@ extension InnerTubeAPI {
             .flatMap { extractText($0) }
             .flatMap { parseRelativeDate($0) }
 
-        return ITVideo(
+        return Video(
             id: videoId,
             title: title,
             channelTitle: channelTitle,
             channelId: channelId,
-            thumbnailURL: thumbURL,
             duration: duration,
             viewCount: viewCount,
             publishedAt: publishedAt,

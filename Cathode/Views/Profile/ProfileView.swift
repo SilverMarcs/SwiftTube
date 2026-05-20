@@ -9,7 +9,7 @@ import SwiftMediaViewer
 import SwiftUI
 
 struct ProfileView: View {
-    @Environment(CloudStoreManager.self) var userDefaults
+    @Environment(LibraryStore.self) var userDefaults
     #if os(iOS)
     @State private var showingSettings = false
     #endif

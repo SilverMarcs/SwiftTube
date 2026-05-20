@@ -101,10 +101,10 @@ extension VideoManager {
     func updateNowPlayingMetadata(for video: Video) async {
         var info: [String: Any] = [:]
         info[MPMediaItemPropertyTitle] = video.title
-        info[MPMediaItemPropertyArtist] = video.channel.title
+        info[MPMediaItemPropertyArtist] = video.channelTitle
         info[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.video.rawValue
 
-        if !video.thumbnailURL.isEmpty, let url = URL(string: video.thumbnailURL) {
+        if let url = video.thumbnailURL {
             if let (data, _) = try? await URLSession.shared.data(from: url),
                let image = PlatformImage(data: data) {
                 let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }

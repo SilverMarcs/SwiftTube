@@ -3,42 +3,46 @@ import SwiftUI
 struct VideoContextMenuModifier: ViewModifier {
     let video: Video
     let showChannelLink: Bool
-    @Environment(CloudStoreManager.self) private var userDefaults
-    
+    @Environment(LibraryStore.self) private var library
+
     func body(content: Content) -> some View {
         content
             .contextMenu {
                 Button {
                     withAnimation {
-                        userDefaults.toggleBookmark(video)
+                        library.toggleBookmark(video)
                     }
                 } label: {
                     Label(
-                        userDefaults.isBookmarked(video.id) ? "Remove Bookmark" : "Add Bookmark",
-                        systemImage: userDefaults.isBookmarked(video.id) ? "bookmark.fill" : "bookmark"
+                        library.isBookmarked(video.id) ? "Remove Bookmark" : "Add Bookmark",
+                        systemImage: library.isBookmarked(video.id) ? "bookmark.fill" : "bookmark"
                     )
                 }
-                
+
                 Button {
                     withAnimation {
-                        video.updateWatchProgress(Double(video.duration ?? 0))
+                        if let duration = video.duration {
+                            library.setResumePosition(videoId: video.id, seconds: duration)
+                        }
                     }
                 } label: {
                     Label("Mark as Watched", systemImage: "checkmark.circle")
                 }
 
                 Section {
-                    if showChannelLink {
+                    if showChannelLink, let channelId = video.channelId, !channelId.isEmpty {
                         NavigationLink {
-                            ChannelVideoList(channel: video.channel)
+                            ChannelVideoList(channelId: channelId, title: video.channelTitle)
                         } label: {
-                            Label(video.channel.title, systemImage: "person")
+                            Label(video.channelTitle, systemImage: "person")
                         }
                     }
-                    
+
                     #if !os(tvOS)
-                    ShareLink(item: URL(string: video.url)!) {
-                        Label("Share Video", systemImage: "square.and.arrow.up")
+                    if let url = video.watchURL {
+                        ShareLink(item: url) {
+                            Label("Share Video", systemImage: "square.and.arrow.up")
+                        }
                     }
                     #endif
                 }

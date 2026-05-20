@@ -68,7 +68,7 @@ extension InnerTubeAPI {
                 ((renderer["thumbnails"] as? [[String: Any]])?.first?["thumbnails"] as? [[String: Any]])
                 ?? (renderer["thumbnail"] as? [String: Any]).flatMap { $0["thumbnails"] as? [[String: Any]] }
             let thumbURL = thumbSources?.last.flatMap { $0["url"] as? String }.flatMap { URL(string: $0) }
-            // ITVideo count may be a plain string or in a text object.
+            // Video count may be a plain string or in a text object.
             let count: Int? =
                 (renderer["videoCount"] as? String).flatMap { Int($0) }
                 ?? (renderer["videoCountText"] as? [String: Any]).flatMap { extractText($0) }.flatMap { extractNumber($0) }

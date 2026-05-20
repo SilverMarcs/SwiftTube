@@ -1,4 +1,3 @@
-
 import SwiftUI
 import SwiftMediaViewer
 
@@ -6,9 +5,9 @@ struct ChannelRowView: View {
     let channel: Channel
 
     var body: some View {
-        NavigationLink(destination: ChannelVideoList(channel: channel)) {
+        NavigationLink(destination: ChannelVideoList(channelId: channel.id, title: channel.title)) {
             HStack(spacing: 14) {
-                CachedAsyncImage(url:  URL(string: channel.thumbnailURL), targetSize: 100)
+                CachedAsyncImage(url: channel.thumbnailURL, targetSize: 100)
                     #if os(tvOS)
                     .frame(width: 70, height: 70)
                     #else
@@ -25,10 +24,10 @@ struct ChannelRowView: View {
                         #endif
 
                     Group {
-                        if channel.subscriberCount == 0 {
-                            Text(channel.channelDescription)
-                        } else {
-                            Text("\(channel.subscriberCount, format: .number.notation(.compactName)) subscribers")
+                        if let subs = channel.subscriberCount, !subs.isEmpty {
+                            Text(subs)
+                        } else if let desc = channel.description, !desc.isEmpty {
+                            Text(desc)
                         }
                     }
                     #if os(tvOS)

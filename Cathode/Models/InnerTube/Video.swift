@@ -1,15 +1,14 @@
 import Foundation
 
-// MARK: - ITVideo
+// MARK: - Video
 
-/// Mirrors the Android `ITVideo` data model.
-public struct ITVideo: Identifiable, Hashable, Codable, Sendable {
+/// Mirrors the Android `Video` data model.
+public struct Video: Identifiable, Hashable, Codable, Sendable {
     public let id: String                   // videoId
     public var title: String
     public var channelTitle: String
     public var channelId: String?
     public var description: String?
-    public var thumbnailURL: URL?
     public var duration: TimeInterval?      // seconds
     public var viewCount: Int?
     public var publishedAt: Date?
@@ -40,7 +39,7 @@ public struct ITVideo: Identifiable, Hashable, Codable, Sendable {
     public var isDownloaded: Bool { localFileURL != nil }
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, channelTitle, channelId, description, thumbnailURL, duration
+        case id, title, channelTitle, channelId, description, duration
         case viewCount, publishedAt, isLive, isUpcoming, isShort, hasPortraitThumbnail
         case watchProgress, playlistId, playlistIndex, badges
         case notInterestedToken, dontLikeToken, hideChannelToken
@@ -54,7 +53,6 @@ public struct ITVideo: Identifiable, Hashable, Codable, Sendable {
         channelTitle: String,
         channelId: String? = nil,
         description: String? = nil,
-        thumbnailURL: URL? = nil,
         duration: TimeInterval? = nil,
         viewCount: Int? = nil,
         publishedAt: Date? = nil,
@@ -75,7 +73,6 @@ public struct ITVideo: Identifiable, Hashable, Codable, Sendable {
         self.channelTitle = channelTitle
         self.channelId = channelId
         self.description = description
-        self.thumbnailURL = thumbnailURL
         self.duration = duration
         self.viewCount = viewCount
         self.publishedAt = publishedAt
@@ -111,25 +108,34 @@ public struct Chapter: Identifiable, Hashable, Sendable, Codable {
 
 // MARK: - Convenience helpers
 
-public extension ITVideo {
+public extension Video {
+    /// Clean 16:9 (or 9:16 for Shorts with explicit portrait thumbnail) thumbnail URL
+    /// derived from the videoId. We never trust InnerTube's thumbnail field directly —
+    /// it often returns letterboxed 4:3 variants.
+    var thumbnailURL: URL? {
+        let resolution: YouTubeThumbnailResolution =
+            (isShort && hasPortraitThumbnail) ? .shortsPortrait : .hd720
+        return YouTubeVideoThumbnail(videoID: id, resolution: resolution).url
+    }
+
+    /// Canonical watch URL for sharing.
+    var watchURL: URL? {
+        URL(string: "https://www.youtube.com/watch?v=\(id)")
+    }
+
     var formattedDuration: String {
         guard let duration else { return "" }
         return formatDuration(duration)
     }
 
-    var formattedViewCount: String {
+    /// Formatted compact view count, e.g. "1.2M views". Empty when unavailable.
+    var displayViewCount: String {
         guard let viewCount else { return "" }
         switch viewCount {
-        case 0..<1_000:       return "\(viewCount) views"
+        case 0..<1_000:         return "\(viewCount) views"
         case 1_000..<1_000_000: return String(format: "%.1fK views", Double(viewCount) / 1_000)
-        default:              return String(format: "%.1fM views", Double(viewCount) / 1_000_000)
+        default:                return String(format: "%.1fM views", Double(viewCount) / 1_000_000)
         }
-    }
-
-    /// Clean 16:9 thumbnail (1280×720), available for every video on the CDN.
-    /// Preferred over `hqdefault`/`sddefault`, which are 4:3 with letterbox bars baked in.
-    var hd720ThumbnailURL: URL? {
-        URL(string: "https://i.ytimg.com/vi/\(id)/hq720.jpg")
     }
 
     /// Medium-quality 16:9 thumbnail (320×180). Always available — last resort fallback.
@@ -145,7 +151,7 @@ public extension ITVideo {
 
     /// Ordered 16:9 fallbacks: hq720 → mqdefault.
     var thumbnailFallbackURLs: [URL] {
-        [hd720ThumbnailURL, mqThumbnailURL].compactMap { $0 }
+        [thumbnailURL, mqThumbnailURL].compactMap { $0 }
     }
 
     /// Portrait (9:16) thumbnail used for Shorts cards.

@@ -13,7 +13,7 @@ struct MiniPlayerAccessoryView: View {
     var body: some View {
         if let video = manager.currentVideo {
             HStack {
-                CachedAsyncImage(url: URL(string: video.thumbnailURL), targetSize: 500)
+                CachedAsyncImage(url: video.thumbnailURL, targetSize: 500)
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 40, height: 34)
                 .clipShape(.rect(cornerRadius: 10))
@@ -25,7 +25,7 @@ struct MiniPlayerAccessoryView: View {
                         .bold()
                         .lineLimit(1)
                     
-                    Text(video.channel.title)
+                    Text(video.channelTitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)

@@ -22,15 +22,15 @@ public enum LikeStatus: Sendable, Codable {
 
 /// Combined result from the `/next` InnerTube endpoint.
 public struct NextInfo: Sendable, Codable {
-    public let relatedVideos: [ITVideo]
+    public let relatedVideos: [Video]
     public let likeStatus: LikeStatus
     public let chapters: [Chapter]
 }
 
-// MARK: - ITComment
+// MARK: - Comment
 
 /// A single top-level YouTube comment returned by the `/next` continuation endpoint.
-public struct ITComment: Sendable, Identifiable {
+public struct Comment: Sendable, Identifiable {
     public let id: String
     public let author: String
     public let authorAvatarURL: URL?
@@ -76,24 +76,12 @@ public struct EndCard: Sendable, Identifiable, Codable {
 
 // MARK: - PlayerInfo
 
-/// Tracking URLs returned by the YouTube `/player` endpoint.
-/// Pinging these records the video in the user's official YouTube watch history.
-/// Mirrors Android's `VideoStatsPlaybackUrl` / `VideoStatsWatchtimeUrl` in MediaServiceCore.
-public struct PlaybackTrackingURLs: Sendable {
-    /// Fire once (GET) when playback begins — records the view in watch history.
-    public let playbackURL: URL
-    /// Fire periodically during playback and on stop — records watched intervals.
-    public let watchtimeURL: URL
-}
-
 public struct PlayerInfo: Sendable {
-    public let video: ITVideo
+    public let video: Video
     public let formats: [VideoFormat]
     public let hlsURL: URL?
     public let dashURL: URL?
     public let captionTracks: [CaptionTrack]
-    /// Tracking URLs for watch-history reporting; nil when unavailable (e.g. unauthenticated iOS client).
-    public let trackingURLs: PlaybackTrackingURLs?
     /// End-screen cards embedded in the player response (populated for web-client fetches).
     /// Empty when the iOS client is used for primary streaming — a fallback web-client
     /// fetch is performed in PlaybackViewModel when this is empty.
@@ -179,7 +167,6 @@ public struct PlayerInfo: Sendable {
             hlsURL: append(hlsURL),
             dashURL: append(dashURL),
             captionTracks: captionTracks,
-            trackingURLs: trackingURLs,
             endCards: endCards
         )
     }

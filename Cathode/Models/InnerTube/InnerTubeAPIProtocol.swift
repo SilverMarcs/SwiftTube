@@ -19,7 +19,6 @@ public protocol InnerTubeAPIProtocol: AnyObject, Sendable {
     func fetchHome(continuationToken: String?) async throws -> VideoGroup
     func fetchHomeRows(continuationToken: String?) async throws -> [VideoGroup]
     func fetchSubscriptions(continuationToken: String?) async throws -> VideoGroup
-    func fetchHistory(continuationToken: String?) async throws -> VideoGroup
     func fetchShorts() async throws -> VideoGroup
     func fetchShortsMore(continuationToken: String) async throws -> VideoGroup
     func fetchMusic() async throws -> VideoGroup
@@ -30,15 +29,16 @@ public protocol InnerTubeAPIProtocol: AnyObject, Sendable {
 
     // MARK: Library
     func fetchUserPlaylists() async throws -> [PlaylistInfo]
-    func fetchSubscribedChannels() async throws -> [ITChannel]
+    func fetchSubscribedChannels() async throws -> [Channel]
 
-    // MARK: ITChannel
+    // MARK: Channel
     func fetchChannelThumbnailURL(channelId: String) async throws -> URL?
-    func fetchChannel(channelId: String) async throws -> (channel: ITChannel, videos: VideoGroup)
+    func fetchChannel(channelId: String) async throws -> (channel: Channel, videos: VideoGroup)
     func fetchChannelVideos(channelId: String, continuationToken: String?) async throws -> VideoGroup
 
     // MARK: Search
     func search(query: String, continuationToken: String?, filter: SearchFilter) async throws -> VideoGroup
+    func searchChannels(query: String) async throws -> [Channel]
     func fetchSearchSuggestions(query: String) async throws -> [String]
 
     // MARK: Playlist
@@ -66,11 +66,6 @@ public extension InnerTubeAPIProtocol {
     /// Fetches the subscriptions feed from the first page.
     func fetchSubscriptions() async throws -> VideoGroup {
         try await fetchSubscriptions(continuationToken: nil)
-    }
-
-    /// Fetches the watch history from the first page.
-    func fetchHistory() async throws -> VideoGroup {
-        try await fetchHistory(continuationToken: nil)
     }
 
     /// Searches using default filter and no continuation.
