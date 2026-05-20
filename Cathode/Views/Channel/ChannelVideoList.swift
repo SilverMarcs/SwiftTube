@@ -50,7 +50,8 @@ struct ChannelVideoList: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            videos = try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
+            let group = try await InnerTubeAPI.shared.fetchChannelVideos(channelId: channel.id)
+            videos = group.videos.map { Video($0, channel: channel) }
         } catch {
             print("Error in ChannelVideoList \(error.localizedDescription)")
         }

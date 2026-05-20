@@ -1,58 +1,57 @@
+//
+//  YTService+Search.swift
+//  Cathode
+//
+//  InnerTube-backed search. The InnerTube `search` endpoint returns a single
+//  mixed `VideoGroup`. Channel-style results parse out as ITVideo entries with
+//  no `duration` and an `id` that starts with "UC" (the channelId), so we use
+//  that signal to split them into the `channels` bucket Cathode expects.
+//
+
 import Foundation
 
 extension YTService {
     static func search(query: String) async throws -> SearchResults {
-        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
-        let url = URL(string: "\(baseURL)/search?part=snippet&q=\(encoded)")!
-        
-        let response: SearchResponse = try await fetchResponse(from: url)
-        
+        let group = try await InnerTubeAPI.shared.search(query: query)
+
         var videos: [Video] = []
         var channels: [Channel] = []
-        
-        for item in response.items {
-            if item.id.kind == "youtube#video", let videoId = item.id.videoId {
-                let channel = Channel(
-                    id: item.snippet.channelId,
-                    title: item.snippet.channelTitle,
-                    channelDescription: "",
-                    thumbnailURL: item.snippet.thumbnails.high?.url ?? "",
-                    viewCount: 0,
-                    subscriberCount: 0
+        var seenChannelIds = Set<String>()
+
+        for it in group.videos {
+            if isChannelEntry(it) {
+                let channelId = it.channelId ?? it.id
+                guard !channelId.isEmpty, !seenChannelIds.contains(channelId) else { continue }
+                seenChannelIds.insert(channelId)
+                channels.append(
+                    Channel(
+                        id: channelId,
+                        title: it.channelTitle.isEmpty ? it.title : it.channelTitle,
+                        channelDescription: it.description ?? "",
+                        thumbnailURL: it.thumbnailURL?.absoluteString ?? "",
+                        viewCount: 0,
+                        subscriberCount: 0
+                    )
                 )
-                let video = Video(
-                    id: videoId,
-                    title: item.snippet.title,
-                    videoDescription: item.snippet.description,
-                    thumbnailURL: YouTubeVideoThumbnail(videoID: videoId).url!.absoluteString,
-                    publishedAt: Date(),
-                    url: "https://www.youtube.com/watch?v=\(videoId)",
-                    channel: channel,
-                    viewCount: "0",
-                    isShort: false
-                )
-                videos.append(video)
-            } else if item.id.kind == "youtube#channel", let channelId = item.id.channelId {
-                let channel = Channel(
-                    id: channelId,
-                    title: item.snippet.title,
-                    channelDescription: item.snippet.description,
-                    thumbnailURL: item.snippet.thumbnails.high?.url ?? "",
-                    viewCount: 0,
-                    subscriberCount: 0
-                )
-                channels.append(channel)
+            } else {
+                videos.append(Video(it))
             }
         }
-        
         return SearchResults(videos: videos, channels: channels)
+    }
+
+    /// Heuristic for "is this ITVideo really a channel result?".
+    /// Channel renderers come back with the channelId in the `id` slot and no
+    /// duration; ordinary video renderers always carry an 11-char videoId.
+    private static func isChannelEntry(_ it: ITVideo) -> Bool {
+        it.id.hasPrefix("UC") && it.id.count > 11 && it.duration == nil
     }
 }
 
 struct SearchResults {
     let videos: [Video]
     let channels: [Channel]
-    
+
     var isEmpty: Bool {
         videos.isEmpty && channels.isEmpty
     }

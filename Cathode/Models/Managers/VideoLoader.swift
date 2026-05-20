@@ -1,8 +1,11 @@
 //
 //  VideoLoader.swift
-//  SwiftTube
+//  Cathode
 //
-//  Created by Zabir Raihan on 28/09/2025.
+//  Aggregates the user's subscriptions feed. Phase 2a replaces the per-channel
+//  RSS poller with InnerTube's `fetchSubscriptions()` — a single authenticated
+//  call that returns newest-first videos with view/like counts and durations
+//  already populated, so no per-video enrichment step is needed.
 //
 
 import SwiftUI
@@ -14,75 +17,98 @@ final class VideoLoader {
     private(set) var shortVideos: [Video] = []
 
     private(set) var isLoading: Bool = false
-    private let userDefaults = CloudStoreManager.shared
+    private(set) var isLoadingMore: Bool = false
+    /// True once a load attempt has completed (success or empty). Lets views
+    /// distinguish "still loading" from "loaded — nothing to show".
+    private(set) var hasLoaded: Bool = false
+
+    /// Continuation token for the next page of the InnerTube subscriptions feed.
+    /// `nil` once the end of the feed has been reached or before the first load.
+    private(set) var nextPageToken: String?
 
     /// In-memory order for shorts (video IDs). Shuffled on first feed load of the
     /// process; subsequent reloads preserve this order so prefetched stream URLs
     /// stay aligned with what the user actually swipes through.
     private var shortsOrder: [String] = []
-    
-    func loadAllChannelVideos() async {
-        let channels = userDefaults.savedChannels
-        guard !channels.isEmpty else {
-            videos = []
-            shortVideos = []
-            return
-        }
-        
-        // Build locally to avoid partial UI updates
-        let aggregatedVideos: [Video] = await withTaskGroup(of: [Video].self, returning: [Video].self) { group in
-            for channel in channels {
-                group.addTask {
-                    do {
-                        return try await FeedParser.fetchChannelVideosFromRSS(channel: channel)
-                    } catch {
-                        print("Error fetching videos for \(channel.title): \(error)")
-                        return []
-                    }
-                }
-            }
-            
-            var all: [Video] = []
-            for await channelVideos in group {
-                all.append(contentsOf: channelVideos)
-            }
-            return all
-        }
-        
-        // Separate shorts and regular videos
-        let shorts = aggregatedVideos.filter { $0.isShort }
-        let regularVideos = aggregatedVideos.filter { !$0.isShort }
-        
-        // Sort by publish date (desc)
-        let sortedVideos = regularVideos.sorted { $0.publishedAt > $1.publishedAt }
-        
-        withAnimation {
-            self.videos = sortedVideos
-        }
-        self.shortVideos = applyStableShuffle(to: shorts)
 
-        let videosForDetails = self.videos.prefix(50)
-        if !videosForDetails.isEmpty {
-            do {
-                var mutableVideos = Array(videosForDetails)
-                try await YTService.fetchVideoDetails(for: &mutableVideos)
-                
-                // Update the corresponding entries in self.videos
-                let lookup = Dictionary(uniqueKeysWithValues: mutableVideos.map { ($0.id, $0) })
-                for i in self.videos.indices {
-                    if let updated = lookup[self.videos[i].id] {
-                        self.videos[i] = updated
-                    }
+    /// Reloads the subscriptions feed from scratch.
+    /// Falls back to an empty list if the user isn't authenticated yet.
+    func loadAllChannelVideos() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let group = try await InnerTubeAPI.shared.fetchSubscriptions()
+            nextPageToken = group.nextPageToken
+
+            let savedChannelLookup = Dictionary(
+                uniqueKeysWithValues: CloudStoreManager.shared.savedChannels.map { ($0.id, $0) }
+            )
+
+            let allVideos: [Video] = group.videos.map { it in
+                if let channelId = it.channelId, let savedChannel = savedChannelLookup[channelId] {
+                    return Video(it, channel: savedChannel)
                 }
-                print("Fetched details for \(mutableVideos.count) videos")
-            } catch {
-                print("Error updating video rich data: \(error)")
+                return Video(it)
             }
+
+            // Separate shorts and regular videos. InnerTube already flags shorts
+            // (reelItemRenderer); fall back to duration ≤ 60s as a safety net.
+            let shorts = allVideos.filter { $0.isShort || ($0.duration.map { $0 > 0 && $0 <= 60 } ?? false) }
+            let regular = allVideos.filter { !$0.isShort && !($0.duration.map { $0 > 0 && $0 <= 60 } ?? false) }
+
+            // InnerTube returns newest-first, but sort defensively in case the
+            // upstream order ever changes.
+            let sortedVideos = regular.sorted { $0.publishedAt > $1.publishedAt }
+
+            withAnimation {
+                self.videos = sortedVideos
+            }
+            self.shortVideos = applyStableShuffle(to: shorts)
+            self.hasLoaded = true
+        } catch {
+            print("Error loading subscriptions: \(error)")
+            self.videos = []
+            self.shortVideos = []
+            self.hasLoaded = true
+        }
+    }
+
+    /// Loads the next page of the subscriptions feed, appending to `videos`/`shortVideos`.
+    /// No-ops when there is no continuation token or a page load is already in flight.
+    func loadMore() async {
+        guard let token = nextPageToken, !isLoadingMore else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+        do {
+            let group = try await InnerTubeAPI.shared.fetchSubscriptions(continuationToken: token)
+            nextPageToken = group.nextPageToken
+
+            let savedChannelLookup = Dictionary(
+                uniqueKeysWithValues: CloudStoreManager.shared.savedChannels.map { ($0.id, $0) }
+            )
+            let newVideos: [Video] = group.videos.map { it in
+                if let channelId = it.channelId, let savedChannel = savedChannelLookup[channelId] {
+                    return Video(it, channel: savedChannel)
+                }
+                return Video(it)
+            }
+            let shorts = newVideos.filter { $0.isShort || ($0.duration.map { $0 > 0 && $0 <= 60 } ?? false) }
+            let regular = newVideos.filter { !$0.isShort && !($0.duration.map { $0 > 0 && $0 <= 60 } ?? false) }
+
+            let existingIds = Set(self.videos.map(\.id))
+            let regularNew = regular.filter { !existingIds.contains($0.id) }
+            self.videos.append(contentsOf: regularNew)
+
+            let existingShortIds = Set(self.shortVideos.map(\.id))
+            let shortsNew = shorts.filter { !existingShortIds.contains($0.id) }
+            self.shortVideos.append(contentsOf: shortsNew)
+        } catch {
+            print("Error loading more subscriptions: \(error)")
         }
     }
 
     func getMostRecentHistoryVideo() -> Video? {
-        userDefaults.historyVideos.first
+        CloudStoreManager.shared.historyVideos.first
     }
 
     private func applyStableShuffle(to shorts: [Video]) -> [Video] {

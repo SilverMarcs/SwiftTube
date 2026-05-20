@@ -1,82 +1,65 @@
 //
 //  YTService+Channel.swift
-//  SwiftTube
+//  Cathode
 //
-//  Created by Zabir Raihan on 28/09/2025.
+//  InnerTube-backed channel lookup. Handles are resolved transparently by
+//  `InnerTubeAPI.fetchChannel(channelId:)` (it accepts both `UC…` ids and
+//  `@handle` strings).
 //
 
 import Foundation
 
 extension YTService {
     static func fetchChannel(forHandle handle: String) async throws -> Channel {
-        let encoded = handle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? handle
-        let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails,statistics&forHandle=\(encoded)")!
-        
-        let response: ChannelResponse = try await fetchResponse(from: url)
-        
-        guard let item = response.items.first else {
-            throw APIError.channelNotFound
-        }
-        
-        return Channel(
-            id: item.id,
-            title: item.snippet.title,
-            channelDescription: item.snippet.description,
-            thumbnailURL: item.snippet.thumbnails.medium.url,
-            viewCount: UInt64(item.statistics.viewCount) ?? 0,
-            subscriberCount: UInt64(item.statistics.subscriberCount) ?? 0
-        )
+        // Ensure the handle has the leading `@` that InnerTube expects.
+        let normalised: String = handle.hasPrefix("@") ? handle : "@\(handle.trimmingCharacters(in: CharacterSet(charactersIn: "@")))"
+        let (it, _) = try await InnerTubeAPI.shared.fetchChannel(channelId: normalised)
+        return Channel(it)
     }
-    
+
     static func fetchChannel(byId channelId: String) async throws -> Channel {
-        let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails,statistics&id=\(channelId)")!
-        
-        let response: ChannelResponse = try await fetchResponse(from: url)
-        
-        guard let item = response.items.first else {
-            throw APIError.channelNotFound
-        }
-        
-        return Channel(
-            id: item.id,
-            title: item.snippet.title,
-            channelDescription: item.snippet.description,
-            thumbnailURL: item.snippet.thumbnails.medium.url,
-            viewCount: UInt64(item.statistics.viewCount) ?? 0,
-            subscriberCount: UInt64(item.statistics.subscriberCount) ?? 0
-        )
+        let (it, _) = try await InnerTubeAPI.shared.fetchChannel(channelId: channelId)
+        return Channel(it)
     }
-    
+
+    /// Bounded-concurrency fan-out: InnerTube exposes no batched channel endpoint.
     static func fetchChannels(byIds channelIds: [String]) async throws -> [Channel] {
         guard !channelIds.isEmpty else { return [] }
 
-        var aggregated: [Channel] = []
-        let chunkSize = 50
-        var currentIndex = 0
+        let result: [String: Channel] = await withTaskGroup(
+            of: (String, Channel?).self,
+            returning: [String: Channel].self
+        ) { group in
+            let maxConcurrent = 6
+            var inFlight = 0
+            var iterator = channelIds.makeIterator()
 
-        while currentIndex < channelIds.count {
-            let endIndex = min(currentIndex + chunkSize, channelIds.count)
-            let chunk = Array(channelIds[currentIndex..<endIndex])
-            currentIndex = endIndex
-
-            let idList = chunk.joined(separator: ",")
-            let url = URL(string: "\(baseURL)/channels?part=snippet,contentDetails,statistics&id=\(idList)")!
-            let response: ChannelResponse = try await fetchResponse(from: url)
-
-            let channels = response.items.map { item in
-                Channel(
-                    id: item.id,
-                    title: item.snippet.title,
-                    channelDescription: item.snippet.description,
-                    thumbnailURL: item.snippet.thumbnails.medium.url,
-                    viewCount: UInt64(item.statistics.viewCount) ?? 0,
-                    subscriberCount: UInt64(item.statistics.subscriberCount) ?? 0
-                )
+            func addNext() {
+                guard let id = iterator.next() else { return }
+                inFlight += 1
+                group.addTask {
+                    do {
+                        let (it, _) = try await InnerTubeAPI.shared.fetchChannel(channelId: id)
+                        return (id, Channel(it))
+                    } catch {
+                        return (id, nil)
+                    }
+                }
             }
+            for _ in 0..<min(maxConcurrent, channelIds.count) { addNext() }
 
-            aggregated.append(contentsOf: channels)
+            var collected: [String: Channel] = [:]
+            while inFlight > 0 {
+                if let (id, ch) = await group.next() {
+                    inFlight -= 1
+                    if let ch = ch { collected[id] = ch }
+                    addNext()
+                }
+            }
+            return collected
         }
 
-        return aggregated
+        // Preserve input order for the subset that resolved.
+        return channelIds.compactMap { result[$0] }
     }
 }

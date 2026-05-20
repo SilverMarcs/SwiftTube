@@ -33,6 +33,22 @@ class VideoManager {
     /// late-arriving resolve replaces the newer video's player item.
     private var loadingTask: Task<Void, Never>?
 
+    // MARK: - Watchtime reporting state
+    //
+    // Per-session CPN (Client Playback Nonce) and account-bound playback
+    // tracking URLs. Pings are fire-and-forget; reportPlaybackStarted runs
+    // once when a video begins, then reportWatchtime runs throttled
+    // (~5s) and on session end / video change / app background.
+    private var watchtimeCPN: String?
+    private var watchtimeTrackingURLs: PlaybackTrackingURLs?
+    private var watchtimeVideoId: String?
+    private var watchtimeSegmentStart: TimeInterval = 0
+    private var watchtimeLastPing: Date = .distantPast
+    private var watchtimeStarted: Bool = false
+    private var watchtimeFetchTask: Task<Void, Never>?
+    /// Throttle: report watchtime no more often than this.
+    private let watchtimeInterval: TimeInterval = 5
+
     init() {
         registerRemoteCommandsIfNeeded()
     }
@@ -52,6 +68,9 @@ class VideoManager {
             return
         }
 
+        // Flush watchtime for the outgoing session before switching.
+        finalizeWatchtimeForCurrentSession()
+
         // Cancel any pending load from a previous tap so its late-arriving
         // resolve can't clobber this new request. The old player keeps
         // playing until the new playerItem is ready — replaceCurrentItem
@@ -65,6 +84,8 @@ class VideoManager {
         sponsorSegments = []
         currentSponsorSegment = nil
         store.addToHistory(video)
+
+        beginWatchtimeSession(for: video)
 
         loadingTask = Task { [weak self] in
             await self?.loadVideoStream(for: video, autoPlay: autoPlay)
@@ -302,5 +323,97 @@ class VideoManager {
         let seconds = player.currentTime().seconds
         guard seconds.isFinite, seconds > 0 else { return }
         store.setWatchProgress(videoId: videoId, progress: seconds)
+        // Throttled watchtime ping → YouTube watch history server.
+        maybeReportWatchtime(videoId: videoId, position: seconds, isFinal: false)
+    }
+
+    // MARK: - Watchtime (YouTube watch-history reporting)
+
+    /// Starts a new watchtime session. Generates a CPN and pre-fetches
+    /// account-bound tracking URLs. No-op when not signed in.
+    private func beginWatchtimeSession(for video: Video) {
+        // Reset session state regardless of sign-in so stale URLs from a
+        // previous session don't leak across.
+        watchtimeFetchTask?.cancel()
+        watchtimeFetchTask = nil
+        watchtimeCPN = nil
+        watchtimeTrackingURLs = nil
+        watchtimeVideoId = nil
+        watchtimeSegmentStart = 0
+        watchtimeLastPing = .distantPast
+        watchtimeStarted = false
+
+        guard YTTVAuthManager.shared.isSignedIn else { return }
+
+        let cpn = InnerTubeAPI.generateCPN()
+        let videoId = video.id
+        watchtimeCPN = cpn
+        watchtimeVideoId = videoId
+
+        watchtimeFetchTask = Task { [weak self] in
+            let urls = await InnerTubeAPI.shared.fetchAuthenticatedTrackingURLs(videoId: videoId)
+            await MainActor.run {
+                guard let self else { return }
+                guard self.watchtimeVideoId == videoId else { return }
+                self.watchtimeTrackingURLs = urls
+            }
+        }
+    }
+
+    /// Sends `videostatsPlaybackUrl` once at the start, then throttled
+    /// `videostatsWatchtimeUrl` pings every `watchtimeInterval` seconds.
+    /// Pass `isFinal: true` to bypass throttling for a final ping.
+    private func maybeReportWatchtime(videoId: String, position: TimeInterval, isFinal: Bool) {
+        guard YTTVAuthManager.shared.isSignedIn else { return }
+        guard let cpn = watchtimeCPN, watchtimeVideoId == videoId else { return }
+
+        let urls = watchtimeTrackingURLs
+        let now = Date()
+
+        if !watchtimeStarted {
+            watchtimeStarted = true
+            watchtimeSegmentStart = 0
+            watchtimeLastPing = now
+            Task {
+                await InnerTubeAPI.shared.reportPlaybackStarted(videoId: videoId, cpn: cpn, trackingURLs: urls)
+            }
+            return
+        }
+
+        if !isFinal && now.timeIntervalSince(watchtimeLastPing) < watchtimeInterval {
+            return
+        }
+
+        let segStart = watchtimeSegmentStart
+        let segEnd = position
+        // Guard against zero-length segments (YouTube ignores st == et).
+        guard segEnd > segStart else { return }
+        watchtimeSegmentStart = segEnd
+        watchtimeLastPing = now
+        Task {
+            await InnerTubeAPI.shared.reportWatchtime(
+                videoId: videoId,
+                cpn: cpn,
+                trackingURLs: urls,
+                segmentStart: segStart,
+                segmentEnd: segEnd
+            )
+        }
+    }
+
+    /// Fires a final watchtime ping for the current session (call on app
+    /// background or video change). Safe to call when no session is active.
+    private func finalizeWatchtimeForCurrentSession() {
+        guard let videoId = watchtimeVideoId,
+              let player = player else { return }
+        let seconds = player.currentTime().seconds
+        guard seconds.isFinite, seconds > 0 else { return }
+        maybeReportWatchtime(videoId: videoId, position: seconds, isFinal: true)
+    }
+
+    /// Public entry point so the app can flush watchtime on background /
+    /// scene phase change.
+    func flushWatchtime() {
+        finalizeWatchtimeForCurrentSession()
     }
 }

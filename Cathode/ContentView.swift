@@ -17,7 +17,6 @@ struct ContentView: View {
 
     @State private var isPresented = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
-    @AppStorage("showGoogleAuth") private var showGoogleAuth = false
     @AppStorage("tvOSNavigationStyle") private var tvNavigationStyleSetting = TVNavigationStyle.tabBar
 
     private var isCompactSize: Bool { horizontalSizeClass == .compact }

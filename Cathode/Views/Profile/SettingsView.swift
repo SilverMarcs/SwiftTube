@@ -9,14 +9,11 @@ import SwiftUI
 import SwiftMediaViewer
 
 struct SettingsView: View {
-    @Environment(GoogleAuthManager.self) private var authManager
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("showGoogleAuth") private var showGoogleAuth = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     #if os(tvOS)
     @AppStorage("tvOSNavigationStyle") private var tvNavigationStyleSetting = TVNavigationStyle.tabBar
     #endif
-    @State private var easterEggTapCount = 0
 
     var body: some View {
         SettingsSplitView {
@@ -36,13 +33,11 @@ struct SettingsView: View {
 
     private var form: some View {
         Form {
-            if showGoogleAuth {
-                Section {
-                    SignInView()
-                        #if !os(tvOS)
-                        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
-                        #endif
-                }
+            Section {
+                YTTVSignInView()
+                    #if !os(tvOS)
+                    .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+                    #endif
             }
 
             #if os(tvOS)
@@ -62,7 +57,6 @@ struct SettingsView: View {
             Section {
                 Button("Show Onboarding Again") {
                     hasCompletedOnboarding = false
-                    bumpEasterEgg()
                 }
             }
         }
@@ -78,19 +72,6 @@ struct SettingsView: View {
             }
         }
         #endif
-        .task {
-            if showGoogleAuth {
-                try? await authManager.fetchUserInfo()
-            }
-        }
-    }
-
-    private func bumpEasterEgg() {
-        easterEggTapCount += 1
-        if easterEggTapCount >= 15 {
-            showGoogleAuth = true
-            easterEggTapCount = 0
-        }
     }
 }
 

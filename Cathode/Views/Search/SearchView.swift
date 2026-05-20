@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct SearchView: View {
-    @AppStorage("showGoogleAuth") private var showGoogleAuth = false
     @Environment(CloudStoreManager.self) private var userDefaults
 
     @State private var searchScope: SearchScope = .bookmark
@@ -11,12 +10,7 @@ struct SearchView: View {
     @FocusState private var isSearchFocused: Bool
 
     private var availableScopes: [SearchScope] {
-        var scopes: [SearchScope] = [.bookmark, .history]
-        if showGoogleAuth {
-            scopes.append(.video)
-            scopes.append(.channel)
-        }
-        return scopes
+        [.bookmark, .history, .video, .channel]
     }
 
     private func filter(_ videos: [Video]) -> [Video] {
@@ -117,11 +111,6 @@ struct SearchView: View {
             ForEach(availableScopes) { scope in
                 Text(scope.rawValue)
                     .tag(scope)
-            }
-        }
-        .onChange(of: showGoogleAuth) { _, newValue in
-            if !newValue, isOnlineScope {
-                searchScope = .bookmark
             }
         }
         .onSubmit(of: .search) {

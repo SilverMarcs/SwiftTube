@@ -11,7 +11,7 @@ struct SubscriptionView: View {
     @State private var subscriptions: [Channel] = []
     @State private var isLoading = false
     
-    @Environment(GoogleAuthManager.self) private var authManager
+    @Environment(YTTVAuthManager.self) private var authManager
     
     var body: some View {
         NavigationStack {

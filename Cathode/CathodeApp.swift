@@ -15,7 +15,7 @@ struct CathodeApp: App {
     let videoLoader = VideoLoader()
     let videoManager = VideoManager()
     let store = CloudStoreManager.shared
-    let authManager = GoogleAuthManager()
+    let ytAuth = YTTVAuthManager.shared
 
     @State var selectedTab: TabSelection = .feed
     
@@ -25,7 +25,7 @@ struct CathodeApp: App {
                 .environment(videoLoader)
                 .environment(videoManager)
                 .environment(store)
-                .environment(authManager)
+                .environment(ytAuth)
                 #if os(iOS)
                 .environment(DownloadManager.shared)
                 #endif
@@ -43,9 +43,20 @@ struct CathodeApp: App {
                     }
                     return .systemAction
                 })
+                .task(id: ytAuth.isSignedIn) {
+                    // Re-fetch the feed when sign-in completes — the cold-launch
+                    // load fired before auth was restored and left the list empty.
+                    guard ytAuth.isSignedIn else { return }
+                    await videoLoader.loadAllChannelVideos()
+                }
                 #if os(iOS)
                 .task(id: scenePhase) {
                     if scenePhase == .active {
+                        // Pull subscribed channels / Watch Later / history from
+                        // the user's YouTube account into local state.
+                        if ytAuth.isSignedIn {
+                            store.refreshFromYouTube()
+                        }
                         await videoLoader.loadAllChannelVideos()
 
                         if videoManager.currentVideo == nil {
@@ -53,10 +64,15 @@ struct CathodeApp: App {
                                 videoManager.setVideo(mostRecentVideo, autoPlay: false)
                             }
                         }
+                    } else if scenePhase == .background || scenePhase == .inactive {
+                        videoManager.flushWatchtime()
                     }
                 }
                 #else
                 .task {
+                    if ytAuth.isSignedIn {
+                        store.refreshFromYouTube()
+                    }
                     await videoLoader.loadAllChannelVideos()
 
                     if videoManager.currentVideo == nil {

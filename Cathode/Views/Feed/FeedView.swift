@@ -3,7 +3,6 @@ import SwiftUI
 
 struct FeedView: View {
     @Environment(VideoLoader.self) private var videoLoader
-    @Environment(GoogleAuthManager.self) private var authManager
     @Environment(CloudStoreManager.self) private var userDefaults
 
     @State private var isRandomOrderEnabled = false
@@ -14,7 +13,14 @@ struct FeedView: View {
     }
 
     var body: some View {
-        VideoGridView(videos: displayedVideos) {
+        VideoGridView(
+            videos: displayedVideos,
+            isLoading: videoLoader.isLoading && !videoLoader.hasLoaded,
+            onReachEnd: {
+                guard !isRandomOrderEnabled else { return }
+                Task { await videoLoader.loadMore() }
+            }
+        ) {
             #if os(tvOS)
             if let recent = userDefaults.historyVideos.first {
                  Section("Continue Watching") {

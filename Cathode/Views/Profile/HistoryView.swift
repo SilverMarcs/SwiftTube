@@ -104,6 +104,11 @@ struct HistoryFullView: View {
         .navigationTitle("History")
         .platformNavigationToolbar(titleDisplayMode: .inline)
         .contentMargins(.top, 5)
+        #if !os(tvOS)
+        .refreshable {
+            CloudStoreManager.shared.refreshFromYouTube()
+        }
+        #endif
         .task(id: rawVideos.map(\.id)) {
             await loadDetails(for: rawVideos)
         }

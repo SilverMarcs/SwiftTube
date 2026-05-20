@@ -4,13 +4,12 @@ import SwiftMediaViewer
 
 struct ChannelListView: View {
     @Environment(CloudStoreManager.self) private var userDefaults
-    @AppStorage("showGoogleAuth") private var showGoogleAuth = false
 
     @State private var showingAddChannel = false
     @State private var subscriptions: [Channel] = []
     @State private var isLoadingSubscriptions = false
 
-    @Environment(GoogleAuthManager.self) private var authManager
+    @Environment(YTTVAuthManager.self) private var authManager
 
     private var channels: [Channel] { userDefaults.savedChannels }
 
@@ -23,7 +22,7 @@ struct ChannelListView: View {
     var body: some View {
         NavigationStack {
             List {
-                if showGoogleAuth, authManager.isSignedIn {
+                if authManager.isSignedIn {
                     Section("Subscriptions") {
                         ForEach(availableSubscriptions) { subscription in
                             HStack {
