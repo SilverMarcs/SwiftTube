@@ -8,7 +8,6 @@
 import AVFoundation
 import AVKit
 import Foundation
-import MediaPlayer
 
 @Observable
 class VideoManager {
@@ -20,27 +19,28 @@ class VideoManager {
     var isExpanded: Bool = false
     var isSetting: Bool = false
 
-    var timeObserverToken: Any?
-    var rateObservation: NSKeyValueObservation?
-    var statusObservation: NSKeyValueObservation?
-    var durationObservation: NSKeyValueObservation?
-    var nowPlayingInfo: [String: Any] = [:]
-    var hasRegisteredRemoteCommands = false
+    private var timeObserverToken: Any?
 
     /// Tracks the in-flight `loadVideoStream` task so a rapid second
     /// `setVideo` can cancel the stale one and avoid races where a
     /// late-arriving resolve replaces the newer video's player item.
     private var loadingTask: Task<Void, Never>?
 
-    init() {
-        registerRemoteCommandsIfNeeded()
-    }
-
     deinit {
         if let token = timeObserverToken {
             player?.removeTimeObserver(token)
         }
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+
+    private func attachPeriodicObserver(to player: AVPlayer) {
+        if let token = timeObserverToken {
+            player.removeTimeObserver(token)
+            timeObserverToken = nil
+        }
+        let interval = CMTime(seconds: 1, preferredTimescale: 600)
+        timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
+            self?.refreshSponsorState()
+        }
     }
 
     func setVideo(_ video: Video, autoPlay: Bool = true) {
@@ -129,7 +129,7 @@ class VideoManager {
         } else {
             let newPlayer = AVPlayer(playerItem: playerItem)
             player = newPlayer
-            attachPlayerObservers(to: newPlayer)
+            attachPeriodicObserver(to: newPlayer)
         }
 
         let savedProgress = await MainActor.run { LibraryStore.shared.resumeSeconds(for: video) ?? 0 }
@@ -142,9 +142,6 @@ class VideoManager {
         if autoPlay {
             player?.play()
         }
-
-        await updateNowPlayingMetadata(for: video)
-        updateNowPlayingPlaybackInfo()
 
         await applyNavigationMarkers(for: video, on: playerItem)
 
@@ -235,12 +232,6 @@ class VideoManager {
         // Optimistic clear so the button hides immediately on tap.
         currentSponsorSegment = nil
         player.seek(to: CMTime(seconds: segment.end, preferredTimescale: 600))
-    }
-
-    /// Called from the existing 1s periodic time observer in
-    /// `attachPlayerObservers` and after sponsor segments load.
-    func refreshSponsorStatePublic() {
-        refreshSponsorState()
     }
 
     private func refreshSponsorState() {

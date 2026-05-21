@@ -288,9 +288,16 @@ final class LibraryStore {
         persistResumePositions()
     }
 
+    /// Resume position in seconds for the given video.
+    /// Prefers our iCloud cache; falls back to YouTube's server-reported
+    /// `watchProgress` (0.0–1.0 × duration) so progress made on youtube.com
+    /// flows into the app on first open. The next play in the app writes
+    /// to iCloud and takes over from there.
     func resumeSeconds(for video: Video) -> Double? {
-        guard let local = resumePositions[video.id], local > 0 else { return nil }
-        return local
+        if let local = resumePositions[video.id], local > 0 { return local }
+        guard let ratio = video.watchProgress, ratio > 0,
+              let duration = video.duration, duration > 0 else { return nil }
+        return ratio * duration
     }
 
     func clearResumePosition(videoId: String) {

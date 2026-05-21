@@ -40,15 +40,5 @@ struct HistoryFullView: View {
             .navigationTitle("History")
             .platformNavigationToolbar(titleDisplayMode: .inline)
             .contentMargins(.top, 5)
-            .toolbar {
-                if !videos.isEmpty {
-                    Button(role: .destructive) {
-                        library.clearHistory()
-                    } label: {
-                        Label("Clear History", systemImage: "trash")
-                            .labelStyle(.titleOnly)
-                    }
-                }
-            }
     }
 }

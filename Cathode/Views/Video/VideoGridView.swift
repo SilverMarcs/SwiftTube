@@ -2,6 +2,7 @@ import SwiftUI
 
 struct VideoGridView<Header: View>: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(YTTVAuthManager.self) private var ytAuth
 
     let videos: [Video]
     var showChannelLinkInContextMenu: Bool = true
@@ -72,11 +73,19 @@ struct VideoGridView<Header: View>: View {
         }
         .overlay {
             if videos.isEmpty {
-                UniversalProgressView()
+                if !ytAuth.isSignedIn {
+                    ContentUnavailableView(
+                        "Sign in to YouTube",
+                        systemImage: "person.crop.circle.badge.exclamationmark",
+                        description: Text("Sign in from Library → Settings to load your feed.")
+                    )
+                } else {
+                    UniversalProgressView()
+                }
             }
         }
         .toolbar {
-            #if !os(tvOS)
+            #if os(macOS)
             if let onRefresh {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
