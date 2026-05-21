@@ -7,7 +7,11 @@
 
 import AVFoundation
 import AVKit
+import Combine
 import Foundation
+#if !os(tvOS)
+import YouTubePlayerKit
+#endif
 
 @Observable
 class VideoManager {
@@ -25,6 +29,19 @@ class VideoManager {
     /// `setVideo` can cancel the stale one and avoid races where a
     /// late-arriving resolve replaces the newer video's player item.
     private var loadingTask: Task<Void, Never>?
+
+    // MARK: - Iframe fallback (iOS + macOS only)
+    //
+    // When InnerTube stream resolution fails (IP block, age-gated, restricted),
+    // we fall back to the YouTube iframe player. The WebView IS the playback
+    // engine — on iOS the SwiftUI view rendering it must stay in the hierarchy
+    // for playback to continue (see PersistentVideoPlayerOverlay).
+    #if !os(tvOS)
+    private(set) var iframePlayer: YouTubePlayer?
+    private(set) var iframePlaybackState: YouTubePlayer.PlaybackState?
+    private var iframeCurrentSeconds: TimeInterval = 0
+    private var iframeSubscriptions: Set<AnyCancellable> = []
+    #endif
 
     deinit {
         if let token = timeObserverToken {
@@ -51,18 +68,22 @@ class VideoManager {
             return
         }
 
-        // Cancel any pending load from a previous tap so its late-arriving
-        // resolve can't clobber this new request. The old player keeps
-        // playing until the new playerItem is ready — replaceCurrentItem
-        // does the transition atomically. Eager pausing here would leave
-        // the user staring at a frozen previous video if the new resolve
-        // failed for any reason.
+        // Cancel any pending load from a previous tap and pause the outgoing
+        // player immediately so there's no audio overlap while the new stream
+        // resolves. Stream resolution is reliable (iframe fallback covers
+        // failures), so the "frozen previous frame on resolve failure"
+        // concern that used to gate this is no longer relevant.
         loadingTask?.cancel()
+        player?.pause()
         isSetting = true
 
         currentVideo = video
         sponsorSegments = []
         currentSponsorSegment = nil
+
+        #if !os(tvOS)
+        tearDownIframe()
+        #endif
 
         Task { @MainActor in
             LibraryStore.shared.addToHistory(video)
@@ -81,13 +102,36 @@ class VideoManager {
     }
 
     func togglePlayPause() {
+        #if !os(tvOS)
+        if let iframePlayer {
+            Task { @MainActor in
+                let state = try? await iframePlayer.getPlaybackState()
+                if state == .playing {
+                    try? await iframePlayer.pause()
+                } else {
+                    try? await iframePlayer.play()
+                }
+            }
+            return
+        }
+        #endif
         guard let player else { return }
-
         if player.timeControlStatus == .playing {
             player.pause()
         } else {
             player.play()
         }
+    }
+
+    /// Whether playback is currently active. Unifies the AVPlayer and iframe
+    /// paths for UI affordances like the mini-player play/pause icon.
+    var isPlaying: Bool {
+        #if !os(tvOS)
+        if iframePlayer != nil {
+            return iframePlaybackState == .playing
+        }
+        #endif
+        return player?.timeControlStatus == .playing
     }
 
     // MARK: - Private Methods
@@ -103,14 +147,23 @@ class VideoManager {
         } else if let streamed = await StreamResolver.resolve(id: video.id) {
             url = streamed
         } else {
-            print("YouTubeKit error: no playable stream for \(video.id)")
+            print("StreamResolver: no playable stream for \(video.id) — falling back to iframe")
+            await MainActor.run { self.startIframeFallback(for: video, autoPlay: autoPlay) }
+            return
+        }
+        #elseif os(macOS)
+        if let streamed = await StreamResolver.resolve(id: video.id) {
+            url = streamed
+        } else {
+            print("StreamResolver: no playable stream for \(video.id) — falling back to iframe")
+            await MainActor.run { self.startIframeFallback(for: video, autoPlay: autoPlay) }
             return
         }
         #else
         if let streamed = await StreamResolver.resolve(id: video.id) {
             url = streamed
         } else {
-            print("YouTubeKit error: no playable stream for \(video.id)")
+            print("StreamResolver: no playable stream for \(video.id) — no fallback on tvOS")
             return
         }
         #endif
@@ -290,15 +343,103 @@ class VideoManager {
     // MARK: - Persistence
 
     /// Persists the current playback position to iCloud-backed LibraryStore.
-    /// Called from the 1s periodic time observer; LibraryStore handles its own
-    /// debouncing of iCloud writes.
+    /// Fired by playback state changes (play/pause/end) and view lifecycle —
+    /// not by a periodic ticker.
     func persistCurrentTime() {
         if isSetting { return }
-        guard let player = player, let videoId = currentVideo?.id else { return }
-        let seconds = player.currentTime().seconds
+        guard let videoId = currentVideo?.id else { return }
+        let seconds: TimeInterval
+        #if !os(tvOS)
+        if iframePlayer != nil {
+            seconds = iframeCurrentSeconds
+        } else if let player {
+            seconds = player.currentTime().seconds
+        } else {
+            return
+        }
+        #else
+        guard let player else { return }
+        seconds = player.currentTime().seconds
+        #endif
         guard seconds.isFinite, seconds > 0 else { return }
         Task { @MainActor in
             LibraryStore.shared.setResumePosition(videoId: videoId, seconds: seconds)
         }
     }
 }
+
+#if !os(tvOS)
+// MARK: - Iframe fallback
+
+extension VideoManager {
+    /// Starts the iframe fallback player. Tears down the AVPlayer, creates a
+    /// YouTubePlayer with the resume position baked into parameters, and wires
+    /// up subscriptions for position tracking + state-change persistence.
+    fileprivate func startIframeFallback(for video: Video, autoPlay: Bool) {
+        // Tear down AVPlayer.
+        if let token = timeObserverToken {
+            player?.removeTimeObserver(token)
+            timeObserverToken = nil
+        }
+        player?.pause()
+        player = nil
+
+        let resume = LibraryStore.shared.resumeSeconds(for: video) ?? 0
+        let startTime: Measurement<UnitDuration>? = resume > 5
+            ? .init(value: resume, unit: .seconds)
+            : nil
+
+        let parameters = YouTubePlayer.Parameters(
+            autoPlay: autoPlay,
+            startTime: startTime
+        )
+        let configuration = YouTubePlayer.Configuration(
+            allowsInlineMediaPlayback: true,
+            allowsAirPlayForMediaPlayback: true,
+            allowsPictureInPictureMediaPlayback: true
+        )
+        let yt = YouTubePlayer(
+            source: .video(id: video.id),
+            parameters: parameters,
+            configuration: configuration
+        )
+
+        iframePlayer = yt
+        iframeCurrentSeconds = resume
+
+        // Track current time for resume persistence.
+        yt.currentTimePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] measurement in
+                self?.iframeCurrentSeconds = measurement.converted(to: .seconds).value
+            }
+            .store(in: &iframeSubscriptions)
+
+        // Track playback state for the mini-player icon and persist on every
+        // transition — matches the AVPlayer pattern where
+        // .task(id: timeControlStatus) drives persistence.
+        yt.playbackStatePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                guard let self else { return }
+                let firstStateOfSession = self.iframePlaybackState == nil
+                self.iframePlaybackState = state
+                if !firstStateOfSession {
+                    self.persistCurrentTime()
+                }
+            }
+            .store(in: &iframeSubscriptions)
+    }
+
+    fileprivate func tearDownIframe() {
+        guard iframePlayer != nil else { return }
+        // Persist last known position before destroying the player.
+        persistCurrentTime()
+        iframeSubscriptions.forEach { $0.cancel() }
+        iframeSubscriptions.removeAll()
+        iframePlayer = nil
+        iframePlaybackState = nil
+        iframeCurrentSeconds = 0
+    }
+}
+#endif

@@ -16,6 +16,7 @@ struct VideoDetailView: View {
     /// carry a description (only InnerTube's /player response does), so we
     /// pull it ourselves when not already populated on `video`.
     @State private var fetchedDescription: String?
+    @State private var fetchedChannel: Channel?
 
     private var description: String? {
         let original = video.description?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -59,6 +60,7 @@ struct VideoDetailView: View {
                 if let channelId = video.channelId, !channelId.isEmpty {
                     Section {
                         ChannelRowView(channel: library.channel(forId: channelId)
+                                       ?? fetchedChannel
                                        ?? Channel(id: channelId, title: video.channelTitle))
                         #if os(macOS)
                         .padding(8)
@@ -107,6 +109,24 @@ struct VideoDetailView: View {
                     }
                 } catch {
                     print("VideoDetailView description fetch failed: \(error)")
+                }
+            }
+            .task(id: video.channelId) {
+                // The Video objects in feeds carry channelId/channelTitle but no
+                // avatar or sub count. If the channel isn't already cached in
+                // LibraryStore (e.g. user isn't subscribed), pull a lightweight
+                // About-tab fetch so ChannelRowView can render the avatar + subs.
+                guard let channelId = video.channelId, !channelId.isEmpty else { return }
+                if library.channel(forId: channelId) != nil { return }
+                if fetchedChannel?.id == channelId { return }
+                do {
+                    let channel = try await InnerTubeAPI.shared.fetchChannelInfo(channelId: channelId)
+                    if !Task.isCancelled {
+                        fetchedChannel = channel
+                        library.remember(channel)
+                    }
+                } catch {
+                    print("VideoDetailView channel fetch failed: \(error)")
                 }
             }
         }

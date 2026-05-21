@@ -105,23 +105,42 @@ extension InnerTubeAPI {
 
     // MARK: - Comments
 
+    public struct CommentsPage: Sendable {
+        public let comments: [Comment]
+        public let nextPageToken: String?
+    }
+
     /// Fetches the first page of top-level comments for a video.
     /// Uses the WEB client: calls `/next` with the videoId to extract the
     /// comments continuation token from `engagementPanels`, then fetches comments.
-    /// Returns an empty array when comments are disabled or the token is absent.
-    public func fetchComments(videoId: String) async throws -> [Comment] {
+    /// Returns an empty page when comments are disabled or the token is absent.
+    public func fetchComments(videoId: String) async throws -> CommentsPage {
         var body = makeBody(client: webClientContext)
         body["videoId"] = videoId
         let nextData = try await post(endpoint: "next", body: body)
         guard let token = parseCommentsContinuationToken(from: nextData) else {
             tubeLog.notice("fetchComments: no comments token for videoId=\(videoId, privacy: .public)")
-            return []
+            return CommentsPage(comments: [], nextPageToken: nil)
         }
-        let commentsBody = makeBody(client: webClientContext, continuationToken: token)
-        let commentsData = try await post(endpoint: "next", body: commentsBody)
-        let comments = parseComments(from: commentsData)
-        tubeLog.notice("fetchComments videoId=\(videoId, privacy: .public) → \(comments.count, privacy: .public) comments")
-        return comments
+        let page = try await fetchCommentsPage(continuationToken: token)
+        tubeLog.notice("fetchComments videoId=\(videoId, privacy: .public) → \(page.comments.count, privacy: .public) comments, more=\(page.nextPageToken != nil, privacy: .public)")
+        return page
+    }
+
+    /// Fetches the next page of comments using a continuation token from a prior `CommentsPage`.
+    public func fetchMoreComments(continuationToken: String) async throws -> CommentsPage {
+        let page = try await fetchCommentsPage(continuationToken: continuationToken)
+        tubeLog.notice("fetchMoreComments → \(page.comments.count, privacy: .public) comments, more=\(page.nextPageToken != nil, privacy: .public)")
+        return page
+    }
+
+    private func fetchCommentsPage(continuationToken: String) async throws -> CommentsPage {
+        let body = makeBody(client: webClientContext, continuationToken: continuationToken)
+        let data = try await post(endpoint: "next", body: body)
+        return CommentsPage(
+            comments: parseComments(from: data),
+            nextPageToken: parseNextCommentsPageToken(from: data)
+        )
     }
 
     // MARK: - Private social parsers
@@ -266,6 +285,27 @@ extension InnerTubeAPI {
             }
             findToken(pslr["content"] as Any)
             if let t = found { return t }
+        }
+        return nil
+    }
+
+    /// Extracts the "load more comments" continuation token from a comments-page
+    /// `/next` response. The token is the trailing `continuationItemRenderer` inside
+    /// `onResponseReceivedEndpoints[*].{reload,append}ContinuationItemsCommand.continuationItems`.
+    /// On the initial page the list of items is reloaded; on subsequent pages it is appended.
+    private func parseNextCommentsPageToken(from json: [String: Any]) -> String? {
+        guard let endpoints = json["onResponseReceivedEndpoints"] as? [[String: Any]] else { return nil }
+        for endpoint in endpoints {
+            let cmd = (endpoint["reloadContinuationItemsCommand"] as? [String: Any])
+                ?? (endpoint["appendContinuationItemsCommand"] as? [String: Any])
+            guard let items = cmd?["continuationItems"] as? [[String: Any]],
+                  let last = items.last,
+                  let ci = last["continuationItemRenderer"] as? [String: Any] else { continue }
+            if let token = (ci["continuationEndpoint"] as? [String: Any])
+                .flatMap({ ($0["continuationCommand"] as? [String: Any]) })
+                .flatMap({ $0["token"] as? String }) {
+                return token
+            }
         }
         return nil
     }

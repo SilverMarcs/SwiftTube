@@ -6,11 +6,10 @@
 //  resume positions.
 //
 //  Storage split:
-//   - Subscribed channels + Watch Later — YouTube-backed (refreshed via InnerTube)
-//   - History + resume positions        — iCloud KV (local + cross-device Apple sync)
-//
-//  YouTube doesn't expose an API for writing watch history or progress, so those
-//  two live in iCloud where we have full control.
+//   - Subscribed channels + Watch Later — YouTube-backed (always fetched fresh
+//     from InnerTube on launch; no local persistence)
+//   - History + resume positions        — iCloud KV (YouTube exposes no write
+//     API for these, so we own them across Apple devices)
 //
 
 import Foundation
@@ -43,45 +42,19 @@ final class LibraryStore {
     private(set) var resumePositions: [String: Double] = [:]
 
     private let ubiquitous = NSUbiquitousKeyValueStore.default
-    private let defaults = UserDefaults.standard
 
     private enum Keys {
         static let resumePositions = "resumePositions_yt"
         static let history         = "historyVideos_yt"
-        static let subscribedChannelsSnapshot = "libraryStore.subscribedChannels"
-        static let watchLaterSnapshot         = "libraryStore.watchLater"
     }
 
-    private static let snapshotLimit = 50
     private static let historyLimit = 100
 
     private var refreshTask: Task<Void, Never>?
 
     private init() {
         loadFromCloud()
-        loadSnapshots()
         setupCloudObserver()
-    }
-
-    // MARK: - Cold-launch snapshots (subscriptions + watch later only)
-
-    private func loadSnapshots() {
-        let decoder = JSONDecoder()
-        if let data = defaults.data(forKey: Keys.subscribedChannelsSnapshot),
-           let decoded = try? decoder.decode([Channel].self, from: data) {
-            subscribedChannels = decoded
-            for ch in decoded { channelsById[ch.id] = ch }
-        }
-        if let data = defaults.data(forKey: Keys.watchLaterSnapshot),
-           let decoded = try? decoder.decode([Video].self, from: data) {
-            watchLater = decoded
-        }
-    }
-
-    private func writeSnapshot<T: Encodable>(_ items: [T], key: String) {
-        let trimmed = Array(items.prefix(Self.snapshotLimit))
-        let data = try? JSONEncoder().encode(trimmed)
-        defaults.set(data, forKey: key)
     }
 
     // MARK: - iCloud KV (history + resume positions)
@@ -147,7 +120,6 @@ final class LibraryStore {
             let channels = try await InnerTubeAPI.shared.fetchSubscribedChannels()
             self.subscribedChannels = channels
             for ch in channels { self.channelsById[ch.id] = ch }
-            writeSnapshot(channels, key: Keys.subscribedChannelsSnapshot)
             libraryLog.notice("refresh: \(channels.count, privacy: .public) subscribed channels")
         } catch {
             libraryLog.error("refresh: fetchSubscribedChannels failed: \(String(describing: error), privacy: .public)")
@@ -157,7 +129,6 @@ final class LibraryStore {
             let group = try await InnerTubeAPI.shared.fetchPlaylistVideos(playlistId: "WL", continuationToken: nil)
             self.watchLater = group.videos
             self.watchLaterNextPageToken = group.nextPageToken
-            writeSnapshot(group.videos, key: Keys.watchLaterSnapshot)
             libraryLog.notice("refresh: \(group.videos.count, privacy: .public) watch-later videos")
         } catch {
             libraryLog.error("refresh: fetchPlaylistVideos(WL) failed: \(String(describing: error), privacy: .public)")
@@ -169,7 +140,13 @@ final class LibraryStore {
     // MARK: - Channel cache
 
     func channel(forId id: String) -> Channel? {
-        channelsById[id]
+        // Feed video tiles often reference a channel by @handle rather than its
+        // UC… id, so also match handles.
+        if let direct = channelsById[id] { return direct }
+        if id.hasPrefix("@") {
+            return subscribedChannels.first { $0.handle == id }
+        }
+        return nil
     }
 
     func remember(_ channel: Channel) {
@@ -204,7 +181,6 @@ final class LibraryStore {
         let id = video.id
         if let index = watchLater.firstIndex(where: { $0.id == id }) {
             let removed = watchLater.remove(at: index)
-            writeSnapshot(watchLater, key: Keys.watchLaterSnapshot)
             Task {
                 guard YTTVAuthManager.shared.isSignedIn else { return }
                 do {
@@ -224,7 +200,6 @@ final class LibraryStore {
                     libraryLog.error("addToWatchLater failed for \(id, privacy: .public): \(String(describing: error), privacy: .public)")
                     await MainActor.run {
                         self.watchLater.removeAll { $0.id == id }
-                        self.writeSnapshot(self.watchLater, key: Keys.watchLaterSnapshot)
                     }
                 }
             }
@@ -234,13 +209,11 @@ final class LibraryStore {
     private func insertBookmarkLocal(_ video: Video) {
         guard !watchLater.contains(where: { $0.id == video.id }) else { return }
         watchLater.insert(video, at: 0)
-        writeSnapshot(watchLater, key: Keys.watchLaterSnapshot)
     }
 
     func removeBookmark(_ videoId: String) {
         guard let idx = watchLater.firstIndex(where: { $0.id == videoId }) else { return }
         let removed = watchLater.remove(at: idx)
-        writeSnapshot(watchLater, key: Keys.watchLaterSnapshot)
         Task {
             guard YTTVAuthManager.shared.isSignedIn else { return }
             do {

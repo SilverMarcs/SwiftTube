@@ -1,5 +1,5 @@
 {
-  "originHash" : "77737297761ed8d56a2ef134d1455360c437873c92a326fb0818f3916997f79c",
+  "originHash" : "0afbe98205b76a6e8d1b453626af9b41a64be90e0a077797eb2cf755af1c75f8",
   "pins" : [
     {
       "identity" : "swiftmediaviewer",
@@ -8,6 +8,15 @@
       "state" : {
         "branch" : "main",
         "revision" : "8468cac2ff3cb0c6d1a94d5c0cacf438508886e2"
+      }
+    },
+    {
+      "identity" : "youtubeplayerkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SvenTiigi/YouTubePlayerKit",
+      "state" : {
+        "revision" : "1ae827573024ab13dd6adea33b25d3eef6ff667c",
+        "version" : "2.0.5"
       }
     }
   ],

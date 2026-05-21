@@ -12,6 +12,9 @@ struct ChannelListView: View {
                     ChannelRowView(channel: channel)
                 }
             }
+            #if os(iOS)
+            .contentMargins(.top, 10)
+            #endif
             .refreshable {
                 await library.refresh()
             }

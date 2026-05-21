@@ -30,6 +30,12 @@ extension InnerTubeAPI {
     /// Used by BrowseViewModel.enrichChannelAvatars() to patch avatar URLs into the
     /// channel list after the initial fast tile-based load.
     public func fetchChannelThumbnailURL(channelId: String) async throws -> URL? {
+        try await fetchChannelInfo(channelId: channelId).thumbnailURL
+    }
+
+    /// Lightweight channel header fetch (avatar + subscriber count + description),
+    /// without loading the video grid. Uses the About tab params.
+    public func fetchChannelInfo(channelId: String) async throws -> Channel {
         let resolvedId: String
         if channelId.hasPrefix("@") {
             resolvedId = try await resolveChannelHandle(channelId)
@@ -41,7 +47,7 @@ extension InnerTubeAPI {
         body["params"] = "EgVhYm91dA=="  // About tab — header only, no video grid
         let data = try await post(endpoint: "browse", body: body)
         let (channel, _) = try parseChannel(from: data, channelId: resolvedId)
-        return channel.thumbnailURL
+        return channel
     }
 
     public func fetchChannelVideos(channelId: String, continuationToken: String? = nil) async throws -> VideoGroup {
@@ -284,6 +290,10 @@ extension InnerTubeAPI {
                 else { return nil }
                 return extractText(text)
             }
+            let handle = lineText(0).flatMap { s -> String? in
+                guard let at = s.firstIndex(of: "@") else { return nil }
+                return String(s[at...].components(separatedBy: .whitespacesAndNewlines).first ?? "")
+            }
             let subscriberCount = lineText(1)
             // Avatar thumbnail — pick the largest, fall back to none.
             let thumbnails = ((tile["header"] as? [String: Any])?["tileHeaderRenderer"] as? [String: Any])
@@ -293,6 +303,7 @@ extension InnerTubeAPI {
             return Channel(
                 id: channelId,
                 title: title,
+                handle: handle,
                 description: nil,
                 thumbnailURL: thumbURL,
                 subscriberCount: subscriberCount

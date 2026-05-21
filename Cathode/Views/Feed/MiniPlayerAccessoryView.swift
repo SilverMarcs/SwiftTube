@@ -36,7 +36,7 @@ struct MiniPlayerAccessoryView: View {
                 Button {
                     manager.togglePlayPause()
                 } label: {
-                    Image(systemName: manager.player?.timeControlStatus == .playing ? "pause.fill" : "play.fill")
+                    Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
                         .contentTransition(.symbolEffect(.replace))
                 }
                 .disabled(manager.isSetting)

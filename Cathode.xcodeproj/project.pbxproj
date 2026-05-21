@@ -10,6 +10,7 @@
 		08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630512E87AD2A007AD438 /* SwiftMediaViewer */; };
 		08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630542E87AD56007AD438 /* SwiftMediaViewer */; };
 		AAA000000000000000000005 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = AAA000000000000000000003 /* YouTubeKit */; };
+		AAA000000000000000000008 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; productRef = AAA000000000000000000007 /* YouTubePlayerKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -55,6 +56,7 @@
 				08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */,
 				08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */,
 				AAA000000000000000000005 /* YouTubeKit in Frameworks */,
+				AAA000000000000000000008 /* YouTubePlayerKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -100,6 +102,7 @@
 				08E630512E87AD2A007AD438 /* SwiftMediaViewer */,
 				08E630542E87AD56007AD438 /* SwiftMediaViewer */,
 				AAA000000000000000000003 /* YouTubeKit */,
+				AAA000000000000000000007 /* YouTubePlayerKit */,
 			);
 			productName = Cathode;
 			productReference = 08E62F852E871877007AD438 /* Cathode.app */;
@@ -132,6 +135,7 @@
 			packageReferences = (
 				08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */,
 				AAA000000000000000000002 /* XCLocalSwiftPackageReference "../Frameworks/YouTubeKit" */,
+				AAA000000000000000000006 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 08E62F862E871877007AD438 /* Products */;
@@ -451,6 +455,14 @@
 				kind = branch;
 			};
 		};
+		AAA000000000000000000006 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SvenTiigi/YouTubePlayerKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -467,6 +479,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AAA000000000000000000002 /* XCLocalSwiftPackageReference "../Frameworks/YouTubeKit" */;
 			productName = YouTubeKit;
+		};
+		AAA000000000000000000007 /* YouTubePlayerKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AAA000000000000000000006 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */;
+			productName = YouTubePlayerKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

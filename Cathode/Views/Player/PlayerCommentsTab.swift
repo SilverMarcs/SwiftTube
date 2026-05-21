@@ -32,8 +32,8 @@ struct PlayerCommentsTab: View {
         .task {
             defer { hasLoaded = true }
             do {
-                let fetched = try await InnerTubeAPI.shared.fetchComments(videoId: video.id)
-                topComments = Array(fetched.prefix(25))
+                let page = try await InnerTubeAPI.shared.fetchComments(videoId: video.id)
+                topComments = Array(page.comments.prefix(25))
             } catch APIError.commentsDisabled {
                 // No comments.
             } catch {

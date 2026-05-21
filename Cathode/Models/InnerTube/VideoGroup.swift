@@ -139,8 +139,9 @@ public struct SearchResult: Identifiable, Sendable {
 // MARK: - Channel
 
 public struct Channel: Identifiable, Hashable, Codable, Sendable {
-    public let id: String   // channelId
+    public let id: String   // channelId (UC…)
     public var title: String
+    public var handle: String?  // @handle — feed video tiles often use this as their channelId reference
     public var description: String?
     public var thumbnailURL: URL?
     public var subscriberCount: String?
@@ -149,6 +150,7 @@ public struct Channel: Identifiable, Hashable, Codable, Sendable {
     public init(
         id: String,
         title: String,
+        handle: String? = nil,
         description: String? = nil,
         thumbnailURL: URL? = nil,
         subscriberCount: String? = nil,
@@ -156,6 +158,7 @@ public struct Channel: Identifiable, Hashable, Codable, Sendable {
     ) {
         self.id = id
         self.title = title
+        self.handle = handle
         self.description = description
         self.thumbnailURL = thumbnailURL
         self.subscriberCount = subscriberCount
