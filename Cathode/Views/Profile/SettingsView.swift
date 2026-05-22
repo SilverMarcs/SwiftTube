@@ -10,7 +10,6 @@ import SwiftMediaViewer
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("useHomeFeed") private var useHomeFeed = true
     #if os(tvOS)
     @AppStorage("tvOSNavigationStyle") private var tvNavigationStyleSetting = TVNavigationStyle.tabBar
     #endif
@@ -55,16 +54,6 @@ struct SettingsView: View {
                 }
             }
             #endif
-
-            Section {
-                Toggle("Include recommendations", isOn: $useHomeFeed)
-            } header: {
-                Text("Feed")
-            } footer: {
-                Text(useHomeFeed
-                     ? "Home feed: YouTube's recommendations."
-                     : "Subscriptions: newest videos from channels you follow.")
-            }
 
             Section("Cache") {
                 CacheManagerView()
