@@ -2,9 +2,9 @@
 //  VideoLoader.swift
 //  Cathode
 //
-//  Aggregates the user's subscriptions feed via InnerTube's `fetchSubscriptions()`
-//  — a single authenticated call that returns newest-first videos with view
-//  counts and durations already populated.
+//  Aggregates the user's home feed via InnerTube's `fetchHome()` —
+//  YouTube's `FEwhat_to_watch` shelf (subs interleaved with recommendations,
+//  mixes, etc.) flattened into a single newest-first list.
 //
 
 import SwiftUI
@@ -18,7 +18,7 @@ final class VideoLoader {
     /// Re-entry guard for `loadMore()`.
     private var isLoadingMore: Bool = false
 
-    /// Continuation token for the next page of the InnerTube subscriptions feed.
+    /// Continuation token for the next page of the InnerTube home feed.
     /// `nil` once the end of the feed has been reached or before the first load.
     private(set) var nextPageToken: String?
 
@@ -27,34 +27,49 @@ final class VideoLoader {
     /// stay aligned with what the user actually swipes through.
     private var shortsOrder: [String] = []
 
-    /// Reloads the subscriptions feed from scratch.
-    func loadAllChannelVideos() async {
-        do {
-            let group = try await InnerTubeAPI.shared.fetchSubscriptions()
-            nextPageToken = group.nextPageToken
+    /// Whether to use the recommendations-rich home feed (`FEwhat_to_watch`) or
+    /// the subscriptions-only feed (`FEsubscriptions`). Driven by the
+    /// "Include recommendations" toggle in Settings.
+    private var useHomeFeed: Bool {
+        UserDefaults.standard.object(forKey: "useHomeFeed") as? Bool ?? true
+    }
 
-            let (shorts, regular) = splitShorts(group.videos)
-            let sortedVideos = regular.sorted {
-                ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast)
-            }
-
-            withAnimation {
-                self.videos = sortedVideos
-            }
-            self.shortVideos = applyStableShuffle(to: shorts)
-        } catch {
-            print("Error loading subscriptions: \(error)")
+    private func fetchFeed(continuationToken: String? = nil) async throws -> VideoGroup {
+        if useHomeFeed {
+            return try await InnerTubeAPI.shared.fetchHome(continuationToken: continuationToken)
+        } else {
+            return try await InnerTubeAPI.shared.fetchSubscriptions(continuationToken: continuationToken)
         }
     }
 
-    /// Loads the next page of the subscriptions feed, appending to `videos`/`shortVideos`.
+    /// Reloads the feed from scratch.
+    func loadAllChannelVideos() async {
+        do {
+            let group = try await fetchFeed()
+            nextPageToken = group.nextPageToken
+
+            let (shorts, regular) = splitShorts(group.videos)
+            let regularSorted = useHomeFeed
+                ? regular
+                : regular.sorted { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) }
+
+            withAnimation {
+                self.videos = regularSorted
+            }
+            self.shortVideos = applyStableShuffle(to: shorts)
+        } catch {
+            print("Error loading feed: \(error)")
+        }
+    }
+
+    /// Loads the next page of the feed, appending to `videos`/`shortVideos`.
     /// No-ops when there is no continuation token or a page load is already in flight.
     func loadMore() async {
         guard let token = nextPageToken, !isLoadingMore else { return }
         isLoadingMore = true
         defer { isLoadingMore = false }
         do {
-            let group = try await InnerTubeAPI.shared.fetchSubscriptions(continuationToken: token)
+            let group = try await fetchFeed(continuationToken: token)
             nextPageToken = group.nextPageToken
 
             let (shorts, regular) = splitShorts(group.videos)
@@ -67,7 +82,7 @@ final class VideoLoader {
             let shortsNew = shorts.filter { !existingShortIds.contains($0.id) }
             self.shortVideos.append(contentsOf: shortsNew)
         } catch {
-            print("Error loading more subscriptions: \(error)")
+            print("Error loading more feed: \(error)")
         }
     }
 
