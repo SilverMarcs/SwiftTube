@@ -32,11 +32,16 @@ struct AVPlayerViewIos: View {
             //     .id(manager.currentVideo?.id ?? "iframe")
             // } else
             if let error = manager.playbackError {
-                ContentUnavailableView(
-                    "Can't Play This Video",
-                    systemImage: "exclamationmark.triangle.fill",
-                    description: Text(error)
-                )
+                ContentUnavailableView {
+                    Label("Can't Play This Video", systemImage: "exclamationmark.triangle.fill")
+                } description: {
+                    Text(error)
+                } actions: {
+                    Button("Retry") {
+                        manager.retryPlayback()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             } else if let player = manager.player {
                 AVPlayerIos(player: player)
                     .task(id: player.timeControlStatus) {

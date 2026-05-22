@@ -36,11 +36,16 @@ struct AVPlayerViewMac: View {
                 UniversalProgressView()
                     .background(.black)
             } else if let error = videoManager.playbackError {
-                ContentUnavailableView(
-                    "Can't Play This Video",
-                    systemImage: "exclamationmark.triangle.fill",
-                    description: Text(error)
-                )
+                ContentUnavailableView {
+                    Label("Can't Play This Video", systemImage: "exclamationmark.triangle.fill")
+                } description: {
+                    Text(error)
+                } actions: {
+                    Button("Retry") {
+                        videoManager.retryPlayback()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             } else if let player = videoManager.player {
                 AVPlayerMac(player: player)
                     .task(id: player.timeControlStatus) {

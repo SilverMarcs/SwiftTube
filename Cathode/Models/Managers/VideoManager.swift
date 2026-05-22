@@ -135,6 +135,34 @@ class VideoManager {
         await loadVideoStream(for: video, autoPlay: autoPlay, allowCacheRetry: true)
     }
 
+    /// Re-attempts stream resolution for the current video after a playback
+    /// error. Re-uses the `setVideo` pipeline but skips its same-id guard so
+    /// the user can recover from transient resolve failures without leaving
+    /// the player.
+    func retryPlayback() {
+        guard let video = currentVideo else { return }
+        loadingTask?.cancel()
+        player?.pause()
+        finalizeWatchtimeSession()
+        isSetting = true
+        playbackError = nil
+        sponsorSegments = []
+        currentSponsorSegment = nil
+
+        #if !os(tvOS)
+        tearDownIframe()
+        #endif
+
+        beginWatchtimeSession(for: video)
+
+        loadingTask = Task { [weak self] in
+            await self?.loadVideoStream(for: video, autoPlay: true)
+            if self?.currentVideo?.id == video.id {
+                self?.isSetting = false
+            }
+        }
+    }
+
     /// Called when stream resolution returns nothing. Leaves `currentVideo`
     /// set (so the mini-player still shows the title/thumb) but clears the
     /// AVPlayer and publishes a user-facing error string the player views

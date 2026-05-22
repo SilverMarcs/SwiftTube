@@ -30,6 +30,7 @@
 				Views/Player/AVPlayerRepresentable/AVPlayerTvos.swift = (tvos, );
 				Views/Player/AVPlayerViewIos.swift = (ios, xros, );
 				Views/Player/AVPlayerViewMac.swift = (macos, );
+				Views/Player/AVPlayerViewTvos.swift = (tvos, );
 				Views/Player/PlayerChannelTab.swift = (tvos, );
 				Views/Player/PlayerCommentsTab.swift = (tvos, );
 			};

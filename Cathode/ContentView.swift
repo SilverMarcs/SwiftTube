@@ -91,18 +91,7 @@ struct ContentView: View {
             isPresented = true
         }
         .fullScreenCover(isPresented: $isPresented) {
-            ZStack {
-                Color.black
-                if let player = manager.player, let video = manager.currentVideo {
-                    AVPlayerTvos(player: player, video: video)
-                }
-                if manager.isSetting || manager.player == nil {
-                    UniversalProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(.black)
-                }
-            }
-            .ignoresSafeArea()
+            AVPlayerViewTvos()
         }
         #else
         .environment(\.requestVideoPresentation) {
