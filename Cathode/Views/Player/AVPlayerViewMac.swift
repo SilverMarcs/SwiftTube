@@ -1,6 +1,6 @@
 import SwiftUI
 import AVKit
-import YouTubePlayerKit
+// import YouTubePlayerKit  // re-enable when restoring iframe fallback
 
 struct AVPlayerViewMac: View {
     // TODO: pass vdieo dirtvy to it rathe rthan videomanager.
@@ -12,25 +12,35 @@ struct AVPlayerViewMac: View {
 
     var body: some View {
         Group {
+            // Iframe fallback is temporarily disabled — we surface an error view
+            // instead. Restore by re-enabling the YouTubePlayerKit import above
+            // and uncommenting the `videoManager.iframePlayer` branch below.
+            //
+            // } else if let iframe = videoManager.iframePlayer {
+            //     YouTubePlayerView(iframe) { state in
+            //         switch state {
+            //         case .idle:
+            //             UniversalProgressView()
+            //         case .ready:
+            //             EmptyView()
+            //         case .error(let error):
+            //             ContentUnavailableView(
+            //                 "Playback Error",
+            //                 systemImage: "exclamationmark.triangle.fill",
+            //                 description: Text(error.localizedDescription)
+            //             )
+            //         }
+            //     }
+            //     .id(videoManager.currentVideo?.id ?? "iframe")
             if videoManager.isSetting {
                 UniversalProgressView()
                     .background(.black)
-            } else if let iframe = videoManager.iframePlayer {
-                YouTubePlayerView(iframe) { state in
-                    switch state {
-                    case .idle:
-                        UniversalProgressView()
-                    case .ready:
-                        EmptyView()
-                    case .error(let error):
-                        ContentUnavailableView(
-                            "Playback Error",
-                            systemImage: "exclamationmark.triangle.fill",
-                            description: Text(error.localizedDescription)
-                        )
-                    }
-                }
-                .id(videoManager.currentVideo?.id ?? "iframe")
+            } else if let error = videoManager.playbackError {
+                ContentUnavailableView(
+                    "Can't Play This Video",
+                    systemImage: "exclamationmark.triangle.fill",
+                    description: Text(error)
+                )
             } else if let player = videoManager.player {
                 AVPlayerMac(player: player)
                     .task(id: player.timeControlStatus) {

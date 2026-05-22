@@ -16,6 +16,7 @@ struct CathodeApp: App {
     let videoManager = VideoManager()
     let store = LibraryStore.shared
     let ytAuth = YTTVAuthManager.shared
+    let cookieAuth = YTCookieAuth.shared
 
     @State var selectedTab: TabSelection = .feed
 
@@ -26,6 +27,8 @@ struct CathodeApp: App {
                 .environment(videoManager)
                 .environment(store)
                 .environment(ytAuth)
+                .environment(cookieAuth)
+                .accentColor(.accent)
                 #if os(iOS)
                 .environment(DownloadManager.shared)
                 #endif
@@ -94,6 +97,8 @@ struct CathodeApp: App {
                 .environment(videoManager)
                 .environment(store)
                 .environment(videoLoader)
+                .environment(ytAuth)
+                .environment(cookieAuth)
         }
         .restorationBehavior(.disabled)
         #endif

@@ -1,119 +1,117 @@
-import AVKit
 import SwiftUI
+import YouTubePlayerKit
 
 struct ShortVideoCard: View {
+    @Environment(LibraryStore.self) private var library
     let video: Video
-    let player: AVPlayer
     let isActive: Bool
 
     @State private var showDetail = false
-    @State private var isLoading = false
-    @State private var loadTask: Task<Void, Never>?
+    @State private var iframe: YouTubePlayer?
+    @State private var fetchedChannel: Channel?
 
     var body: some View {
-        VideoPlayer(player: isActive ? player : nil)
-            .aspectRatio(9 / 16, contentMode: .fit)
-            .clipped()
-            .overlay(alignment: .bottom) {
-                HStack {
-                    Text(video.channelTitle)
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .shadow(color: .black, radius: 20, x: 0, y: 0)
-                        .lineLimit(1)
-
-                    #if !os(tvOS)
-                    Button {
-                        showDetail = true
-                    } label: {
-                        Image(systemName: "info")
+        ZStack {
+            Color.black
+            if let iframe {
+                YouTubePlayerView(iframe) { state in
+                    switch state {
+                    case .idle:
+                        UniversalProgressView()
+                    case .ready:
+                        EmptyView()
+                    case .error:
+                        EmptyView()
                     }
-                    .buttonStyle(.glass)
-                    #if os(macOS)
-                    .controlSize(.extraLarge)
-                    #else
-                    .controlSize(.large)
-                    #endif
-                    .buttonBorderShape(.circle)
-                    #endif
                 }
-                .padding(.horizontal, 16)
+            }
+        }
+        .aspectRatio(9 / 16, contentMode: .fit)
+        .clipped()
+        .overlay(alignment: .bottom) {
+            HStack {
+                if let channelId = video.channelId, !channelId.isEmpty {
+                    ChannelRowView(channel: library.channel(forId: channelId)
+                                   ?? fetchedChannel
+                                   ?? Channel(id: channelId, title: video.channelTitle))
+                    .allowsHitTesting(false)
+                    .foregroundStyle(.white)
+                    .shadow(color: .black, radius: 20, x: 0, y: 0)
+                    .buttonStyle(.plain)
+                }
+
+                #if !os(tvOS)
+                Button {
+                    showDetail = true
+                } label: {
+                    Image(systemName: "info")
+                }
+                .buttonStyle(.glass)
                 #if os(macOS)
-                .padding(.bottom, 35)
-                #elseif os(iOS)
-                .padding(.bottom, 30)
+                .controlSize(.extraLarge)
                 #else
-                .padding(.bottom, 20)
+                .controlSize(.large)
+                #endif
+                .buttonBorderShape(.circle)
                 #endif
             }
-            .overlay {
-                if isLoading {
-                    UniversalProgressView()
-                        .tint(.white)
+            .padding(.horizontal, 16)
+            #if os(macOS)
+            .padding(.bottom, 35)
+            #elseif os(iOS)
+            .padding(.bottom, 30)
+            #else
+            .padding(.bottom, 20)
+            #endif
+        }
+        .task(id: isActive) {
+            if isActive {
+                iframe = makePlayer()
+            } else {
+                iframe = nil
+            }
+        }
+        .task(id: video.channelId) {
+            guard let channelId = video.channelId, !channelId.isEmpty else { return }
+            if library.channel(forId: channelId) != nil { return }
+            if fetchedChannel?.id == channelId { return }
+            do {
+                let channel = try await InnerTubeAPI.shared.fetchChannelInfo(channelId: channelId)
+                if !Task.isCancelled {
+                    fetchedChannel = channel
+                    library.remember(channel)
                 }
-            }
-            .task(id: isActive) {
-                cancelLoadTask()
-
-                if isActive {
-                    loadTask = Task { await loadVideo() }
-                }
-                // No cleanup on deactivation: the shared player is owned by the
-                // currently-active card. The next active card's loadVideo() will
-                // reset and replace the item. Letting the outgoing card touch the
-                // player races with the incoming card's setup (since cache hits
-                // are now near-instant) and blanks playback.
-            }
-            .onDisappear {
-                cancelLoadTask()
-            }
-            .sheet(isPresented: $showDetail) {
-                VideoDetailView(video: video)
-                    .presentationDetents([.medium])
-                    #if !os(tvOS)
-                    .presentationBackground(.bar)
-                    #endif
-                    #if os(macOS)
-                        .frame(height: 500)
-                    #endif
-            }
-    }
-
-    private func loadVideo(allowCacheRetry: Bool = true) async {
-        guard !Task.isCancelled else { return }
-
-        await MainActor.run {
-            isLoading = true
-            player.pause()
-            player.replaceCurrentItem(with: nil)
-        }
-        defer {
-            Task { @MainActor in
-                isLoading = false
+            } catch {
+                print("ShortVideoCard channel fetch failed: \(error)")
             }
         }
-
-        guard let url = await StreamResolver.resolve(id: video.id) else {
-            print("Failed to load short video: no playable stream")
-            return
-        }
-        if Task.isCancelled { return }
-
-        let playerItem = AVPlayerItem(url: url)
-        await MainActor.run {
-            player.replaceCurrentItem(with: playerItem)
-            player.play()
-        }
-
-        let ready = await awaitPlayerItemReady(playerItem)
-        if Task.isCancelled { return }
-        if !ready && allowCacheRetry {
-            await loadVideo(allowCacheRetry: false)
+        .sheet(isPresented: $showDetail) {
+            VideoDetailView(video: video)
+                .presentationDetents([.medium])
+                #if !os(tvOS)
+                .presentationBackground(.bar)
+                #endif
+                #if os(macOS)
+                    .frame(height: 500)
+                #endif
         }
     }
 
-    private func cancelLoadTask() {
-        loadTask?.cancel()
-        loadTask = nil
+    private func makePlayer() -> YouTubePlayer {
+        let parameters = YouTubePlayer.Parameters(
+            autoPlay: true,
+            loopEnabled: true,
+            showControls: false,
+            showFullscreenButton: false
+        )
+        let configuration = YouTubePlayer.Configuration(
+            allowsInlineMediaPlayback: true,
+            allowsPictureInPictureMediaPlayback: false
+        )
+        return YouTubePlayer(
+            source: .video(id: video.id),
+            parameters: parameters,
+            configuration: configuration
+        )
     }
 }

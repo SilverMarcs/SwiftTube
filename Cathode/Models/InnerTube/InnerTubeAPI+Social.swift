@@ -56,6 +56,26 @@ extension InnerTubeAPI {
         tubeLog.notice("removeFromWatchLater videoId=\(videoId, privacy: .public)")
     }
 
+    // MARK: - Subscriptions
+
+    /// Subscribes the authenticated user to a channel. Verified working against
+    /// the TV InnerTube endpoint with our Bearer token — round-tripped through
+    /// FEchannels.
+    public func subscribe(channelId: String) async throws {
+        var body = makeBody(client: tvClientContext)
+        body["channelIds"] = [channelId]
+        _ = try await postTV(endpoint: "subscription/subscribe", body: body)
+        tubeLog.notice("subscribe channelId=\(channelId, privacy: .public)")
+    }
+
+    /// Unsubscribes the authenticated user from a channel.
+    public func unsubscribe(channelId: String) async throws {
+        var body = makeBody(client: tvClientContext)
+        body["channelIds"] = [channelId]
+        _ = try await postTV(endpoint: "subscription/unsubscribe", body: body)
+        tubeLog.notice("unsubscribe channelId=\(channelId, privacy: .public)")
+    }
+
     /// Sends a feed feedback signal to YouTube.
     /// Used for "Not interested", "Don't like this video", and "Don't recommend channel" —
     /// all three actions share this endpoint and differ only in their `feedbackToken`.

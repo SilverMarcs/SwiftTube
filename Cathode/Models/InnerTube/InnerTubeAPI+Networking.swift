@@ -139,6 +139,42 @@ extension InnerTubeAPI {
         return json
     }
 
+    /// Web client POST authenticated with a SAPISIDHASH header derived from
+    /// the user's YouTube session cookies. Used for endpoints that require an
+    /// account context but aren't reachable via the TV-OAuth path
+    /// (history, watchtime-bound /player). Throws `notAuthenticated` when the
+    /// user hasn't completed the cookie sign-in flow.
+    func postWebAuthenticated(endpoint: String, body: [String: Any]) async throws -> [String: Any] {
+        guard let authHeader = await YTCookieAuth.shared.sapisidHashAuthorization() else {
+            throw ITAPIError.notAuthenticated
+        }
+        guard let url = URL(string: "https://www.youtube.com/youtubei/v1/\(endpoint)?key=\(apiKey)") else {
+            throw ITAPIError.invalidURL(endpoint)
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("https://www.youtube.com", forHTTPHeaderField: "Origin")
+        request.setValue("https://www.youtube.com", forHTTPHeaderField: "Referer")
+        request.setValue("https://www.youtube.com", forHTTPHeaderField: "X-Origin")
+        request.setValue(InnerTubeClients.Web.nameID, forHTTPHeaderField: "X-YouTube-Client-Name")
+        request.setValue(InnerTubeClients.Web.version, forHTTPHeaderField: "X-YouTube-Client-Version")
+        request.setValue(authHeader, forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await session.data(for: request)
+        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            tubeLog.error("❌ HTTP \(statusCode, privacy: .public) for /\(endpoint, privacy: .public) [WEB+SAPISID]")
+            throw ITAPIError.httpError(statusCode)
+        }
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw ITAPIError.decodingError("Root JSON is not a dictionary")
+        }
+        tubeLog.notice("✅ /\(endpoint, privacy: .public) [WEB+SAPISID] HTTP \(statusCode, privacy: .public)")
+        return json
+    }
+
     /// Unauthenticated TVHTML5 browse on www.youtube.com.
     /// FE* category browse IDs (FEgaming, FEshorts, FEmusic, …) require the TVHTML5
     /// client format but return 400 on youtubei.googleapis.com without a valid auth token.

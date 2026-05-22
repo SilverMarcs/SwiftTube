@@ -36,9 +36,17 @@ struct HistoryFullView: View {
     private var videos: [Video] { library.history }
 
     var body: some View {
-        VideoGridView(videos: videos)
-            .navigationTitle("History")
-            .platformNavigationToolbar(titleDisplayMode: .inline)
-            .contentMargins(.top, 5)
+        VideoGridView(
+            videos: videos,
+            onReachEnd: {
+                Task { await LibraryStore.shared.loadMoreHistory() }
+            },
+            onRefresh: {
+                await LibraryStore.shared.refresh()
+            }
+        )
+        .navigationTitle("History")
+        .platformNavigationToolbar(titleDisplayMode: .inline)
+        .contentMargins(.top, 5)
     }
 }

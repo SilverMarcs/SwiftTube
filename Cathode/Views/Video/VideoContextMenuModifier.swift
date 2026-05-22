@@ -19,16 +19,6 @@ struct VideoContextMenuModifier: ViewModifier {
                     )
                 }
 
-                Button {
-                    withAnimation {
-                        if let duration = video.duration {
-                            library.setResumePosition(videoId: video.id, seconds: duration)
-                        }
-                    }
-                } label: {
-                    Label("Mark as Watched", systemImage: "checkmark.circle")
-                }
-
                 Section {
                     if showChannelLink, let channelId = video.channelId, !channelId.isEmpty {
                         NavigationLink {

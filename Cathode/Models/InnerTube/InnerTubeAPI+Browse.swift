@@ -98,6 +98,20 @@ extension InnerTubeAPI {
         return channels
     }
 
+    // MARK: - History
+
+    /// Fetches the user's watch history (requires TV OAuth). Browse-style
+    /// `FEhistory` works with the TV client even though the same client's
+    /// /player endpoint is IP-blocked — the restriction is player-only.
+    public func fetchHistory(continuationToken: String? = nil) async throws -> VideoGroup {
+        var body = makeBody(client: tvClientContext, continuationToken: continuationToken)
+        if continuationToken == nil {
+            body["browseId"] = "FEhistory"
+        }
+        let data = try await postTV(endpoint: "browse", body: body)
+        return try parseVideoGroup(from: data, title: "History")
+    }
+
     // MARK: - Search
 
     public func search(

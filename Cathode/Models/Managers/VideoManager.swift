@@ -22,6 +22,9 @@ class VideoManager {
 
     var isExpanded: Bool = false
     var isSetting: Bool = false
+    /// Human-readable error to surface in the player view when stream
+    /// resolution fails outright. Cleared at the start of every `setVideo`.
+    private(set) var playbackError: String?
 
     private var timeObserverToken: Any?
 
@@ -35,13 +38,37 @@ class VideoManager {
     // When InnerTube stream resolution fails (IP block, age-gated, restricted),
     // we fall back to the YouTube iframe player. The WebView IS the playback
     // engine — on iOS the SwiftUI view rendering it must stay in the hierarchy
-    // for playback to continue (see PersistentVideoPlayerOverlay).
+    // for playback to continue.
     #if !os(tvOS)
     private(set) var iframePlayer: YouTubePlayer?
     private(set) var iframePlaybackState: YouTubePlayer.PlaybackState?
     private var iframeCurrentSeconds: TimeInterval = 0
     private var iframeSubscriptions: Set<AnyCancellable> = []
     #endif
+
+    // MARK: - YouTube watchtime session (AVPlayer path only)
+    //
+    // When the user has cookie auth enabled, we mirror YouTube's web client
+    // ping cadence: one /api/stats/playback on start, then /api/stats/watchtime
+    // every ~5s with `st`/`et` segment params. Tracking URLs are pre-bound to
+    // the account server-side so YT records the view in the user's history.
+    //
+    // The iframe path doesn't use this — its embedded WebView is logged in
+    // (shared cookie jar) and reports on its own.
+    private var watchCPN: String?
+    private var watchTrackingURLs: PlaybackTrackingURLs?
+    private var watchVideoId: String?
+    private var watchSegmentStart: TimeInterval = 0
+    private var watchLastPing: Date = .distantPast
+    private var watchPlaybackStarted: Bool = false
+    private var watchFetchTask: Task<Void, Never>?
+    /// Playhead at the most recent observer tick — used to detect seeks by
+    /// comparing playhead delta to wall-clock delta between ticks.
+    private var watchLastTickPosition: TimeInterval = 0
+    private var watchLastTickTime: Date = .distantPast
+    private static let watchSegmentInterval: TimeInterval = 5
+    /// Forward playhead delta beyond wall delta + this slack counts as a seek.
+    private static let watchSeekSlack: TimeInterval = 2
 
     deinit {
         if let token = timeObserverToken {
@@ -56,7 +83,14 @@ class VideoManager {
         }
         let interval = CMTime(seconds: 1, preferredTimescale: 600)
         timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
-            self?.refreshSponsorState()
+            guard let self else { return }
+            self.refreshSponsorState()
+            if let videoId = self.currentVideo?.id, let player = self.player {
+                let seconds = player.currentTime().seconds
+                if seconds.isFinite, seconds > 0, player.timeControlStatus == .playing {
+                    self.maybeReportWatchtime(videoId: videoId, position: seconds, isFinal: false)
+                }
+            }
         }
     }
 
@@ -75,19 +109,19 @@ class VideoManager {
         // concern that used to gate this is no longer relevant.
         loadingTask?.cancel()
         player?.pause()
+        finalizeWatchtimeSession()
         isSetting = true
 
         currentVideo = video
         sponsorSegments = []
         currentSponsorSegment = nil
+        playbackError = nil
 
         #if !os(tvOS)
         tearDownIframe()
         #endif
 
-        Task { @MainActor in
-            LibraryStore.shared.addToHistory(video)
-        }
+        beginWatchtimeSession(for: video)
 
         loadingTask = Task { [weak self] in
             await self?.loadVideoStream(for: video, autoPlay: autoPlay)
@@ -99,6 +133,22 @@ class VideoManager {
 
     private func loadVideoStream(for video: Video, autoPlay: Bool) async {
         await loadVideoStream(for: video, autoPlay: autoPlay, allowCacheRetry: true)
+    }
+
+    /// Called when stream resolution returns nothing. Leaves `currentVideo`
+    /// set (so the mini-player still shows the title/thumb) but clears the
+    /// AVPlayer and publishes a user-facing error string the player views
+    /// render in place of the missing video surface.
+    private func surfaceStreamResolutionError(for video: Video) {
+        guard currentVideo?.id == video.id else { return }
+        if let token = timeObserverToken {
+            player?.removeTimeObserver(token)
+            timeObserverToken = nil
+        }
+        player?.pause()
+        player = nil
+        playbackError = "This video can't be played right now. YouTube didn't return a playable stream."
+        isSetting = false
     }
 
     func togglePlayPause() {
@@ -147,23 +197,16 @@ class VideoManager {
         } else if let streamed = await StreamResolver.resolve(id: video.id) {
             url = streamed
         } else {
-            print("StreamResolver: no playable stream for \(video.id) — falling back to iframe")
-            await MainActor.run { self.startIframeFallback(for: video, autoPlay: autoPlay) }
-            return
-        }
-        #elseif os(macOS)
-        if let streamed = await StreamResolver.resolve(id: video.id) {
-            url = streamed
-        } else {
-            print("StreamResolver: no playable stream for \(video.id) — falling back to iframe")
-            await MainActor.run { self.startIframeFallback(for: video, autoPlay: autoPlay) }
+            print("StreamResolver: no playable stream for \(video.id)")
+            await MainActor.run { self.surfaceStreamResolutionError(for: video) }
             return
         }
         #else
         if let streamed = await StreamResolver.resolve(id: video.id) {
             url = streamed
         } else {
-            print("StreamResolver: no playable stream for \(video.id) — no fallback on tvOS")
+            print("StreamResolver: no playable stream for \(video.id)")
+            await MainActor.run { self.surfaceStreamResolutionError(for: video) }
             return
         }
         #endif
@@ -342,9 +385,10 @@ class VideoManager {
 
     // MARK: - Persistence
 
-    /// Persists the current playback position to iCloud-backed LibraryStore.
-    /// Fired by playback state changes (play/pause/end) and view lifecycle —
-    /// not by a periodic ticker.
+    /// Flushes a final YouTube watchtime segment on state transitions
+    /// (play/pause/end) and view lifecycle. YouTube is the source of truth for
+    /// resume position — feed/history rows return `Video.watchProgress` which
+    /// `LibraryStore.resumeSeconds(for:)` consumes.
     func persistCurrentTime() {
         if isSetting { return }
         guard let videoId = currentVideo?.id else { return }
@@ -362,8 +406,158 @@ class VideoManager {
         seconds = player.currentTime().seconds
         #endif
         guard seconds.isFinite, seconds > 0 else { return }
-        Task { @MainActor in
-            LibraryStore.shared.setResumePosition(videoId: videoId, seconds: seconds)
+        // Bypass the 5s throttle so the last bit watched before pause/end
+        // isn't lost.
+        maybeReportWatchtime(videoId: videoId, position: seconds, isFinal: true)
+    }
+}
+
+// MARK: - YouTube watchtime session (AVPlayer path)
+//
+// No-op when YTCookieAuth isn't signed in. The fetch task is fire-and-forget;
+// pings only start firing once account-bound tracking URLs land.
+
+extension VideoManager {
+    fileprivate func beginWatchtimeSession(for video: Video) {
+        watchFetchTask?.cancel()
+        watchFetchTask = nil
+        watchCPN = nil
+        watchTrackingURLs = nil
+        watchVideoId = nil
+        watchSegmentStart = 0
+        watchLastPing = .distantPast
+        watchPlaybackStarted = false
+        watchLastTickPosition = 0
+        watchLastTickTime = .distantPast
+
+        guard YTCookieAuth.shared.isSignedIn else {
+            print("[watchtime] beginWatchtimeSession(\(video.id)): cookie auth not signed in — skipping")
+            return
+        }
+
+        let cpn = InnerTubeAPI.generateCPN()
+        let videoId = video.id
+        watchCPN = cpn
+        watchVideoId = videoId
+        print("[watchtime] beginWatchtimeSession(\(videoId)) cpn=\(cpn.prefix(4))…")
+
+        watchFetchTask = Task { [weak self] in
+            let urls = await InnerTubeAPI.shared.fetchAuthenticatedTrackingURLs(videoId: videoId)
+            await MainActor.run {
+                guard let self else { return }
+                guard self.watchVideoId == videoId else { return }
+                self.watchTrackingURLs = urls
+                if urls != nil {
+                    print("[watchtime] tracking URLs landed for \(videoId)")
+                }
+            }
+        }
+    }
+
+    fileprivate func maybeReportWatchtime(videoId: String, position: TimeInterval, isFinal: Bool) {
+        guard let cpn = watchCPN, watchVideoId == videoId else { return }
+        guard let urls = watchTrackingURLs else { return }
+
+        let now = Date()
+
+        if !watchPlaybackStarted {
+            watchPlaybackStarted = true
+            // Start the first segment at the current playhead — not 0 — so
+            // we don't claim to have watched the lead-in for resumed videos.
+            watchSegmentStart = position
+            watchLastPing = now
+            watchLastTickPosition = position
+            watchLastTickTime = now
+            Task {
+                await InnerTubeAPI.shared.reportPlaybackStarted(videoId: videoId, cpn: cpn, trackingURLs: urls)
+            }
+            return
+        }
+
+        // Seek detection: when the playhead delta between ticks doesn't match
+        // wall-clock delta, the user scrubbed. Close the current segment at
+        // the last honest position and start fresh from where they landed.
+        let wallDelta = now.timeIntervalSince(watchLastTickTime)
+        let playDelta = position - watchLastTickPosition
+        let seeked = playDelta < -0.5 || playDelta > wallDelta + Self.watchSeekSlack
+
+        if seeked {
+            // 1. Close out the segment we were watching at the pre-seek position
+            //    so YouTube credits the time we actually watched.
+            let closeStart = watchSegmentStart
+            let closeEnd = watchLastTickPosition
+            if closeEnd > closeStart {
+                Task {
+                    await InnerTubeAPI.shared.reportWatchtime(
+                        videoId: videoId,
+                        cpn: cpn,
+                        trackingURLs: urls,
+                        segmentStart: closeStart,
+                        segmentEnd: closeEnd
+                    )
+                }
+            }
+            // 2. Immediately ping the new playhead so progress / "resume from"
+            //    advances to the seek destination. Without this the next
+            //    progress update would wait for the 5s throttle, which is
+            //    typically longer than the user takes to scrub again — so
+            //    history reflects scrub N-1 when they're already on scrub N.
+            let landingStart = position
+            let landingEnd = position + 0.001
+            Task {
+                await InnerTubeAPI.shared.reportWatchtime(
+                    videoId: videoId,
+                    cpn: cpn,
+                    trackingURLs: urls,
+                    segmentStart: landingStart,
+                    segmentEnd: landingEnd
+                )
+            }
+            watchSegmentStart = landingEnd
+            watchLastPing = now
+            watchLastTickPosition = position
+            watchLastTickTime = now
+            return
+        }
+
+        watchLastTickPosition = position
+        watchLastTickTime = now
+
+        if !isFinal, now.timeIntervalSince(watchLastPing) < Self.watchSegmentInterval { return }
+
+        let segStart = watchSegmentStart
+        let segEnd = position
+        guard segEnd > segStart else { return }
+        watchSegmentStart = segEnd
+        watchLastPing = now
+        Task {
+            await InnerTubeAPI.shared.reportWatchtime(
+                videoId: videoId,
+                cpn: cpn,
+                trackingURLs: urls,
+                segmentStart: segStart,
+                segmentEnd: segEnd
+            )
+        }
+    }
+
+    /// Fires a final watchtime ping for the current session — call on app
+    /// background, video switch, and view dismissal.
+    fileprivate func finalizeWatchtimeSession() {
+        guard let videoId = watchVideoId else { return }
+        let seconds: TimeInterval? = {
+            if let player { return player.currentTime().seconds }
+            return nil
+        }()
+        guard let seconds, seconds.isFinite, seconds > 0 else {
+            watchFetchTask?.cancel()
+            return
+        }
+        let pendingFetch = watchFetchTask
+        Task { @MainActor [weak self] in
+            await pendingFetch?.value
+            guard let self else { return }
+            self.maybeReportWatchtime(videoId: videoId, position: seconds, isFinal: true)
         }
     }
 }

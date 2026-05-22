@@ -76,6 +76,15 @@ public struct EndCard: Sendable, Identifiable, Codable {
 
 // MARK: - PlayerInfo
 
+/// Account-bound watchtime tracking URLs returned by an authenticated /player
+/// request. Pinging them records the view in YouTube's official watch history.
+public struct PlaybackTrackingURLs: Sendable {
+    /// Fire once when playback begins.
+    public let playbackURL: URL
+    /// Fire periodically during playback (~every 5s) and on stop.
+    public let watchtimeURL: URL
+}
+
 public struct PlayerInfo: Sendable {
     public let video: Video
     public let formats: [VideoFormat]

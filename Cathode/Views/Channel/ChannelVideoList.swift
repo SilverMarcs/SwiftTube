@@ -4,6 +4,9 @@ struct ChannelVideoList: View {
     let channelId: String
     let initialTitle: String?
 
+    @Environment(\.openURL) private var openURL
+    @Environment(LibraryStore.self) private var library
+
     @State private var channel: Channel?
     @State private var videos: [Video] = []
     @State private var nextPageToken: String?
@@ -36,11 +39,36 @@ struct ChannelVideoList: View {
         )
         .navigationTitle(displayTitle)
         .platformNavigationToolbar(titleDisplayMode: .inline)
+        .toolbar {
+            if !channelId.isEmpty {
+                ToolbarItem(placement: .primaryAction) {
+                    subscribeButton
+                }
+            }
+        }
         .task {
             if videos.isEmpty {
                 await loadChannelVideos()
             }
         }
+    }
+
+    @ViewBuilder
+    private var subscribeButton: some View {
+        // Prefer the resolved channel.id (always UC…) over the raw prop, which
+        // can be an @handle when entered from a video card's context menu.
+        let resolvedId = channel?.id ?? channelId
+        let subscribed = library.isSubscribed(channelId: resolvedId)
+        Button {
+            let target = channel ?? Channel(id: resolvedId, title: displayTitle)
+            library.toggleSubscription(target)
+        } label: {
+            Label(
+                subscribed ? "Subscribed" : "Subscribe",
+                systemImage: subscribed ? "bell.fill" : "bell"
+            )
+        }
+        .help(subscribed ? "Unsubscribe" : "Subscribe")
     }
 
     private func loadChannelVideos() async {

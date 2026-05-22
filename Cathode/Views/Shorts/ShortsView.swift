@@ -1,11 +1,10 @@
 import SwiftUI
-import AVKit
+import AVFoundation
 
 struct ShortsView: View {
     @Environment(VideoLoader.self) private var videoLoader
     @Environment(VideoManager.self) var videoManager
-    
-    @State private var shortsPlayer = AVPlayer()
+
     @State private var activeVideoId: String?
 
 
@@ -17,7 +16,6 @@ struct ShortsView: View {
                     ForEach(videoLoader.shortVideos) { video in
                         ShortVideoCard(
                             video: video,
-                            player: shortsPlayer,
                             isActive: video.id == activeVideoId
                         )
                         .id(video.id)
@@ -42,7 +40,6 @@ struct ShortsView: View {
                 ForEach(videoLoader.shortVideos) { video in
                     ShortVideoCard(
                         video: video,
-                        player: shortsPlayer,
                         isActive: video.id == activeVideoId
                     )
                     .tag(video.id)
@@ -58,14 +55,9 @@ struct ShortsView: View {
         }
         .onAppear {
             videoManager.player?.pause()
-            // Initialize selection to the first item if not set
             if activeVideoId == nil {
                 activeVideoId = videoLoader.shortVideos.first?.id
             }
-        }
-        .onDisappear {
-            shortsPlayer.pause()
-            shortsPlayer.replaceCurrentItem(with: nil)
         }
     }
 }

@@ -16,7 +16,7 @@ struct AVPlayerIos: UIViewControllerRepresentable {
         controller.player = player
         controller.allowsPictureInPicturePlayback = true
         controller.canStartPictureInPictureAutomaticallyFromInline = true
-        controller.updatesNowPlayingInfoCenter = false
+        controller.updatesNowPlayingInfoCenter = true
         controller.delegate = context.coordinator
         
         // Store reference in coordinator

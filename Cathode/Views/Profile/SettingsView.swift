@@ -40,6 +40,12 @@ struct SettingsView: View {
                     #endif
             }
 
+            #if !os(tvOS)
+            Section("Watch History Sync") {
+                YTCookieAuthRow()
+            }
+            #endif
+
             #if os(tvOS)
             Section("View Options") {
                 Button {
