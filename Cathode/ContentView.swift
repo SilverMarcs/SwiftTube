@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 struct ContentView: View {
     @Environment(VideoManager.self) var manager
@@ -90,7 +91,9 @@ struct ContentView: View {
         .environment(\.requestVideoPresentation) {
             isPresented = true
         }
-        .fullScreenCover(isPresented: $isPresented) {
+        .fullScreenCover(isPresented: $isPresented, onDismiss: {
+            manager.player?.pause()
+        }) {
             AVPlayerViewTvos()
         }
         #else
@@ -108,6 +111,7 @@ struct ContentView: View {
         .fullScreenCover(isPresented: $isPresented) {
             if let video = manager.currentVideo {
                 VideoDetailView(video: video, showVideo: true)
+                  .accentColor(.accent)
                     .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
             }
         }

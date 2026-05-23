@@ -4,6 +4,9 @@ import SwiftUI
 struct FeedView: View {
     @Environment(VideoLoader.self) private var videoLoader
     @Environment(LibraryStore.self) private var library
+    #if os(tvOS)
+    @Environment(VideoManager.self) private var videoManager
+    #endif
 
     @State private var isRandomOrderEnabled = false
     @State private var randomizedVideos: [Video] = []
@@ -24,9 +27,9 @@ struct FeedView: View {
             }
         ) {
             #if os(tvOS)
-            if let recent = library.history.first {
-                Section("Continue Watching") {
-                    VideoCard(video: recent)
+            if let current = videoManager.currentVideo ?? library.history.first {
+                Section("Currently Playing") {
+                    VideoCard(video: current)
                         .frame(maxWidth: 560)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
