@@ -4,12 +4,17 @@
 //
 //  Cookie-based YouTube auth. Augments YTTVAuthManager (TV device-code OAuth).
 //
-//  Sign-in flow: user authenticates inside a WKWebView pointed at
-//  accounts.google.com → continues to youtube.com. The resulting session
-//  cookies (SAPISID, __Secure-3PSID, HSID, SSID, APISID, LOGIN_INFO) live in
-//  `WKWebsiteDataStore.default()`, which is also the data store used by
-//  `YouTubePlayerKit` — so iframe playback automatically syncs watch progress
-//  to YouTube's servers.
+//  Sign-in flow (iOS / macOS / visionOS): user authenticates inside a WKWebView
+//  pointed at accounts.google.com → continues to youtube.com. The resulting
+//  session cookies (SAPISID, __Secure-3PSID, HSID, SSID, APISID, LOGIN_INFO)
+//  live in `WKWebsiteDataStore.default()`, which is also the data store used
+//  by `YouTubePlayerKit` — so iframe playback automatically syncs watch
+//  progress to YouTube's servers.
+//
+//  tvOS: no WebKit, so no interactive sign-in. Instead, the cookie set is
+//  pulled from iCloud Keychain (written by an iOS device that did sign in)
+//  and injected into `HTTPCookieStorage.shared` so URLSession-based InnerTube
+//  calls and the SAPISIDHASH header can act on behalf of the account.
 //
 //  For native AVPlayer playback, we extract the `SAPISID` cookie, compute the
 //  SAPISIDHASH header YouTube's web client uses, and attach it to authenticated
@@ -20,7 +25,9 @@ import CryptoKit
 import Foundation
 import os
 import SwiftUI
+#if canImport(WebKit)
 import WebKit
+#endif
 
 private let cookieLog = Logger(subsystem: appSubsystem, category: "YTCookieAuth")
 
@@ -32,10 +39,21 @@ public final class YTCookieAuth {
     public private(set) var isSignedIn: Bool = false
     public private(set) var lastSyncedAt: Date?
 
+    /// Timestamp of the most recent successful read from / write to the iCloud
+    /// KVS-backed cookie blob. Populated when we write the blob (iOS/mac/xrOS)
+    /// or when we hydrate from it (any platform, including tvOS).
+    public private(set) var iCloudSyncedAt: Date?
+
+    /// True when the locally-active cookie set was hydrated from iCloud rather
+    /// than captured from a sign-in on this device. Surfaced in Settings so
+    /// the user knows watch-history sync is working through iCloud.
+    public private(set) var hydratedFromICloud: Bool = false
+
     /// Current SAPISID cookie value — used to derive the SAPISIDHASH header.
     /// Refreshed every time `refreshSignInState()` runs.
     private(set) var sapisid: String?
 
+#if canImport(WebKit)
     /// The default website data store. YouTubePlayerKit uses this same store
     /// when `useNonPersistentWebsiteDataStore` is `false` (its default).
     nonisolated let dataStore = WKWebsiteDataStore.default()
@@ -47,14 +65,36 @@ public final class YTCookieAuth {
     /// showed "not signed in" until the user opened the sign-in sheet (which
     /// instantiated a WebView and woke the store as a side effect).
     private let dataStorePrimer: WKWebView
+#endif
 
     private init() {
+#if canImport(WebKit)
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
         dataStorePrimer = WKWebView(frame: .zero, configuration: config)
+#endif
+        // Observe iCloud KVS pushes from sibling devices so cookie updates
+        // written on iOS land here without a re-launch. FinStream uses the
+        // same pattern for SeerrAuth and reports reliable tvOS sync.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(externalKVSChange(_:)),
+            name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: NSUbiquitousKeyValueStore.default
+        )
+        NSUbiquitousKeyValueStore.default.synchronize()
         Task { await self.bootstrapSignInState() }
     }
 
+    @objc private nonisolated func externalKVSChange(_ note: Notification) {
+        Task { @MainActor in
+            cookieLog.notice("YT cookie auth: iCloud KVS changed externally — re-hydrating")
+            await self.hydrateFromICloud(force: true)
+            await self.refreshSignInState()
+        }
+    }
+
+#if canImport(WebKit)
     /// Forces the WKHTTPCookieStore to flush its disk read by chaining a
     /// `getAllCookies` callback before our state refresh. On a freshly
     /// primed data store the first call returns synchronously empty
@@ -65,25 +105,72 @@ public final class YTCookieAuth {
                 continuation.resume()
             }
         }
+        await hydrateFromICloud(force: false)
         await refreshSignInState()
+    }
+#else
+    /// tvOS bootstrap: no WebKit store, so iCloud KVS is the only cookie source.
+    private func bootstrapSignInState() async {
+        await hydrateFromICloud(force: false)
+        await refreshSignInState()
+    }
+#endif
+
+    /// Inject cookies from the iCloud KVS blob into the local cookie stores.
+    /// `force == true` ignores the existing-SAPISID short-circuit, used when
+    /// we know KVS just changed externally (sibling device pushed an update).
+    private func hydrateFromICloud(force: Bool) async {
+        let stored = Self.loadStoredCookies()
+        guard !stored.isEmpty else {
+            if force { hydratedFromICloud = false }
+            return
+        }
+#if canImport(WebKit)
+        let existing = await dataStore.httpCookieStore.allCookies()
+        let alreadyHaveSession = existing.contains { $0.name == "SAPISID" && Self.isYouTubeCookie($0) }
+#else
+        let existing = HTTPCookieStorage.shared.cookies ?? []
+        let alreadyHaveSession = existing.contains { $0.name == "SAPISID" && Self.isYouTubeCookie($0) }
+#endif
+        if alreadyHaveSession && !force { return }
+
+        cookieLog.notice("YT cookie auth: hydrating \(stored.count, privacy: .public) cookies from iCloud KVS (force=\(force, privacy: .public))")
+        for cookie in stored.compactMap({ $0.httpCookie }) {
+            HTTPCookieStorage.shared.setCookie(cookie)
+#if canImport(WebKit)
+            await dataStore.httpCookieStore.setCookie(cookie)
+#endif
+        }
+        iCloudSyncedAt = Date()
+        hydratedFromICloud = true
     }
 
     // MARK: - Sign-in state
 
-    /// Reads cookies from the WebKit data store, updates published state, and
-    /// mirrors them into `HTTPCookieStorage.shared` so plain `URLSession`
-    /// requests to YouTube include them automatically.
+    /// Reads cookies from the platform-appropriate cookie source, updates
+    /// published state, and (on platforms with WebKit) mirrors the WebKit
+    /// store into `HTTPCookieStorage.shared`.
     public func refreshSignInState() async {
+#if canImport(WebKit)
         let cookies = await dataStore.httpCookieStore.allCookies()
         let ytCookies = cookies.filter { Self.isYouTubeCookie($0) }
         for cookie in ytCookies {
             HTTPCookieStorage.shared.setCookie(cookie)
         }
+#else
+        let ytCookies = (HTTPCookieStorage.shared.cookies ?? []).filter { Self.isYouTubeCookie($0) }
+#endif
         if let sapis = ytCookies.first(where: { $0.name == "SAPISID" })?.value {
             sapisid = sapis
             isSignedIn = true
             lastSyncedAt = Date()
             cookieLog.notice("YT cookie auth: signed in (\(ytCookies.count, privacy: .public) cookies)")
+#if canImport(WebKit)
+            // Only iOS/mac/visionOS write the iCloud blob — tvOS is read-only.
+            if Self.persistCookies(ytCookies) {
+                iCloudSyncedAt = Date()
+            }
+#endif
         } else {
             sapisid = nil
             isSignedIn = false
@@ -91,11 +178,13 @@ public final class YTCookieAuth {
     }
 
     public func signOut() async {
+#if canImport(WebKit)
         let ckStore = dataStore.httpCookieStore
         let cookies = await ckStore.allCookies()
         for cookie in cookies where Self.isYouTubeCookie(cookie) {
             await ckStore.deleteCookie(cookie)
         }
+#endif
         if let shared = HTTPCookieStorage.shared.cookies {
             for cookie in shared where Self.isYouTubeCookie(cookie) {
                 HTTPCookieStorage.shared.deleteCookie(cookie)
@@ -103,6 +192,9 @@ public final class YTCookieAuth {
         }
         sapisid = nil
         isSignedIn = false
+        hydratedFromICloud = false
+        iCloudSyncedAt = nil
+        Self.deleteStoredCookies()
         cookieLog.notice("YT cookie auth: signed out")
     }
 
@@ -122,7 +214,11 @@ public final class YTCookieAuth {
     /// Returns the `Cookie:` header value to attach to URLSession requests
     /// when we can't rely on `HTTPCookieStorage.shared` being honoured.
     public func cookieHeader(for url: URL) async -> String? {
+#if canImport(WebKit)
         let cookies = await dataStore.httpCookieStore.allCookies()
+#else
+        let cookies = HTTPCookieStorage.shared.cookies ?? []
+#endif
         let matching = cookies.filter { cookie in
             guard let host = url.host else { return false }
             return host.hasSuffix(cookie.domain.trimmingCharacters(in: .init(charactersIn: ".")))
@@ -137,5 +233,79 @@ public final class YTCookieAuth {
     static func isYouTubeCookie(_ cookie: HTTPCookie) -> Bool {
         let d = cookie.domain.trimmingCharacters(in: .init(charactersIn: "."))
         return d.hasSuffix("youtube.com") || d.hasSuffix("google.com")
+    }
+}
+
+// MARK: - iCloud KVS cookie sync
+//
+// iOS captures cookies via WKWebView sign-in; tvOS has no interactive way to
+// sign in, so we ride NSUbiquitousKeyValueStore (iCloud KVS) to replicate
+// the cookie set. We use KVS rather than the synchronizable Keychain because
+// the sibling FinStream project found Keychain sync unreliable on tvOS;
+// KVS is the proven path. Tradeoff: the blob lives in iCloud unencrypted at
+// rest by KVS, which is acceptable here since YouTube session cookies are
+// already exposed within the user's iCloud account context.
+//
+// KVS budget: 1 MB total / 1 MB per key — far above the few-hundred-byte
+// cookie blob we write. Google rotates cookies on every authenticated
+// response, so iOS rewrites the KVS blob on each `refreshSignInState`.
+
+private struct StoredCookie: Codable {
+    let name: String
+    let value: String
+    let domain: String
+    let path: String
+    let expires: Date?
+    let isSecure: Bool
+    let isHTTPOnly: Bool
+
+    init(_ c: HTTPCookie) {
+        name = c.name
+        value = c.value
+        domain = c.domain
+        path = c.path
+        expires = c.expiresDate
+        isSecure = c.isSecure
+        isHTTPOnly = c.isHTTPOnly
+    }
+
+    var httpCookie: HTTPCookie? {
+        var props: [HTTPCookiePropertyKey: Any] = [
+            .name: name,
+            .value: value,
+            .domain: domain,
+            .path: path,
+        ]
+        if isSecure { props[.secure] = "TRUE" }
+        if let expires { props[.expires] = expires }
+        return HTTPCookie(properties: props)
+    }
+}
+
+extension YTCookieAuth {
+    private static let kvsCookieKey = "cathode_yt_cookie_jar"
+
+    /// Writes the cookie set to iCloud KVS. Returns true if KVS accepted the
+    /// payload (the data also went into local KVS storage; `synchronize()`
+    /// nudges the iCloud daemon to schedule an upload).
+    @discardableResult
+    fileprivate static func persistCookies(_ cookies: [HTTPCookie]) -> Bool {
+        let stored = cookies.map(StoredCookie.init)
+        guard let data = try? JSONEncoder().encode(stored) else { return false }
+        let kvs = NSUbiquitousKeyValueStore.default
+        kvs.set(data, forKey: kvsCookieKey)
+        return kvs.synchronize()
+    }
+
+    fileprivate static func loadStoredCookies() -> [StoredCookie] {
+        guard let data = NSUbiquitousKeyValueStore.default.data(forKey: kvsCookieKey)
+        else { return [] }
+        return (try? JSONDecoder().decode([StoredCookie].self, from: data)) ?? []
+    }
+
+    fileprivate static func deleteStoredCookies() {
+        let kvs = NSUbiquitousKeyValueStore.default
+        kvs.removeObject(forKey: kvsCookieKey)
+        kvs.synchronize()
     }
 }

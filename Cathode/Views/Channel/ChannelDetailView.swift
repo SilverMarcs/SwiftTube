@@ -34,7 +34,7 @@ struct ChannelDetailView: View {
                 .padding()
             }
             .navigationTitle("Channel Details")
-            .platformNavigationToolbar(titleDisplayMode: .inlineLarge)
+            .platformNavigationToolbar()
         }
     }
 }

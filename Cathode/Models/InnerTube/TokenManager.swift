@@ -142,13 +142,19 @@ public actor TokenManager {
     // MARK: - Static (nonisolated) Keychain helpers
     // Static methods are nonisolated — safe to call from actor init.
 
+    // Synchronizable items ride iCloud Keychain across the user's devices
+    // (iOS ↔ tvOS for us). Reads/deletes use `SynchronizableAny` to match
+    // both legacy non-sync entries from older app versions and freshly
+    // written synced ones, so the migration is invisible to the user.
+
     private static func kcGet(service: String, key: String) -> String? {
         let query: [CFString: Any] = [
-            kSecClass:       kSecClassGenericPassword,
-            kSecAttrService: service,
-            kSecAttrAccount: key,
-            kSecReturnData:  true,
-            kSecMatchLimit:  kSecMatchLimitOne,
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        service,
+            kSecAttrAccount:        key,
+            kSecAttrSynchronizable: kSecAttrSynchronizableAny,
+            kSecReturnData:         true,
+            kSecMatchLimit:         kSecMatchLimitOne,
         ]
         var result: AnyObject?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
@@ -159,27 +165,30 @@ public actor TokenManager {
 
     private static func kcSet(service: String, key: String, value: String?) {
         let deleteQuery: [CFString: Any] = [
-            kSecClass:       kSecClassGenericPassword,
-            kSecAttrService: service,
-            kSecAttrAccount: key,
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        service,
+            kSecAttrAccount:        key,
+            kSecAttrSynchronizable: kSecAttrSynchronizableAny,
         ]
         SecItemDelete(deleteQuery as CFDictionary)
         guard let value, let data = value.data(using: .utf8) else { return }
         let addQuery: [CFString: Any] = [
-            kSecClass:          kSecClassGenericPassword,
-            kSecAttrService:    service,
-            kSecAttrAccount:    key,
-            kSecValueData:      data,
-            kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlock,
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        service,
+            kSecAttrAccount:        key,
+            kSecValueData:          data,
+            kSecAttrAccessible:     kSecAttrAccessibleAfterFirstUnlock,
+            kSecAttrSynchronizable: kCFBooleanTrue!,
         ]
         SecItemAdd(addQuery as CFDictionary, nil)
     }
 
     private static func kcDelete(service: String, key: String) {
         let query: [CFString: Any] = [
-            kSecClass:       kSecClassGenericPassword,
-            kSecAttrService: service,
-            kSecAttrAccount: key,
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        service,
+            kSecAttrAccount:        key,
+            kSecAttrSynchronizable: kSecAttrSynchronizableAny,
         ]
         SecItemDelete(query as CFDictionary)
     }

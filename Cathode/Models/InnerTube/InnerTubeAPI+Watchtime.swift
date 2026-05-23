@@ -27,7 +27,6 @@ extension InnerTubeAPI {
 
     public func fetchAuthenticatedTrackingURLs(videoId: String) async -> PlaybackTrackingURLs? {
         guard let authHeader = await YTCookieAuth.shared.sapisidHashAuthorization() else {
-            print("[watchtime] fetchAuthenticatedTrackingURLs(\(videoId)): cookie auth not signed in")
             return nil
         }
         do {
@@ -52,33 +51,17 @@ extension InnerTubeAPI {
 
             let (data, response) = try await session.data(for: request)
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-            guard (200..<300).contains(statusCode) else {
-                print("[watchtime] fetchAuthenticatedTrackingURLs(\(videoId)): HTTP \(statusCode)")
-                return nil
-            }
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                print("[watchtime] fetchAuthenticatedTrackingURLs(\(videoId)): non-dict JSON root")
-                return nil
-            }
-            // Surface playability status to confirm the request authenticated correctly.
-            let playabilityStatus = (json["playabilityStatus"] as? [String: Any])?["status"] as? String ?? "?"
-            guard let tracking = json["playbackTracking"] as? [String: Any] else {
-                print("[watchtime] fetchAuthenticatedTrackingURLs(\(videoId)): no playbackTracking (playability=\(playabilityStatus))")
-                return nil
-            }
+            guard (200..<300).contains(statusCode) else { return nil }
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            guard let tracking = json["playbackTracking"] as? [String: Any] else { return nil }
             guard
                 let pbStr = (tracking["videostatsPlaybackUrl"] as? [String: Any])?["baseUrl"] as? String,
                 let wtStr = (tracking["videostatsWatchtimeUrl"] as? [String: Any])?["baseUrl"] as? String,
                 let pbURL = URL(string: pbStr),
                 let wtURL = URL(string: wtStr)
-            else {
-                print("[watchtime] fetchAuthenticatedTrackingURLs(\(videoId)): missing playback/watchtime URLs (tracking keys=\(Array(tracking.keys)))")
-                return nil
-            }
-            print("[watchtime] fetchAuthenticatedTrackingURLs(\(videoId)): OK (playability=\(playabilityStatus))")
+            else { return nil }
             return PlaybackTrackingURLs(playbackURL: pbURL, watchtimeURL: wtURL)
         } catch {
-            print("[watchtime] fetchAuthenticatedTrackingURLs(\(videoId)) failed: \(error.localizedDescription)")
             return nil
         }
     }
@@ -86,13 +69,12 @@ extension InnerTubeAPI {
     // MARK: - Pings
 
     public func reportPlaybackStarted(videoId: String, cpn: String, trackingURLs: PlaybackTrackingURLs) async {
-        let status = await pingTrackingURL(trackingURLs.playbackURL, extraParams: [
+        _ = await pingTrackingURL(trackingURLs.playbackURL, extraParams: [
             "ver":   "2",
             "cpn":   cpn,
             "docid": videoId,
             "cmt":   "0",
         ])
-        print("[watchtime] reportPlaybackStarted videoId=\(videoId) cpn=\(cpn.prefix(4))… → HTTP \(status)")
     }
 
     public func reportWatchtime(
@@ -102,7 +84,7 @@ extension InnerTubeAPI {
         segmentStart: TimeInterval,
         segmentEnd: TimeInterval
     ) async {
-        let status = await pingTrackingURL(trackingURLs.watchtimeURL, extraParams: [
+        _ = await pingTrackingURL(trackingURLs.watchtimeURL, extraParams: [
             "ver":   "2",
             "cpn":   cpn,
             "docid": videoId,
@@ -110,7 +92,6 @@ extension InnerTubeAPI {
             "st":    String(format: "%.3f", segmentStart),
             "et":    String(format: "%.3f", segmentEnd),
         ])
-        print("[watchtime] reportWatchtime videoId=\(videoId) st=\(Int(segmentStart))s et=\(Int(segmentEnd))s → HTTP \(status)")
     }
 
     // MARK: - Ping transport
@@ -141,7 +122,6 @@ extension InnerTubeAPI {
         } catch is CancellationError {
             return -2
         } catch {
-            print("[watchtime] pingTrackingURL transient error: \(error.localizedDescription)")
             return -3
         }
     }

@@ -68,7 +68,9 @@ struct YTTVSignInView: View {
                 .foregroundStyle(.secondary)
             Text(activation.userCode)
                 .font(.system(.title, design: .monospaced, weight: .bold))
+                #if !os(tvOS)
                 .textSelection(.enabled)
+                #endif
 
             HStack {
                 #if !os(tvOS)

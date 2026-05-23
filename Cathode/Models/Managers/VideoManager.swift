@@ -217,7 +217,6 @@ class VideoManager {
         // If the requested video is no longer the current one, abort this task.
         guard currentVideo?.id == video.id, !Task.isCancelled else { return }
 
-        let t0 = Date()
         let url: URL
         #if os(iOS)
         if let local = DownloadManager.shared.localURL(for: video.id) {
@@ -225,7 +224,6 @@ class VideoManager {
         } else if let streamed = await StreamResolver.resolve(id: video.id) {
             url = streamed
         } else {
-            print("StreamResolver: no playable stream for \(video.id)")
             await MainActor.run { self.surfaceStreamResolutionError(for: video) }
             return
         }
@@ -233,13 +231,11 @@ class VideoManager {
         if let streamed = await StreamResolver.resolve(id: video.id) {
             url = streamed
         } else {
-            print("StreamResolver: no playable stream for \(video.id)")
             await MainActor.run { self.surfaceStreamResolutionError(for: video) }
             return
         }
         #endif
         if Task.isCancelled { return }
-        let resolveElapsed = Date().timeIntervalSince(t0)
 
         let playerItem = AVPlayerItem(url: url)
         #if !os(macOS)
@@ -272,13 +268,6 @@ class VideoManager {
         // If AVPlayer fails to ready up (transient extraction or network glitch), retry once.
         Task { [weak self] in
             let ready = await awaitPlayerItemReady(playerItem)
-            let readyElapsed = Date().timeIntervalSince(t0)
-            let avElapsed = readyElapsed - resolveElapsed
-            print(String(
-                format: "play %@: resolve %.2fs · avplayer %.2fs · total %.2fs%@",
-                video.id, resolveElapsed, avElapsed, readyElapsed,
-                ready ? "" : " (FAILED)"
-            ))
             guard !ready, allowCacheRetry else { return }
             guard let self else { return }
             guard self.currentVideo?.id == video.id else { return }
@@ -458,16 +447,12 @@ extension VideoManager {
         watchLastTickPosition = 0
         watchLastTickTime = .distantPast
 
-        guard YTCookieAuth.shared.isSignedIn else {
-            print("[watchtime] beginWatchtimeSession(\(video.id)): cookie auth not signed in — skipping")
-            return
-        }
+        guard YTCookieAuth.shared.isSignedIn else { return }
 
         let cpn = InnerTubeAPI.generateCPN()
         let videoId = video.id
         watchCPN = cpn
         watchVideoId = videoId
-        print("[watchtime] beginWatchtimeSession(\(videoId)) cpn=\(cpn.prefix(4))…")
 
         watchFetchTask = Task { [weak self] in
             let urls = await InnerTubeAPI.shared.fetchAuthenticatedTrackingURLs(videoId: videoId)
@@ -475,9 +460,6 @@ extension VideoManager {
                 guard let self else { return }
                 guard self.watchVideoId == videoId else { return }
                 self.watchTrackingURLs = urls
-                if urls != nil {
-                    print("[watchtime] tracking URLs landed for \(videoId)")
-                }
             }
         }
     }

@@ -19,7 +19,7 @@ struct ChannelListView: View {
                 await library.refresh()
             }
             .navigationTitle("Channels")
-            .platformNavigationToolbar(titleDisplayMode: .inlineLarge)
+            .platformNavigationToolbar()
             .overlay {
                 if library.subscribedChannels.isEmpty {
                     ContentUnavailableView(

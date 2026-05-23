@@ -10,7 +10,7 @@
 		08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630512E87AD2A007AD438 /* SwiftMediaViewer */; };
 		08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630542E87AD56007AD438 /* SwiftMediaViewer */; };
 		AAA000000000000000000005 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = AAA000000000000000000003 /* YouTubeKit */; };
-		AAA000000000000000000008 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; productRef = AAA000000000000000000007 /* YouTubePlayerKit */; };
+		AAA000000000000000000008 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, macos, xros, ); productRef = AAA000000000000000000007 /* YouTubePlayerKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +33,8 @@
 				Views/Player/AVPlayerViewTvos.swift = (tvos, );
 				Views/Player/PlayerChannelTab.swift = (tvos, );
 				Views/Player/PlayerCommentsTab.swift = (tvos, );
+				Views/Profile/YTCookieSignInView.swift = (ios, macos, xros, );
+				Views/Shorts/ShortVideoCard.swift = (ios, macos, xros, );
 			};
 			target = 08E62F842E871877007AD438 /* Cathode */;
 		};

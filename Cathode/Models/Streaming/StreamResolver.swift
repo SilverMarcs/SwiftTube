@@ -44,15 +44,11 @@ enum StreamResolver {
             yt.itagFilter = { playbackItags.contains($0) }
             let streams = try await yt.streams
 
-            print("StreamResolver(\(id)): got \(streams.count) streams")
-
             guard let video = streams
                 .filterVideoOnly()
                 .filter({ $0.videoCodec?.isNativelyPlayable == true })
                 .highestResolutionStream()
             else {
-                let vCount = streams.filterVideoOnly().count
-                print("StreamResolver(\(id)): no playable video — \(vCount) video-only streams, codecs: \(streams.filterVideoOnly().map { describeCodec($0.videoCodec) })")
                 return nil
             }
 
@@ -61,8 +57,6 @@ enum StreamResolver {
                 .filter({ $0.audioCodec == .mp4a })
                 .lowestAudioBitrateStream()
             else {
-                let aCount = streams.filterAudioOnly().count
-                print("StreamResolver(\(id)): no AAC audio — \(aCount) audio-only streams, codecs: \(streams.filterAudioOnly().map { String(describing: $0.audioCodec) })")
                 return nil
             }
 
@@ -135,14 +129,4 @@ enum StreamResolver {
         }
     }
 
-    private static func describeCodec(_ codec: YouTubeKit.VideoCodec?) -> String {
-        switch codec {
-        case .avc1: return "avc1"
-        case .av1: return "av1"
-        case .vp9: return "vp9"
-        case .mp4v: return "mp4v"
-        case .unknown(let s): return "unknown(\(s))"
-        case .none: return "nil"
-        }
-    }
 }
