@@ -60,7 +60,18 @@ struct VideoCard: View {
                         .lineLimit(2)
                         #endif
 
-                    HStack(alignment: .center, spacing: 4) {
+                    HStack(alignment: .center, spacing: 10) {
+                        if let channelId = video.channelId,
+                           let avatarURL = library.channel(forId: channelId)?.thumbnailURL {
+                            CachedAsyncImage(url: avatarURL, targetSize: 80)
+                                #if os(tvOS)
+                                .frame(width: 28, height: 28)
+                                #else
+                                .frame(width: 20, height: 20)
+                                #endif
+                                .clipShape(.circle)
+                        }
+
                         Text(video.channelTitle)
                             .lineLimit(1)
                             #if os(tvOS)
@@ -69,7 +80,6 @@ struct VideoCard: View {
                             .font(.subheadline)
                             #endif
                             .fontWeight(.medium)
-                            .padding(.leading, 2)
 
                         Spacer()
 
