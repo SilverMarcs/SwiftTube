@@ -24,6 +24,10 @@ struct PlayerCommentsTab: View {
         .overlay {
             if !hasLoaded {
                 UniversalProgressView()
+            } else if topComments.isEmpty {
+                Text("No comments available.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
             }
         }
         .sheet(item: $presentedComment) { comment in

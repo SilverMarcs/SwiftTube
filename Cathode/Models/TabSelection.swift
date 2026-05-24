@@ -17,8 +17,13 @@ enum TabSelection: String, CaseIterable {
     case bookmark = "watchLater"
     case history = "history"
 
+#if os(tvOS)
+    static let compactTabs: [TabSelection] = [.search, .feed, .channels, .library]
+    static let extendedTabs: [TabSelection] = [.search, .feed, .settings]
+#else
     static let compactTabs: [TabSelection] = [.search, .feed, .shorts, .channels, .library]
     static let extendedTabs: [TabSelection] = [.search, .feed, .shorts, .settings]
+#endif
     static let extendedSubscriptionTabs: [TabSelection] = [.channels]
     static let extendedLibraryTabs: [TabSelection] = [.bookmark, .history]
     static let allCases: [TabSelection] = [.feed, .shorts, .library, .search, .settings, .channels, .bookmark, .history]
@@ -66,7 +71,12 @@ enum TabSelection: String, CaseIterable {
     var tabView: some View {
         switch self {
         case .feed: FeedView()
-        case .shorts: ShortsView()
+        case .shorts:
+#if os(tvOS)
+            EmptyView()
+#else
+            ShortsView()
+#endif
         case .library: ProfileView()
         case .search: SearchView()
         case .settings: SettingsView()

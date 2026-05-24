@@ -5,6 +5,7 @@ struct PlayerChannelTab: View {
     let channelId: String
     @State private var videos: [Video] = []
     @State private var isLoading = true
+    @State private var hasLoaded = false
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -18,14 +19,28 @@ struct PlayerChannelTab: View {
         .overlay {
             if isLoading {
                 UniversalProgressView()
+            } else if videos.isEmpty {
+                Text("No videos available.")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
             }
         }
-        .task {
-            guard !channelId.isEmpty else { isLoading = false; return }
+        .onAppear { load() }
+    }
+
+    private func load() {
+        guard !hasLoaded else { return }
+        hasLoaded = true
+        guard !channelId.isEmpty else { isLoading = false; return }
+        Task {
             do {
-                let group = try await InnerTubeAPI.shared.fetchChannelVideos(channelId: channelId)
+                // Mirror ChannelVideoList: the default browse (no Videos-tab params)
+                // reliably returns the video grid via parseChannel, while
+                // fetchChannelVideos often comes back empty for certain channels.
+                let (_, group) = try await InnerTubeAPI.shared.fetchChannel(channelId: channelId)
                 videos = group.videos
             } catch {
+                print("PlayerChannelTab: \(error.localizedDescription)")
                 videos = []
             }
             isLoading = false

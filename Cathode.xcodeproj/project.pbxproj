@@ -35,6 +35,7 @@
 				Views/Player/PlayerCommentsTab.swift = (tvos, );
 				Views/Profile/YTCookieSignInView.swift = (ios, macos, xros, );
 				Views/Shorts/ShortVideoCard.swift = (ios, macos, xros, );
+				Views/Shorts/ShortsView.swift = (ios, macos, xros, );
 			};
 			target = 08E62F842E871877007AD438 /* Cathode */;
 		};

@@ -2,16 +2,6 @@ import SwiftUI
 import AVFoundation
 
 struct ShortsView: View {
-#if os(tvOS)
-    var body: some View {
-        ContentUnavailableView(
-            "Shorts unavailable",
-            systemImage: "play.rectangle.on.rectangle.fill",
-            description: Text("Vertical short-form playback isn't supported on Apple TV.")
-        )
-        .platformTopBar("Shorts")
-    }
-#else
     @Environment(VideoLoader.self) private var videoLoader
     @Environment(VideoManager.self) var videoManager
 
@@ -56,9 +46,7 @@ struct ShortsView: View {
                 }
             }
             .background(.black)
-            #if !os(tvOS)
             .statusBarHidden(false)
-            #endif
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea()
 #endif
@@ -70,5 +58,4 @@ struct ShortsView: View {
             }
         }
     }
-#endif
 }
