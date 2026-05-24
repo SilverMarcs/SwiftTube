@@ -9,7 +9,6 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
     @Environment(VideoManager.self) private var videoManager
     @Environment(LibraryStore.self) private var cloudStore
 
-    private static let bookmarkActionId = UIAction.Identifier("cathode.bookmark")
     private static let skipSponsorActionId = UIAction.Identifier("cathode.skipSponsor")
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
@@ -18,20 +17,12 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
         controller.allowsPictureInPicturePlayback = true
         controller.transportBarIncludesTitleView = true
         controller.customInfoViewControllers = makeInfoTabs()
-        controller.infoViewActions.append(makeBookmarkAction())
         return controller
     }
 
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
         if uiViewController.player !== player {
             uiViewController.player = player
-        }
-        // Bookmark
-        let bookmark = makeBookmarkAction()
-        if let idx = uiViewController.infoViewActions.firstIndex(where: { $0.identifier == Self.bookmarkActionId }) {
-            uiViewController.infoViewActions[idx] = bookmark
-        } else {
-            uiViewController.infoViewActions.append(bookmark)
         }
         // Skip Sponsor — only mutate on transition to avoid flicker.
         let inSponsor = videoManager.currentSponsorSegment != nil
@@ -59,17 +50,6 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
         channel.title = video.channelTitle
 
         return [comments, channel]
-    }
-
-    private func makeBookmarkAction() -> UIAction {
-        let isBookmarked = cloudStore.isBookmarked(video.id)
-        return UIAction(
-            title: isBookmarked ? "Remove Bookmark" : "Add Bookmark",
-            image: UIImage(systemName: isBookmarked ? "bookmark.fill" : "bookmark"),
-            identifier: Self.bookmarkActionId
-        ) { _ in
-            cloudStore.toggleBookmark(video)
-        }
     }
 
     private func makeSkipSponsorAction() -> UIAction {
