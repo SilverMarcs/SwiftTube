@@ -14,21 +14,40 @@ struct YTCookieAuthRow: View {
 
     var body: some View {
         if auth.isSignedIn {
-            HStack {
-                Label {
-                    Text("YouTube history sync")
-                    Text(detailText)
-                } icon: {
-                    Image(systemName: "checkmark.seal.fill")
-                        .foregroundStyle(.green)
-                }
-                Spacer()
+            Group {
+                #if os(tvOS)
                 Button(role: .destructive) {
                     confirmSignOut = true
                 } label: {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                    HStack {
+                        Label {
+                            Text("YouTube history sync")
+                        } icon: {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundStyle(.green)
+                        }
+                        Spacer()
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .foregroundStyle(.red)
+                    }
                 }
-                .foregroundStyle(.red)
+                #else
+                HStack {
+                    Label {
+                        Text("YouTube history sync")
+                    } icon: {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundStyle(.green)
+                    }
+                    Spacer()
+                    Button(role: .destructive) {
+                        confirmSignOut = true
+                    } label: {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                    }
+                    .foregroundStyle(.red)
+                }
+                #endif
             }
             .alert("Stop syncing watch history?", isPresented: $confirmSignOut) {
                 Button("Sign Out", role: .destructive) {
@@ -40,7 +59,6 @@ struct YTCookieAuthRow: View {
             #if os(tvOS)
             Label {
                 Text("Waiting for iCloud sync")
-                Text("Sign in to YouTube on your iPhone or iPad — the session will sync here automatically over iCloud.")
             } icon: {
                 Image(systemName: "icloud.slash")
                     .foregroundStyle(.secondary)
@@ -51,7 +69,6 @@ struct YTCookieAuthRow: View {
             } label: {
                 Label {
                     Text("Enable YouTube history sync")
-                    Text("Sign in to youtube.com so watch progress shows up on your account.")
                 } icon: {
                     Image(systemName: "person.badge.key")
                 }
@@ -62,23 +79,4 @@ struct YTCookieAuthRow: View {
             #endif
         }
     }
-
-    private var detailText: String {
-        let base: String
-        if auth.hydratedFromICloud {
-            base = "Signed in via iCloud sync from another device."
-        } else {
-            base = "Watch progress will be reported to your YouTube account."
-        }
-        if let synced = auth.iCloudSyncedAt {
-            return base + " iCloud: \(Self.relativeFormatter.localizedString(for: synced, relativeTo: .now))."
-        }
-        return base
-    }
-
-    private static let relativeFormatter: RelativeDateTimeFormatter = {
-        let f = RelativeDateTimeFormatter()
-        f.unitsStyle = .short
-        return f
-    }()
 }

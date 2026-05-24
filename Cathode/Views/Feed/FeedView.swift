@@ -36,29 +36,25 @@ struct FeedView: View {
             }
             #endif
         }
-            .platformNavigationToolbar()
-            .navigationTitle("Feed")
             .onChange(of: videoLoader.videos) { _, newValue in
                 guard isRandomOrderEnabled else { return }
                 randomizedVideos = newValue.shuffled()
             }
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        withAnimation {
-                            isRandomOrderEnabled.toggle()
-                            if isRandomOrderEnabled {
-                                randomizedVideos = videoLoader.videos.shuffled()
-                            } else {
-                                randomizedVideos = []
-                            }
+            .platformTopBar("Feed") {
+                Button {
+                    withAnimation {
+                        isRandomOrderEnabled.toggle()
+                        if isRandomOrderEnabled {
+                            randomizedVideos = videoLoader.videos.shuffled()
+                        } else {
+                            randomizedVideos = []
                         }
-                    } label: {
-                        Image(systemName: "shuffle")
-                            .foregroundStyle(isRandomOrderEnabled ? .accent : .primary)
                     }
-                    .accessibilityLabel("Randomize")
+                } label: {
+                    Image(systemName: "shuffle")
+                        .foregroundStyle(isRandomOrderEnabled ? .accent : .primary)
                 }
+                .accessibilityLabel("Randomize")
             }
     }
 }

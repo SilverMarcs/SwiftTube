@@ -58,8 +58,7 @@ struct BookmarkFullView: View {
                 await LibraryStore.shared.refresh()
             }
         )
-        .navigationTitle("Bookmarks")
-        .platformNavigationToolbar(titleDisplayMode: .inline)
+        .platformTopBar("Bookmarks", titleDisplayMode: .inline)
         .contentMargins(.top, 5)
     }
 }

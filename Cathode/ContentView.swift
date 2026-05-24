@@ -17,7 +17,6 @@ struct ContentView: View {
     @Namespace private var animation
 
     @State private var isPresented = false
-    @AppStorage("tvOSNavigationStyle") private var tvNavigationStyleSetting = TVNavigationStyle.tabBar
 
     private var isCompactSize: Bool { horizontalSizeClass == .compact }
 
@@ -73,10 +72,8 @@ struct ContentView: View {
                 }
             }
         }
-        #if os(tvOS)
-        .tvNavigationStyle(tvNavigationStyleSetting)
-        #else
         .tabViewStyle(.sidebarAdaptable)
+        #if !os(tvOS)
         .tabViewSearchActivation(.searchTabSelection)
         #endif
         #if os(macOS)

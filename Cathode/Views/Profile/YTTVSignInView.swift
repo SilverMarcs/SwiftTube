@@ -28,33 +28,51 @@ struct YTTVSignInView: View {
     // MARK: - Signed in
 
     private var signedInRow: some View {
-        HStack(spacing: 12) {
-            if let url = auth.accountAvatarURL {
-                CachedAsyncImage(url: url, targetSize: 100)
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
-            } else {
-                Image(systemName: "person.crop.circle.fill")
-                    .resizable()
-                    .frame(width: 40, height: 40)
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(auth.accountName ?? "YouTube Account")
-
-            Spacer()
-
+        Group {
+            #if os(tvOS)
             Button(role: .destructive) {
                 showSignOutConfirmation = true
             } label: {
-                Image(systemName: "rectangle.portrait.and.arrow.right")
+                HStack(spacing: 12) {
+                    avatar
+                    Text(auth.accountName ?? "YouTube Account")
+                    Spacer()
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .foregroundStyle(.red)
+                }
             }
-            .foregroundStyle(.red)
+            #else
+            HStack(spacing: 12) {
+                avatar
+                Text(auth.accountName ?? "YouTube Account")
+                Spacer()
+                Button(role: .destructive) {
+                    showSignOutConfirmation = true
+                } label: {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                }
+                .foregroundStyle(.red)
+            }
+            #endif
         }
         .alert("Are you sure you want to sign out?",
                isPresented: $showSignOutConfirmation) {
             Button("Sign Out", role: .destructive) { auth.signOut() }
             Button("Cancel", role: .cancel) { }
+        }
+    }
+
+    @ViewBuilder
+    private var avatar: some View {
+        if let url = auth.accountAvatarURL {
+            CachedAsyncImage(url: url, targetSize: 100)
+                .frame(width: 40, height: 40)
+                .clipShape(Circle())
+        } else {
+            Image(systemName: "person.crop.circle.fill")
+                .resizable()
+                .frame(width: 40, height: 40)
+                .foregroundStyle(.secondary)
         }
     }
 

@@ -9,7 +9,7 @@ struct ShortsView: View {
             systemImage: "play.rectangle.on.rectangle.fill",
             description: Text("Vertical short-form playback isn't supported on Apple TV.")
         )
-        .navigationTitle("Shorts")
+        .platformTopBar("Shorts")
     }
 #else
     @Environment(VideoLoader.self) private var videoLoader

@@ -37,13 +37,9 @@ struct ChannelVideoList: View {
                 await loadChannelVideos()
             }
         )
-        .navigationTitle(displayTitle)
-        .platformNavigationToolbar(titleDisplayMode: .inline)
-        .toolbar {
+        .platformTopBar(displayTitle, titleDisplayMode: .inline) {
             if !channelId.isEmpty {
-                ToolbarItem(placement: .primaryAction) {
-                    subscribeButton
-                }
+                subscribeButton
             }
         }
         .task {

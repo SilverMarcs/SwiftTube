@@ -10,23 +10,17 @@ import SwiftMediaViewer
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    #if os(tvOS)
-    @AppStorage("tvOSNavigationStyle") private var tvNavigationStyleSetting = TVNavigationStyle.tabBar
-    #endif
 
     var body: some View {
         SettingsSplitView {
             form
         } infoPanel: {
-            VStack(spacing: 16) {
-                Image(systemName: "play.tv.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 220, height: 220)
-                    .foregroundStyle(.tint)
-                Text("Cathode")
-                    .font(.system(size: 56, weight: .bold))
-            }
+            Image("AppLogo")
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(.tint)
+                .frame(width: 450, height: 450)
+                .shadow(radius: 12)
         }
     }
 
@@ -34,40 +28,33 @@ struct SettingsView: View {
         Form {
             Section {
                 YTTVSignInView()
-                    #if !os(tvOS)
+                    #if os(tvOS)
+                    .foregroundStyle(.primary)
+                    #else
                     .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
                     #endif
             }
 
             Section("Watch History Sync") {
                 YTCookieAuthRow()
+                    #if os(tvOS)
+                    .foregroundStyle(.primary)
+                    #endif
             }
-
-            #if os(tvOS)
-            Section("View Options") {
-                Button {
-                    tvNavigationStyleSetting = tvNavigationStyleSetting.next()
-                } label: {
-                    LabeledContent("Tab Style", value: tvNavigationStyleSetting.title)
-                }
-            }
-            #endif
 
             Section("Cache") {
                 CacheManagerView()
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("Settings")
-        .platformNavigationToolbar(titleDisplayMode: .inline)
         #if os(iOS)
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button(role: .close) {
-                    dismiss()
-                }
+        .platformTopBar("Settings", titleDisplayMode: .inline) {
+            Button(role: .close) {
+                dismiss()
             }
         }
+        #else
+        .platformTopBar("Settings", titleDisplayMode: .inline)
         #endif
     }
 }

@@ -45,8 +45,7 @@ struct HistoryFullView: View {
                 await LibraryStore.shared.refresh()
             }
         )
-        .navigationTitle("History")
-        .platformNavigationToolbar(titleDisplayMode: .inline)
+        .platformTopBar("History", titleDisplayMode: .inline)
         .contentMargins(.top, 5)
     }
 }

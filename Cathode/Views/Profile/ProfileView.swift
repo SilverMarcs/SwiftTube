@@ -26,16 +26,12 @@ struct ProfileView: View {
         }
         .formStyle(.grouped)
         .contentMargins(.top, 5)
-        .navigationTitle("Library")
-        .platformNavigationToolbar()
         #if os(iOS)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showingSettings = true
-                } label: {
-                    Label("Settings", systemImage: "gear")
-                }
+        .platformTopBar("Library") {
+            Button {
+                showingSettings = true
+            } label: {
+                Label("Settings", systemImage: "gear")
             }
         }
         .sheet(isPresented: $showingSettings) {
@@ -43,6 +39,8 @@ struct ProfileView: View {
                 SettingsView()
             }
         }
+        #else
+        .platformTopBar("Library")
         #endif
     }
 }
