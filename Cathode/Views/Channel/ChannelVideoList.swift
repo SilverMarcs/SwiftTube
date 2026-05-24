@@ -41,6 +41,7 @@ struct ChannelVideoList: View {
             if !channelId.isEmpty {
                 subscribeButton
             }
+            RefreshButton { await loadChannelVideos() }
         }
         .task {
             if videos.isEmpty {
@@ -63,8 +64,12 @@ struct ChannelVideoList: View {
                 subscribed ? "Subscribed" : "Subscribe",
                 systemImage: subscribed ? "bell.fill" : "bell"
             )
+            .labelStyle(.iconOnly)
         }
         .help(subscribed ? "Unsubscribe" : "Subscribe")
+        #if os(tvOS)
+        .tint(.primary)
+        #endif
     }
 
     private func loadChannelVideos() async {

@@ -103,7 +103,7 @@ private struct CommentDetailSheet: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(comment.author)
                             .font(.headline)
-                        Text(comment.publishedTime)
+                        Text(comment.shortPublishedTime)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }

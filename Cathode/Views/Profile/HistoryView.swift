@@ -45,7 +45,9 @@ struct HistoryFullView: View {
                 await LibraryStore.shared.refresh()
             }
         )
-        .platformTopBar("History", titleDisplayMode: .inline)
+        .platformTopBar("History", titleDisplayMode: .inline) {
+            RefreshButton { await LibraryStore.shared.refresh() }
+        }
         .contentMargins(.top, 5)
     }
 }

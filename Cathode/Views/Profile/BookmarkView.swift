@@ -58,7 +58,9 @@ struct BookmarkFullView: View {
                 await LibraryStore.shared.refresh()
             }
         )
-        .platformTopBar("Bookmarks", titleDisplayMode: .inline)
+        .platformTopBar("Bookmarks", titleDisplayMode: .inline) {
+            RefreshButton { await LibraryStore.shared.refresh() }
+        }
         .contentMargins(.top, 5)
     }
 }

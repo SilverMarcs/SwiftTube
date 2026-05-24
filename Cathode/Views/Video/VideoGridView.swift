@@ -79,27 +79,20 @@ struct VideoGridView<Header: View>: View {
                         systemImage: "person.crop.circle.badge.exclamationmark",
                         description: Text("Sign in from Library → Settings to load your feed.")
                     )
+                    #if os(tvOS)
+                    .focusable(true)
+                    #endif
                 } else {
                     UniversalProgressView()
+                        #if os(tvOS)
+                        .focusable(true)
+                        #endif
                 }
             }
         }
-        .toolbar {
-            #if os(macOS)
-            if let onRefresh {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        Task { await onRefresh() }
-                    } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
-                    }
-                    #if os(macOS)
-                    .keyboardShortcut("r")
-                    #endif
-                }
-            }
-            #endif
-        }
+        #if os(tvOS)
+        .focusSection()
+        #endif
     }
 }
 

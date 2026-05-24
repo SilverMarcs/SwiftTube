@@ -18,7 +18,9 @@ struct ChannelListView: View {
             .refreshable {
                 await library.refresh()
             }
-            .platformTopBar("Channels")
+            .platformTopBar("Channels") {
+                RefreshButton { await library.refresh() }
+            }
             .overlay {
                 if library.subscribedChannels.isEmpty {
                     ContentUnavailableView(

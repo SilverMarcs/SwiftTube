@@ -39,7 +39,7 @@ private struct PlatformTopBarModifier<Trailing: View>: ViewModifier {
     func body(content: Content) -> some View {
         #if os(tvOS)
         VStack(spacing: 0) {
-            HStack {
+            HStack(spacing: 15) {
                 Spacer()
                 Text(title)
                     .font(.largeTitle.weight(.bold))
@@ -48,6 +48,7 @@ private struct PlatformTopBarModifier<Trailing: View>: ViewModifier {
                 trailing
             }
             .padding(.vertical, 24)
+            .focusSection()
             content
         }
         .ignoresSafeArea(edges: [.top])
