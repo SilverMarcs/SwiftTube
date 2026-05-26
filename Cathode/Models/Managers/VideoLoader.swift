@@ -9,11 +9,19 @@
 
 import SwiftUI
 
+enum FeedMode {
+    case subscriptions
+    case recommendations
+}
+
 @Observable
 final class VideoLoader {
 
     private(set) var videos: [Video] = []
     private(set) var shortVideos: [Video] = []
+    private(set) var recommendations: [Video] = []
+
+    var mode: FeedMode = .subscriptions
 
     /// Re-entry guard for `loadMore()`.
     private var isLoadingMore: Bool = false
@@ -26,6 +34,13 @@ final class VideoLoader {
     /// process; subsequent reloads preserve this order so prefetched stream URLs
     /// stay aligned with what the user actually swipes through.
     private var shortsOrder: [String] = []
+
+    var currentVideos: [Video] {
+        switch mode {
+        case .subscriptions:  return videos
+        case .recommendations: return recommendations
+        }
+    }
 
     /// Reloads the subscriptions feed from scratch.
     func loadAllChannelVideos() async {
@@ -44,6 +59,32 @@ final class VideoLoader {
             self.shortVideos = applyStableShuffle(to: shorts)
         } catch {
             print("Error loading subscriptions: \(error)")
+        }
+    }
+
+    func refreshCurrent() async {
+        switch mode {
+        case .subscriptions:   await loadAllChannelVideos()
+        case .recommendations: await loadRecommendations()
+        }
+    }
+
+    func switchTo(_ target: FeedMode) async {
+        mode = target
+        if target == .recommendations && recommendations.isEmpty {
+            await loadRecommendations()
+        }
+    }
+
+    func loadRecommendations() async {
+        do {
+            let recs = try await InnerTubeAPI.shared.fetchAllRecommendations()
+            let (_, regular) = splitShorts(recs)
+            withAnimation {
+                self.recommendations = regular
+            }
+        } catch {
+            print("Error loading recommendations: \(error)")
         }
     }
 

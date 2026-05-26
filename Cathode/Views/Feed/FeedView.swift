@@ -10,12 +10,13 @@ struct FeedView: View {
 
     var body: some View {
         VideoGridView(
-            videos: videoLoader.videos,
+            videos: videoLoader.currentVideos,
             onReachEnd: {
+                guard videoLoader.mode == .subscriptions else { return }
                 Task { await videoLoader.loadMore() }
             },
             onRefresh: {
-                await videoLoader.loadAllChannelVideos()
+                await videoLoader.refreshCurrent()
             }
         ) {
             #if os(tvOS)
@@ -28,8 +29,8 @@ struct FeedView: View {
             }
             #endif
         }
-        .platformTopBar("Feed") {
-            RefreshButton { await videoLoader.loadAllChannelVideos() }
+        .platformTopBar(videoLoader.mode == .subscriptions ? "Feed" : "Recommended") {
+            FeedToolbar()
         }
     }
 }

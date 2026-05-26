@@ -66,6 +66,19 @@ extension InnerTubeAPI {
         return rows
     }
 
+    public func fetchAllRecommendations(maxPages: Int = 5) async throws -> [Video] {
+        guard authToken != nil else { return [] }
+        var all: [Video] = []
+        var token: String? = nil
+        for _ in 0..<maxPages {
+            let group = try await fetchHome(continuationToken: token)
+            all.append(contentsOf: group.videos)
+            guard let next = group.nextPageToken, !next.isEmpty else { break }
+            token = next
+        }
+        return all
+    }
+
     // MARK: - Subscriptions
 
     /// Fetches subscriptions feed (requires auth).

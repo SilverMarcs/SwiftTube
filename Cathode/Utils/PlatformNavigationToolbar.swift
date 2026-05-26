@@ -58,7 +58,7 @@ private struct PlatformTopBarModifier<Trailing: View>: ViewModifier {
             .navigationTitle(title)
             .toolbarTitleDisplayMode(titleDisplayMode)
             .toolbar {
-                ToolbarItem(placement: .primaryAction) { trailing }
+                ToolbarItemGroup(placement: .primaryAction) { trailing }
             }
         #endif
     }
