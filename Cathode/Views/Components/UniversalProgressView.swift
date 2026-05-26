@@ -8,17 +8,29 @@
 import SwiftUI
 
 struct UniversalProgressView: View {
+    var text: String?
+
+    init(_ text: String? = nil) {
+        self.text = text
+    }
+
     var body: some View {
-        ProgressView()
+        Group {
+            if let text {
+                ProgressView(text)
+            } else {
+                ProgressView()
+            }
+        }
         #if os(tvOS)
-            .tint(.white)
-            .controlSize(.extraLarge)
-            .scaleEffect(1.5)
+        .tint(.white)
+        .controlSize(.extraLarge)
+        .scaleEffect(1.5)
         #else
-            .controlSize(.large)
-            .padding()
+        .controlSize(.large)
+        .padding()
         #endif
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
