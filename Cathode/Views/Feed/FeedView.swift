@@ -29,7 +29,7 @@ struct FeedView: View {
             }
             #endif
         }
-        .platformTopBar(videoLoader.mode == .subscriptions ? "Feed" : "Recommended") {
+        .platformTopBar("Feed") {
             FeedToolbar()
         }
     }

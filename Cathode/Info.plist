@@ -10,5 +10,16 @@
 	<array>
 		<string>com.SilverMarcs.SwiftTube.downloads</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.SilverMarcs.SwiftTube.topshelf</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>swifttube</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

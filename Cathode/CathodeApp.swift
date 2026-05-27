@@ -45,7 +45,9 @@ struct CathodeApp: App {
         if ytAuth.isSignedIn {
             await store.refresh()
         }
-        await videoLoader.loadAllChannelVideos()
+        async let subs: Void = videoLoader.loadAllChannelVideos()
+        async let recs: Void = videoLoader.loadRecommendations()
+        _ = await (subs, recs)
 
         if videoManager.currentVideo == nil,
            let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
@@ -110,6 +112,21 @@ struct CathodeApp: App {
                     cookieAuth: cookieAuth
                 ))
                 .task { await coldLaunchLoad() }
+                .onOpenURL { url in
+                    handleTopShelfURL(url)
+                }
+        }
+    }
+
+    private func handleTopShelfURL(_ url: URL) {
+        guard let deepLink = TopShelfDeepLink.parse(url) else { return }
+        Task {
+            do {
+                let info = try await InnerTubeAPI.shared.fetchPlayerInfo(videoId: deepLink.itemID)
+                videoManager.setVideo(info.video, autoPlay: deepLink.action == .play)
+            } catch {
+                print("Failed to handle Top Shelf deep link: \(error)")
+            }
         }
     }
     #endif

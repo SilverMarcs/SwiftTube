@@ -11,10 +11,38 @@
 		08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630542E87AD56007AD438 /* SwiftMediaViewer */; };
 		AAA000000000000000000005 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = AAA000000000000000000003 /* YouTubeKit */; };
 		AAA000000000000000000008 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, macos, xros, ); productRef = AAA000000000000000000007 /* YouTubePlayerKit */; };
+		08F0BEEF000000000000A003 /* TVServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08F0BEEF000000000000A002 /* TVServices.framework */; };
+		08F0BEEF000000000000A004 /* TopShelf.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 08F0BEEF000000000000A001 /* TopShelf.appex */; platformFilters = (tvos, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		08F0BEEF000000000000A005 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 08E62F7D2E871877007AD438 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 08F0BEEF000000000000A00B;
+			remoteInfo = TopShelf;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		08F0BEEF000000000000A006 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				08F0BEEF000000000000A004 /* TopShelf.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		08E62F852E871877007AD438 /* Cathode.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cathode.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		08F0BEEF000000000000A001 /* TopShelf.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TopShelf.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		08F0BEEF000000000000A002 /* TVServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = TVServices.framework; path = Library/Frameworks/TVServices.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -39,6 +67,13 @@
 			};
 			target = 08E62F842E871877007AD438 /* Cathode */;
 		};
+		08F0BEEF000000000000A007 /* Exceptions for "TopShelf" folder in "TopShelf" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 08F0BEEF000000000000A00B /* TopShelf */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -48,6 +83,14 @@
 				08F30B942E89115A005B1397 /* Exceptions for "Cathode" folder in "Cathode" target */,
 			);
 			path = Cathode;
+			sourceTree = "<group>";
+		};
+		08F0BEEF000000000000A008 /* TopShelf */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				08F0BEEF000000000000A007 /* Exceptions for "TopShelf" folder in "TopShelf" target */,
+			);
+			path = TopShelf;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -64,6 +107,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		08F0BEEF000000000000A009 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				08F0BEEF000000000000A003 /* TVServices.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -71,6 +122,8 @@
 			isa = PBXGroup;
 			children = (
 				08E62F872E871877007AD438 /* Cathode */,
+				08F0BEEF000000000000A008 /* TopShelf */,
+				08F0BEEF000000000000A00A /* Frameworks */,
 				08E62F862E871877007AD438 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -79,8 +132,17 @@
 			isa = PBXGroup;
 			children = (
 				08E62F852E871877007AD438 /* Cathode.app */,
+				08F0BEEF000000000000A001 /* TopShelf.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		08F0BEEF000000000000A00A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				08F0BEEF000000000000A002 /* TVServices.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -93,10 +155,12 @@
 				08E62F812E871877007AD438 /* Sources */,
 				08E62F822E871877007AD438 /* Frameworks */,
 				08E62F832E871877007AD438 /* Resources */,
+				08F0BEEF000000000000A006 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				08F0BEEF000000000000A00E /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				08E62F872E871877007AD438 /* Cathode */,
@@ -112,6 +176,28 @@
 			productReference = 08E62F852E871877007AD438 /* Cathode.app */;
 			productType = "com.apple.product-type.application";
 		};
+		08F0BEEF000000000000A00B /* TopShelf */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 08F0BEEF000000000000A011 /* Build configuration list for PBXNativeTarget "TopShelf" */;
+			buildPhases = (
+				08F0BEEF000000000000A00D /* Sources */,
+				08F0BEEF000000000000A009 /* Frameworks */,
+				08F0BEEF000000000000A00C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				08F0BEEF000000000000A008 /* TopShelf */,
+			);
+			name = TopShelf;
+			packageProductDependencies = (
+			);
+			productName = TopShelf;
+			productReference = 08F0BEEF000000000000A001 /* TopShelf.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -123,6 +209,9 @@
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					08E62F842E871877007AD438 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					08F0BEEF000000000000A00B = {
 						CreatedOnToolsVersion = 26.0;
 					};
 				};
@@ -147,12 +236,20 @@
 			projectRoot = "";
 			targets = (
 				08E62F842E871877007AD438 /* Cathode */,
+				08F0BEEF000000000000A00B /* TopShelf */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		08E62F832E871877007AD438 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		08F0BEEF000000000000A00C /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -169,7 +266,25 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		08F0BEEF000000000000A00D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		08F0BEEF000000000000A00E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilters = (
+				tvos,
+			);
+			target = 08F0BEEF000000000000A00B /* TopShelf */;
+			targetProxy = 08F0BEEF000000000000A005 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		08E62F8E2E871879007AD438 /* Debug */ = {
@@ -420,6 +535,69 @@
 			};
 			name = Release;
 		};
+		08F0BEEF000000000000A00F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TopShelf/TopShelf.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = J52QUTREBS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TopShelf/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = TopShelf;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.SilverMarcs.SwiftTube.TopShelf;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		08F0BEEF000000000000A010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TopShelf/TopShelf.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = J52QUTREBS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TopShelf/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = TopShelf;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.SilverMarcs.SwiftTube.TopShelf;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 3;
+				TVOS_DEPLOYMENT_TARGET = 26.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -437,6 +615,15 @@
 			buildConfigurations = (
 				08E62F912E871879007AD438 /* Debug */,
 				08E62F922E871879007AD438 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		08F0BEEF000000000000A011 /* Build configuration list for PBXNativeTarget "TopShelf" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				08F0BEEF000000000000A00F /* Debug */,
+				08F0BEEF000000000000A010 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

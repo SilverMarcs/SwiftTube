@@ -80,9 +80,11 @@ final class VideoLoader {
         do {
             let recs = try await InnerTubeAPI.shared.fetchAllRecommendations()
             let (_, regular) = splitShorts(recs)
+            let shuffled = regular.shuffled()
             withAnimation {
-                self.recommendations = regular
+                self.recommendations = shuffled
             }
+            TopShelfCache.save(videos: shuffled)
         } catch {
             print("Error loading recommendations: \(error)")
         }
