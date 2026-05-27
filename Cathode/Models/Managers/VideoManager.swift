@@ -349,5 +349,13 @@ extension VideoManager {
         persistCurrentTime()
         iframe.tearDown()
     }
+
+    func playWithIframe() {
+        guard let video = currentVideo else { return }
+        loadingTask?.cancel()
+        playbackError = nil
+        isSetting = false
+        startIframeFallback(for: video, autoPlay: true)
+    }
 }
 #endif
