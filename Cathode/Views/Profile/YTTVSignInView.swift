@@ -17,10 +17,12 @@ struct YTTVSignInView: View {
         Group {
             if auth.isSignedIn {
                 signedInRow
-            } else if let activation = auth.pendingActivation {
-                pendingRow(activation)
             } else {
                 signInButton
+
+                if let activation = auth.pendingActivation {
+                    pendingRow(activation)
+                }
             }
         }
     }
@@ -83,7 +85,9 @@ struct YTTVSignInView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Enter this code at youtube.com/activate")
                 .font(.subheadline)
+                #if !os(tvOS)
                 .foregroundStyle(.secondary)
+                #endif
             Text(activation.userCode)
                 .font(.system(.title, design: .monospaced, weight: .bold))
                 #if !os(tvOS)
@@ -99,7 +103,6 @@ struct YTTVSignInView: View {
                 #else
                 Text(activation.verificationURL.absoluteString)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
                 #endif
 
                 Spacer()
@@ -111,8 +114,13 @@ struct YTTVSignInView: View {
 
             Text("Waiting for activation…")
                 .font(.footnote)
+                #if !os(tvOS)
                 .foregroundStyle(.secondary)
+                #endif
         }
+        #if os(tvOS)
+        .foregroundStyle(.primary)
+        #endif
     }
 
     // MARK: - Sign-in button
@@ -123,5 +131,6 @@ struct YTTVSignInView: View {
         } label: {
             Label("Sign in with YouTube", systemImage: "play.rectangle.fill")
         }
+        .disabled(auth.pendingActivation != nil)
     }
 }
