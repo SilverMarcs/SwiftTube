@@ -55,13 +55,13 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         #if os(iOS)
-        .platformTopBar("Settings", titleDisplayMode: .inline) {
+        .platformTopBar("Settings") {
             Button(role: .close) {
                 dismiss()
             }
         }
         #else
-        .platformTopBar("Settings", titleDisplayMode: .inline)
+        .platformTopBar("Settings")
         #endif
     }
 }
