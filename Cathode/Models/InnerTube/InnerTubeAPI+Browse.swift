@@ -23,20 +23,20 @@ extension InnerTubeAPI {
 
     // MARK: - Home
 
-    /// Fetches the home feed.
-    /// When authenticated, uses TVHTML5 on youtubei.googleapis.com for a personalised feed.
-    /// When unauthenticated, uses the WEB client on www.youtube.com for the default feed.
     public func fetchHome(continuationToken: String? = nil) async throws -> VideoGroup {
         let isAuth = authToken != nil
-        var body = makeBody(client: isAuth ? tvClientContext : webClientContext,
+        if !isAuth {
+            tubeLog.notice("fetchHome: guest user. Fetching 'trending' search feed directly.")
+            return try await search(query: "trending", continuationToken: continuationToken)
+        }
+        
+        var body = makeBody(client: tvClientContext,
                             continuationToken: continuationToken,
                             includeVisitorData: true)
         if continuationToken == nil {
             body["browseId"] = "FEwhat_to_watch"
         }
-        let data = isAuth
-            ? try await postTV(endpoint: "browse", body: body)
-            : try await post(endpoint: "browse", body: body)
+        let data = try await postTV(endpoint: "browse", body: body)
         updateVisitorData(from: data)
         return try parseVideoGroup(from: data, title: BrowseSection.SectionType.home.defaultTitle)
     }
@@ -67,7 +67,6 @@ extension InnerTubeAPI {
     }
 
     public func fetchAllRecommendations(maxPages: Int = 5) async throws -> [Video] {
-        guard authToken != nil else { return [] }
         var all: [Video] = []
         var token: String? = nil
         for _ in 0..<maxPages {

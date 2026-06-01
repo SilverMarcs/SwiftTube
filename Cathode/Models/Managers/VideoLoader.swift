@@ -14,6 +14,7 @@ enum FeedMode {
     case recommendations
 }
 
+@MainActor
 @Observable
 final class VideoLoader {
 
@@ -21,7 +22,7 @@ final class VideoLoader {
     private(set) var shortVideos: [Video] = []
     private(set) var recommendations: [Video] = []
 
-    var mode: FeedMode = .subscriptions
+    var mode: FeedMode = YTTVAuthManager.shared.isSignedIn ? .subscriptions : .recommendations
 
     /// Re-entry guard for `loadMore()`.
     private var isLoadingMore: Bool = false
@@ -44,6 +45,7 @@ final class VideoLoader {
 
     /// Reloads the subscriptions feed from scratch.
     func loadAllChannelVideos() async {
+        guard YTTVAuthManager.shared.isSignedIn else { return }
         do {
             let group = try await InnerTubeAPI.shared.fetchSubscriptions()
             nextPageToken = group.nextPageToken
@@ -91,9 +93,16 @@ final class VideoLoader {
         }
     }
 
+    func clearSubscriptions() {
+        self.videos = []
+        self.shortVideos = []
+        self.nextPageToken = nil
+    }
+
     /// Loads the next page of the subscriptions feed, appending to `videos`/`shortVideos`.
     /// No-ops when there is no continuation token or a page load is already in flight.
     func loadMore() async {
+        guard YTTVAuthManager.shared.isSignedIn else { return }
         guard let token = nextPageToken, !isLoadingMore else { return }
         isLoadingMore = true
         defer { isLoadingMore = false }

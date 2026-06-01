@@ -30,6 +30,7 @@ struct ChannelVideoList: View {
         VideoGridView(
             videos: videos,
             showChannelLinkInContextMenu: false,
+            isGuestAllowed: true,
             onReachEnd: {
                 Task { await loadMore() }
             },

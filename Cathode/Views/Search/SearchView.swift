@@ -56,6 +56,7 @@ struct SearchView: View {
                 } else {
                     VideoGridView(
                         videos: onlineVideos,
+                        isGuestAllowed: true,
                         onReachEnd: {
                             Task { await loadMore() }
                         },

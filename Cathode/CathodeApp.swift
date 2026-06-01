@@ -44,6 +44,9 @@ struct CathodeApp: App {
     private func coldLaunchLoad() async {
         if ytAuth.isSignedIn {
             await store.refresh()
+            videoLoader.mode = .subscriptions
+        } else {
+            videoLoader.mode = .recommendations
         }
         async let subs: Void = videoLoader.loadAllChannelVideos()
         async let recs: Void = videoLoader.loadRecommendations()
@@ -184,9 +187,15 @@ private struct SharedEnvironment: ViewModifier {
                 // Re-fetch the feed and the library when sign-in completes
                 // — the cold-launch load fired before auth was restored
                 // and left the lists empty.
-                guard ytAuth.isSignedIn else { return }
-                await store.refresh()
-                await videoLoader.loadAllChannelVideos()
+                if ytAuth.isSignedIn {
+                    videoLoader.mode = .subscriptions
+                    await store.refresh()
+                    await videoLoader.loadAllChannelVideos()
+                } else {
+                    videoLoader.mode = .recommendations
+                    videoLoader.clearSubscriptions()
+                    await videoLoader.loadRecommendations()
+                }
             }
     }
 }

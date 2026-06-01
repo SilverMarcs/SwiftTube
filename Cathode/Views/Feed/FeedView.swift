@@ -11,6 +11,7 @@ struct FeedView: View {
     var body: some View {
         VideoGridView(
             videos: videoLoader.currentVideos,
+            isGuestAllowed: true,
             onReachEnd: {
                 guard videoLoader.mode == .subscriptions else { return }
                 Task { await videoLoader.loadMore() }

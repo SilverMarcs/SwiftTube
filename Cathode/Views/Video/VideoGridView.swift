@@ -7,6 +7,7 @@ struct VideoGridView<Header: View>: View {
     let videos: [Video]
     var showChannelLinkInContextMenu: Bool = true
     var showsBookmarkIcon: Bool = true
+    var isGuestAllowed: Bool = false
     /// Called when the user reaches the last card. Wire this to a paginator
     /// (e.g. `VideoLoader.loadMore`) for infinite scroll.
     var onReachEnd: (() -> Void)? = nil
@@ -73,7 +74,7 @@ struct VideoGridView<Header: View>: View {
         }
         .overlay {
             if videos.isEmpty {
-                if !ytAuth.isSignedIn {
+                if !isGuestAllowed && !ytAuth.isSignedIn {
                     ContentUnavailableView(
                         "Sign in to YouTube",
                         systemImage: "person.crop.circle.badge.exclamationmark",
@@ -117,12 +118,14 @@ extension VideoGridView where Header == EmptyView {
         videos: [Video],
         showChannelLinkInContextMenu: Bool = true,
         showsBookmarkIcon: Bool = true,
+        isGuestAllowed: Bool = false,
         onReachEnd: (() -> Void)? = nil,
         onRefresh: (() async -> Void)? = nil
     ) {
         self.videos = videos
         self.showChannelLinkInContextMenu = showChannelLinkInContextMenu
         self.showsBookmarkIcon = showsBookmarkIcon
+        self.isGuestAllowed = isGuestAllowed
         self.onReachEnd = onReachEnd
         self.onRefresh = onRefresh
         self.header = { EmptyView() }
