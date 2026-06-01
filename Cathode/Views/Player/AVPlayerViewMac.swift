@@ -41,11 +41,6 @@ struct AVPlayerViewMac: View {
                         videoManager.retryPlayback()
                     }
                     .buttonStyle(.borderedProminent)
-
-                    Button("Use Iframe Player") {
-                        videoManager.playWithIframe()
-                    }
-                    .buttonStyle(.bordered)
                 }
             } else if let player = videoManager.player {
                 AVPlayerMac(player: player)

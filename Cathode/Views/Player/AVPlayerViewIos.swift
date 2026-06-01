@@ -34,11 +34,6 @@ struct AVPlayerViewIos: View {
                         manager.retryPlayback()
                     }
                     .buttonStyle(.borderedProminent)
-
-                    Button("Use Iframe Player") {
-                        manager.playWithIframe()
-                    }
-                    .buttonStyle(.bordered)
                 }
             } else if let player = manager.player {
                 AVPlayerIos(player: player)

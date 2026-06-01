@@ -4,29 +4,20 @@ import Foundation
 /// Resolves YouTube video IDs to AVPlayer-friendly URLs.
 ///
 /// Extraction goes through your YouTubeKit-Server's WebSocket endpoint so the
-/// user's residential IP is what YouTube sees during the player call. That's
-/// what gets us proper 1080p AVC1 — server-direct HTTP extraction (from the
-/// Cloudflare Worker IP) reliably returns degraded formats only.
-///
-/// HLS proxy stitches the resulting adaptive video+audio streams into a single
-/// localhost HLS manifest AVPlayer can consume.
+/// user's residential IP is what YouTube sees during the player call.
 enum StreamResolver {
 
     /// YouTubeKit-Server endpoint. Currently points at alexeichhorn's hosted
     /// public server — works reliably, ~5-7s extraction, free.
-    /// Our own CF Worker exists at https://youtubekit-server.zabirraihan.workers.dev
-    /// but the Free plan's 10ms CPU cap blocks decipher work; swap back when
-    /// upgraded to Paid plan.
     private static let serverURL = URL(string: "https://remote-production.youtubekit.dev")!
 
-    /// Itags we play (video-only + audio-only AVC1/AAC). Server skips decipher
-    /// for everything else.
+    /// Itags we play (video-only + audio-only AVC1/AAC) for HLS stitching.
     private static let playbackItags: Set<Int> = [
         134, 135, 136, 137, // AVC1 video-only: 360p, 480p, 720p, 1080p
         139, 140,           // AAC audio-only: 48k, 128k
     ]
 
-    /// Itags for downloads: muxed AVC1+AAC. itag 22 (720p) when available,
+    /// Itags for downloads and simplified playback: muxed AVC1+AAC. itag 22 (720p) when available,
     /// itag 18 (360p) otherwise.
     private static let muxedItags: Set<Int> = [22, 18]
 
@@ -35,10 +26,54 @@ enum StreamResolver {
     private static var proxyStarted = false
     private static let proxyLock = NSLock()
 
+    /// Resolves the stream based on the selected PlaybackMode.
+    static func resolve(id: String) async -> URL? {
+        let rawMode = UserDefaults.standard.string(forKey: "playbackMode") ?? ""
+        let mode = PlaybackMode(rawValue: rawMode) ?? .simplified
+        return await resolve(id: id, mode: mode)
+    }
+
+    static func resolve(id: String, mode: PlaybackMode) async -> URL? {
+        switch mode {
+        case .simplified:
+            return await resolveSimplified(id: id)
+        case .remote:
+            return await resolveRemoteHLS(id: id)
+        #if !os(tvOS)
+        case .iframe:
+            // The iframe player does not go through StreamResolver's resolve path.
+            // But we can fallback to simplified if called.
+            return await resolveSimplified(id: id)
+        #endif
+        }
+    }
+
+    /// Returns a direct googlevideo URL for a muxed (video+audio) stream.
+    /// Capped at 720p (itag 22) or 360p (itag 18) for natively playable format.
+    static func resolveSimplified(id: String) async -> URL? {
+        do {
+            let yt = YouTube(videoID: id, methods: [.remote(serverURL: serverURL)])
+            yt.itagFilter = { muxedItags.contains($0) }
+            let streams = try await yt.streams
+
+            guard let stream = streams
+                .filterVideoAndAudio()
+                .filter({ $0.isNativelyPlayable })
+                .highestResolutionStream()
+            else {
+                return nil
+            }
+            return stream.url
+        } catch {
+            print("StreamResolver.resolveSimplified(\(id)) failed: \(error)")
+            return nil
+        }
+    }
+
     /// Returns a localhost HLS URL that AVPlayer can stream — up to 1080p AVC1
     /// via separate video+audio renditions stitched in a sidx-derived
     /// byte-range HLS manifest.
-    static func resolve(id: String) async -> URL? {
+    static func resolveRemoteHLS(id: String) async -> URL? {
         do {
             let yt = YouTube(videoID: id, methods: [.remote(serverURL: serverURL)])
             yt.itagFilter = { playbackItags.contains($0) }
@@ -76,24 +111,14 @@ enum StreamResolver {
             )
             return URL(string: "http://127.0.0.1:\(proxy.boundPort)/master.m3u8?id=\(id)")
         } catch {
-            print("StreamResolver.resolve(\(id)) failed: \(error)")
+            print("StreamResolver.resolveRemoteHLS(\(id)) failed: \(error)")
             return nil
         }
     }
 
-    /// Direct googlevideo URL for a muxed (video+audio) stream — 360p cap on
-    /// most modern videos. Used for downloads where the result is a single file.
+    /// Direct googlevideo URL for a muxed (video+audio) stream.
     static func resolveMuxed(id: String) async -> URL? {
-        do {
-            let yt = YouTube(videoID: id, methods: [.remote(serverURL: serverURL)])
-            yt.itagFilter = { muxedItags.contains($0) }
-            return try await yt.streams
-                .filterVideoAndAudio()
-                .highestResolutionStream()?.url
-        } catch {
-            print("StreamResolver.resolveMuxed(\(id)) failed: \(error)")
-            return nil
-        }
+        await resolveSimplified(id: id)
     }
 
     /// Cheap HTTP ping at the server's /warm endpoint. Warms DNS, TLS session,
@@ -128,5 +153,5 @@ enum StreamResolver {
         default: return nil
         }
     }
-
 }
+

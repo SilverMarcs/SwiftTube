@@ -11,8 +11,8 @@ import Foundation
 
 @Observable
 class VideoManager {
-    /// UserDefaults key for the "Always Use Iframe Player" preference.
-    static let alwaysUseIframeKey = "alwaysUseIframePlayer"
+    /// UserDefaults key for the playback mode preference.
+    static let playbackModeKey = "playbackMode"
     private(set) var currentVideo: Video? = nil
     private(set) var player: AVPlayer?
 
@@ -100,7 +100,9 @@ class VideoManager {
 
         // When the user has opted to always use the iframe player, skip
         // the remote server stream-resolution step entirely.
-        if UserDefaults.standard.bool(forKey: Self.alwaysUseIframeKey) {
+        let rawMode = UserDefaults.standard.string(forKey: Self.playbackModeKey) ?? ""
+        let mode = PlaybackMode(rawValue: rawMode) ?? .simplified
+        if mode == .iframe {
             isSetting = false
             watchtime.begin(for: video)
             startIframeFallback(for: video, autoPlay: autoPlay)
