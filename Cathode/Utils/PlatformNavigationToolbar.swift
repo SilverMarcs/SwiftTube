@@ -39,13 +39,15 @@ private struct PlatformTopBarModifier<Trailing: View>: ViewModifier {
     func body(content: Content) -> some View {
         #if os(tvOS)
         VStack(spacing: 0) {
-            HStack(spacing: 15) {
-                Spacer()
+            ZStack {
                 Text(title)
                     .font(.largeTitle.weight(.bold))
                     .foregroundStyle(.secondary)
-                Spacer()
-                trailing
+                
+                HStack {
+                    Spacer()
+                    trailing
+                }
             }
             .padding(.vertical, 24)
             .focusSection()
