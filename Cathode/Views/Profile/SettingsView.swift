@@ -11,6 +11,10 @@ import SwiftMediaViewer
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
+    #if !os(tvOS)
+    @AppStorage(VideoManager.alwaysUseIframeKey) private var alwaysUseIframe = false
+    #endif
+
     var body: some View {
         SettingsSplitView {
             form
@@ -41,6 +45,16 @@ struct SettingsView: View {
                     .foregroundStyle(.primary)
                     #endif
             }
+
+            #if !os(tvOS)
+            Section {
+                Toggle("Always Use Iframe Player", isOn: $alwaysUseIframe)
+            } header: {
+                Text("Playback")
+            } footer: {
+                Text("Skips stream resolution and plays videos directly in an embedded YouTube player. Playback starts faster but uses YouTube's built-in controls.")
+            }
+            #endif
 
             Section("Cache") {
                 CacheManagerView()

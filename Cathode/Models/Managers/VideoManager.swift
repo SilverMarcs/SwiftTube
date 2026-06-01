@@ -11,6 +11,8 @@ import Foundation
 
 @Observable
 class VideoManager {
+    /// UserDefaults key for the "Always Use Iframe Player" preference.
+    static let alwaysUseIframeKey = "alwaysUseIframePlayer"
     private(set) var currentVideo: Video? = nil
     private(set) var player: AVPlayer?
 
@@ -43,6 +45,9 @@ class VideoManager {
 
     #if !os(tvOS)
     var iframePlayer: YouTubePlayer? { iframe.player }
+    var isUsingIframe: Bool { iframe.isActive }
+    #else
+    var isUsingIframe: Bool { false }
     #endif
 
     deinit {
@@ -92,6 +97,15 @@ class VideoManager {
 
         #if !os(tvOS)
         tearDownIframe()
+
+        // When the user has opted to always use the iframe player, skip
+        // the remote server stream-resolution step entirely.
+        if UserDefaults.standard.bool(forKey: Self.alwaysUseIframeKey) {
+            isSetting = false
+            watchtime.begin(for: video)
+            startIframeFallback(for: video, autoPlay: autoPlay)
+            return
+        }
         #endif
 
         watchtime.begin(for: video)

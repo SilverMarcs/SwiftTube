@@ -7,12 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		082FBDBA2FCD536C00F598FC /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = 082FBDB92FCD536C00F598FC /* YouTubeKit */; };
 		08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630512E87AD2A007AD438 /* SwiftMediaViewer */; };
 		08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630542E87AD56007AD438 /* SwiftMediaViewer */; };
-		AAA000000000000000000005 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = AAA000000000000000000003 /* YouTubeKit */; };
-		AAA000000000000000000008 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, macos, xros, ); productRef = AAA000000000000000000007 /* YouTubePlayerKit */; };
 		08F0BEEF000000000000A003 /* TVServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08F0BEEF000000000000A002 /* TVServices.framework */; };
 		08F0BEEF000000000000A004 /* TopShelf.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 08F0BEEF000000000000A001 /* TopShelf.appex */; platformFilters = (tvos, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AAA000000000000000000008 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, macos, xros, ); productRef = AAA000000000000000000007 /* YouTubePlayerKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,6 +46,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		08F0BEEF000000000000A007 /* Exceptions for "TopShelf" folder in "TopShelf" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 08F0BEEF000000000000A00B /* TopShelf */;
+		};
 		08F30B942E89115A005B1397 /* Exceptions for "Cathode" folder in "Cathode" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -66,13 +73,6 @@
 				Views/Shorts/ShortsView.swift = (ios, macos, xros, );
 			};
 			target = 08E62F842E871877007AD438 /* Cathode */;
-		};
-		08F0BEEF000000000000A007 /* Exceptions for "TopShelf" folder in "TopShelf" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 08F0BEEF000000000000A00B /* TopShelf */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -102,8 +102,8 @@
 			files = (
 				08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */,
 				08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */,
-				AAA000000000000000000005 /* YouTubeKit in Frameworks */,
 				AAA000000000000000000008 /* YouTubePlayerKit in Frameworks */,
+				082FBDBA2FCD536C00F598FC /* YouTubeKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -169,8 +169,8 @@
 			packageProductDependencies = (
 				08E630512E87AD2A007AD438 /* SwiftMediaViewer */,
 				08E630542E87AD56007AD438 /* SwiftMediaViewer */,
-				AAA000000000000000000003 /* YouTubeKit */,
 				AAA000000000000000000007 /* YouTubePlayerKit */,
+				082FBDB92FCD536C00F598FC /* YouTubeKit */,
 			);
 			productName = Cathode;
 			productReference = 08E62F852E871877007AD438 /* Cathode.app */;
@@ -227,8 +227,8 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */,
-				AAA000000000000000000002 /* XCLocalSwiftPackageReference "../Frameworks/YouTubeKit" */,
 				AAA000000000000000000006 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */,
+				082FBDB82FCD536C00F598FC /* XCRemoteSwiftPackageReference "YouTubeKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 08E62F862E871877007AD438 /* Products */;
@@ -630,14 +630,15 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		AAA000000000000000000002 /* XCLocalSwiftPackageReference "../Frameworks/YouTubeKit" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../Frameworks/YouTubeKit;
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCRemoteSwiftPackageReference section */
+		082FBDB82FCD536C00F598FC /* XCRemoteSwiftPackageReference "YouTubeKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SilverMarcs/YouTubeKit";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/SilverMarcs/SwiftMediaViewer";
@@ -657,6 +658,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		082FBDB92FCD536C00F598FC /* YouTubeKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 082FBDB82FCD536C00F598FC /* XCRemoteSwiftPackageReference "YouTubeKit" */;
+			productName = YouTubeKit;
+		};
 		08E630512E87AD2A007AD438 /* SwiftMediaViewer */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SwiftMediaViewer;
@@ -665,11 +671,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */;
 			productName = SwiftMediaViewer;
-		};
-		AAA000000000000000000003 /* YouTubeKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AAA000000000000000000002 /* XCLocalSwiftPackageReference "../Frameworks/YouTubeKit" */;
-			productName = YouTubeKit;
 		};
 		AAA000000000000000000007 /* YouTubePlayerKit */ = {
 			isa = XCSwiftPackageProductDependency;

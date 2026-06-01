@@ -7,6 +7,13 @@
 
 import Foundation
 
+extension Array where Element == Video {
+    func removingDuplicates() -> [Video] {
+        var seen = Set<String>()
+        return filter { seen.insert($0.id).inserted }
+    }
+}
+
 extension Date {
     func customRelativeFormat() -> String {
         let now = Date()

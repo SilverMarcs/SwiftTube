@@ -24,6 +24,7 @@ struct VideoCard: View {
                 CachedAsyncImage(url: video.thumbnailURL, targetSize: 500)
                     .aspectRatio(16/9, contentMode: .fill)
                     .frame(maxWidth: .infinity)
+                    .aspectRatio(16/9, contentMode: .fit)
                     .clipped()
                     .overlay(alignment: .bottomTrailing) {
                         if let duration = video.duration {
@@ -49,15 +50,11 @@ struct VideoCard: View {
 
                 VStack(alignment: .leading) {
                     Text(video.title)
+                        .lineLimit(2, reservesSpace: true)
                         #if os(tvOS)
                         .font(.subheadline.weight(.semibold))
-                        .lineLimit(2, reservesSpace: true)
-                        #elseif os(macOS)
-                        .font(.headline)
-                        .lineLimit(2, reservesSpace: true)
                         #else
                         .font(.headline)
-                        .lineLimit(2)
                         #endif
 
                     HStack(alignment: .center, spacing: 10) {
@@ -86,9 +83,7 @@ struct VideoCard: View {
                         HStack(spacing: 4) {
                             Group {
                                 if let date = video.publishedAt {
-                                    Text(viewCountText)
-                                    + Text(" • ").font(.body)
-                                    + Text(date.customRelativeFormat())
+                                    Text("\(viewCountText) • \(date.customRelativeFormat())")
                                 } else {
                                     Text(viewCountText)
                                 }

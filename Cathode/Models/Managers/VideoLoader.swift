@@ -54,7 +54,7 @@ final class VideoLoader {
             }
 
             withAnimation {
-                self.videos = sortedVideos
+                self.videos = sortedVideos.removingDuplicates()
             }
             self.shortVideos = applyStableShuffle(to: shorts)
         } catch {
@@ -81,10 +81,11 @@ final class VideoLoader {
             let recs = try await InnerTubeAPI.shared.fetchAllRecommendations()
             let (_, regular) = splitShorts(recs)
             let shuffled = regular.shuffled()
+            let deduped = shuffled.removingDuplicates()
             withAnimation {
-                self.recommendations = shuffled
+                self.recommendations = deduped
             }
-            TopShelfCache.save(videos: shuffled)
+            TopShelfCache.save(videos: deduped)
         } catch {
             print("Error loading recommendations: \(error)")
         }
@@ -103,7 +104,9 @@ final class VideoLoader {
             let (shorts, regular) = splitShorts(group.videos)
 
             let existingIds = Set(self.videos.map(\.id))
-            let regularNew = regular.filter { !existingIds.contains($0.id) }
+            let regularNew = regular
+                .removingDuplicates()
+                .filter { !existingIds.contains($0.id) }
             self.videos.append(contentsOf: regularNew)
 
             let existingShortIds = Set(self.shortVideos.map(\.id))
