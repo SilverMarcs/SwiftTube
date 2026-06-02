@@ -1,6 +1,7 @@
 {
   "images" : [
     {
+      "filename" : "top_shelf.png",
       "idiom" : "tv",
       "scale" : "1x"
     },
