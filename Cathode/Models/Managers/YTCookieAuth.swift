@@ -23,13 +23,10 @@
 
 import CryptoKit
 import Foundation
-import os
 import SwiftUI
 #if canImport(WebKit)
 import WebKit
 #endif
-
-private let cookieLog = Logger(subsystem: appSubsystem, category: "YTCookieAuth")
 
 @MainActor
 @Observable
@@ -88,7 +85,6 @@ public final class YTCookieAuth {
 
     @objc private nonisolated func externalKVSChange(_ note: Notification) {
         Task { @MainActor in
-            cookieLog.notice("YT cookie auth: iCloud KVS changed externally — re-hydrating")
             await self.hydrateFromICloud(force: true)
             await self.refreshSignInState()
         }
@@ -134,7 +130,6 @@ public final class YTCookieAuth {
 #endif
         if alreadyHaveSession && !force { return }
 
-        cookieLog.notice("YT cookie auth: hydrating \(stored.count, privacy: .public) cookies from iCloud KVS (force=\(force, privacy: .public))")
         for cookie in stored.compactMap({ $0.httpCookie }) {
             HTTPCookieStorage.shared.setCookie(cookie)
 #if canImport(WebKit)
@@ -164,7 +159,6 @@ public final class YTCookieAuth {
             sapisid = sapis
             isSignedIn = true
             lastSyncedAt = Date()
-            cookieLog.notice("YT cookie auth: signed in (\(ytCookies.count, privacy: .public) cookies)")
 #if canImport(WebKit)
             // Only iOS/mac/visionOS write the iCloud blob — tvOS is read-only.
             if Self.persistCookies(ytCookies) {
@@ -195,7 +189,6 @@ public final class YTCookieAuth {
         hydratedFromICloud = false
         iCloudSyncedAt = nil
         Self.deleteStoredCookies()
-        cookieLog.notice("YT cookie auth: signed out")
     }
 
     // MARK: - SAPISIDHASH

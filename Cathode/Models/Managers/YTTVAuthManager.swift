@@ -14,9 +14,6 @@
 
 import Foundation
 import Observation
-import os
-
-private let authLog = Logger(subsystem: appSubsystem, category: "YTTVAuth")
 
 @MainActor
 @Observable
@@ -78,10 +75,7 @@ public final class YTTVAuthManager {
         }
         // Background-refresh user info if missing (older keychain layout).
         if isSignedIn && accountName == nil {
-            Task {
-                do { try await fetchUserInfo() }
-                catch { authLog.error("fetchUserInfo on init failed: \(String(describing: error), privacy: .public)") }
-            }
+            Task { try? await fetchUserInfo() }
         }
     }
 
@@ -90,7 +84,6 @@ public final class YTTVAuthManager {
     /// Step 1 – request a device code and expose the user_code for display.
     public func beginSignIn() async {
         guard !isSigningIn else {
-            authLog.notice("beginSignIn() — already in progress, ignoring duplicate call")
             return
         }
         isSigningIn = true
@@ -98,16 +91,13 @@ public final class YTTVAuthManager {
         pollTask?.cancel()
         error = nil
         pendingActivation = nil
-        authLog.notice("beginSignIn() — fetching credentials…")
 
         let creds = await credentialsFetcher.credentials()
-        authLog.notice("Using clientId: \(creds.clientId, privacy: .public)")
 
         do {
             let deviceResponse = try await retryWithBackoff { [self] in
                 try await requestDeviceCode(creds: creds)
             }
-            authLog.notice("Got device code. userCode=\(deviceResponse.userCode, privacy: .public) expiresIn=\(deviceResponse.expiresIn)s interval=\(deviceResponse.interval)s")
             let expiresAt = Date().addingTimeInterval(TimeInterval(deviceResponse.expiresIn))
             let fallbackURL = URL(string: "https://yt.be/activate") ?? URL(string: "https://youtube.com/activate")!
             let verURL = URL(string: deviceResponse.verificationURL) ?? fallbackURL
@@ -128,7 +118,6 @@ public final class YTTVAuthManager {
                                          creds: creds)
             }
         } catch {
-            authLog.error("beginSignIn error: \(String(describing: error), privacy: .public)")
             self.error = error
         }
     }
@@ -146,7 +135,6 @@ public final class YTTVAuthManager {
         guard !isSignedIn, accessToken == nil else { return }
         guard let pending = pendingActivation, pending.expiresAt > Date() else { return }
         guard let deviceCode = currentDeviceCode, let creds = currentCreds else { return }
-        authLog.notice("handleForeground() — restarting poll immediately")
         pollTask?.cancel()
         let interval = currentInterval
         pollTask = Task { [weak self] in
@@ -162,13 +150,8 @@ public final class YTTVAuthManager {
         guard isSignedIn, let expiry = tokenExpiry else { return }
         guard expiry.timeIntervalSinceNow < 5 * 60 else { return }
         guard let refresh = refreshToken else { return }
-        authLog.notice("refreshIfNeeded() — token expires soon, refreshing")
         let creds = await credentialsFetcher.credentials()
-        do {
-            try await refreshAccessToken(refreshToken: refresh, creds: creds)
-        } catch {
-            authLog.error("refreshIfNeeded() failed: \(String(describing: error), privacy: .public)")
-        }
+        try? await refreshAccessToken(refreshToken: refresh, creds: creds)
     }
 
     public func signOut() {
@@ -205,7 +188,6 @@ public final class YTTVAuthManager {
         tokenRefreshTask?.cancel()
         guard let expiry = tokenExpiry, refreshToken != nil else { return }
         let delay = max(expiry.timeIntervalSinceNow - 5 * 60, 0)
-        authLog.notice("scheduleProactiveRefresh() — refreshing in \(Int(delay))s")
         tokenRefreshTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled, let self else { return }
@@ -213,10 +195,8 @@ public final class YTTVAuthManager {
             let creds = await self.credentialsFetcher.credentials()
             do {
                 try await self.refreshAccessToken(refreshToken: refresh, creds: creds)
-                authLog.notice("scheduleProactiveRefresh() — token refreshed")
                 self.scheduleProactiveRefresh()
             } catch {
-                authLog.error("scheduleProactiveRefresh() failed: \(String(describing: error), privacy: .public)")
             }
         }
     }
@@ -298,7 +278,6 @@ extension YTTVAuthManager {
         creds: YouTubeClientCredentials,
         pollImmediately: Bool = false
     ) async {
-        authLog.notice("Starting poll loop (interval \(Int(interval))s, immediate=\(pollImmediately))")
         var skipInitialSleep = pollImmediately
         while !Task.isCancelled {
             if skipInitialSleep {
@@ -310,23 +289,18 @@ extension YTTVAuthManager {
 
             do {
                 try await exchangeDeviceCode(deviceCode: deviceCode, creds: creds)
-                authLog.notice("Token exchanged — fetching user info")
                 try await fetchUserInfo()
-                authLog.notice("Signed in as \(self.accountName ?? "unknown", privacy: .public)")
                 pendingActivation = nil
                 pollTask = nil
                 return
             } catch ITAuthError.authorizationPending {
                 continue
             } catch ITAuthError.slowDown {
-                authLog.notice("slow_down received — waiting extra 5s")
                 try? await Task.sleep(nanoseconds: UInt64(5 * 1_000_000_000))
                 continue
-            } catch let urlError as URLError {
-                authLog.notice("Network error during poll (transient, retrying): \(urlError.localizedDescription, privacy: .public)")
+            } catch is URLError {
                 continue
             } catch {
-                authLog.error("Poll error: \(String(describing: error), privacy: .public)")
                 if isSignedIn { return }
                 self.error = error
                 pendingActivation = nil
@@ -399,7 +373,6 @@ extension YTTVAuthManager {
            let errJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let oauthError = errJson["error"] as? String,
            ["invalid_grant", "invalid_client", "unauthorized_client"].contains(oauthError) {
-            authLog.error("refreshAccessToken: permanent failure (\(oauthError, privacy: .public)) — signing out")
             signOut()
             throw ITAuthError.tokenExchangeFailed
         }

@@ -1,10 +1,7 @@
 import Foundation
-import os
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-
-private let tubeLog = Logger(subsystem: appSubsystem, category: "InnerTube")
 
 // MARK: - Networking
 
@@ -42,23 +39,13 @@ extension InnerTubeAPI {
         request.setValue(InnerTubeClients.iOS.nameID, forHTTPHeaderField: "X-YouTube-Client-Name")
         request.setValue(InnerTubeClients.iOS.version, forHTTPHeaderField: "X-YouTube-Client-Version")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let playerVideoId = body["videoId"] as? String ?? ""
-        tubeLog.notice("POST /player (iOS) videoId=\(playerVideoId, privacy: .public)")
         let (data, response) = try await session.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            tubeLog.error("❌ HTTP \(statusCode, privacy: .public) for /player")
             throw ITAPIError.httpError(statusCode)
         }
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            tubeLog.error("❌ Non-dictionary JSON root for /player")
             throw ITAPIError.decodingError("Root JSON is not a dictionary")
-        }
-        if let error = json["error"] as? [String: Any] {
-            tubeLog.error("❌ API error in /player: \(String(describing: error["message"] ?? error), privacy: .public)")
-        } else {
-            let topKeys = Array(json.keys.prefix(6))
-            tubeLog.notice("✅ /player HTTP \(statusCode, privacy: .public) keys: \(topKeys, privacy: .public)")
         }
         return json
     }
@@ -78,23 +65,13 @@ extension InnerTubeAPI {
         request.setValue(InnerTubeClients.Android.nameID, forHTTPHeaderField: "X-YouTube-Client-Name")
         request.setValue(InnerTubeClients.Android.version, forHTTPHeaderField: "X-YouTube-Client-Version")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let videoId = body["videoId"] as? String ?? ""
-        tubeLog.notice("POST /\(endpoint, privacy: .public) [Android] videoId=\(videoId, privacy: .public)")
         let (data, response) = try await session.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            tubeLog.error("❌ HTTP \(statusCode, privacy: .public) for /\(endpoint, privacy: .public) [Android]")
             throw ITAPIError.httpError(statusCode)
         }
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            tubeLog.error("❌ Non-dictionary JSON root for /\(endpoint, privacy: .public) [Android]")
             throw ITAPIError.decodingError("Root JSON is not a dictionary")
-        }
-        if let error = json["error"] as? [String: Any] {
-            tubeLog.error("❌ API error in /\(endpoint, privacy: .public) [Android]: \(String(describing: error["message"] ?? error), privacy: .public)")
-        } else {
-            let topKeys = Array(json.keys.prefix(6))
-            tubeLog.notice("✅ /\(endpoint, privacy: .public) [Android] HTTP \(statusCode, privacy: .public) keys: \(topKeys, privacy: .public)")
         }
         return json
     }
@@ -118,23 +95,13 @@ extension InnerTubeAPI {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let authLabel = resolvedToken != nil ? "yes" : "no"
-        tubeLog.notice("POST /\(endpoint, privacy: .public) [WEB] auth=\(authLabel, privacy: .public)")
         let (data, response) = try await session.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            tubeLog.error("❌ HTTP \(statusCode, privacy: .public) for /\(endpoint, privacy: .public)")
             throw ITAPIError.httpError(statusCode)
         }
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            tubeLog.error("❌ Non-dictionary JSON root for /\(endpoint, privacy: .public)")
             throw ITAPIError.decodingError("Root JSON is not a dictionary")
-        }
-        let topKeys = Array(json.keys.prefix(6))
-        if let error = json["error"] as? [String: Any] {
-            tubeLog.error("❌ API error in /\(endpoint, privacy: .public): \(String(describing: error["message"] ?? error), privacy: .public)")
-        } else {
-            tubeLog.notice("✅ /\(endpoint, privacy: .public) HTTP \(statusCode, privacy: .public) keys: \(topKeys, privacy: .public)")
         }
         return json
     }
@@ -165,13 +132,11 @@ extension InnerTubeAPI {
         let (data, response) = try await session.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            tubeLog.error("❌ HTTP \(statusCode, privacy: .public) for /\(endpoint, privacy: .public) [WEB+SAPISID]")
             throw ITAPIError.httpError(statusCode)
         }
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ITAPIError.decodingError("Root JSON is not a dictionary")
         }
-        tubeLog.notice("✅ /\(endpoint, privacy: .public) [WEB+SAPISID] HTTP \(statusCode, privacy: .public)")
         return json
     }
 
@@ -193,22 +158,13 @@ extension InnerTubeAPI {
         request.setValue(InnerTubeClients.TV.nameID, forHTTPHeaderField: "X-YouTube-Client-Name")
         request.setValue(InnerTubeClients.TV.version, forHTTPHeaderField: "X-YouTube-Client-Version")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        tubeLog.notice("POST /\(endpoint, privacy: .public) [TV-category]")
         let (data, response) = try await session.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            tubeLog.error("❌ HTTP \(statusCode, privacy: .public) for /\(endpoint, privacy: .public) [TV-category]")
             throw ITAPIError.httpError(statusCode)
         }
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            tubeLog.error("❌ Non-dictionary JSON root for /\(endpoint, privacy: .public) [TV-category]")
             throw ITAPIError.decodingError("Root JSON is not a dictionary")
-        }
-        if let error = json["error"] as? [String: Any] {
-            tubeLog.error("❌ API error in /\(endpoint, privacy: .public) [TV-category]: \(String(describing: error["message"] ?? error), privacy: .public)")
-        } else {
-            let topKeys = Array(json.keys.prefix(6))
-            tubeLog.notice("✅ /\(endpoint, privacy: .public) [TV-category] HTTP \(statusCode, privacy: .public) keys: \(topKeys, privacy: .public)")
         }
         return json
     }
@@ -248,23 +204,13 @@ extension InnerTubeAPI {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let authLabel = shouldAuthenticate ? "yes" : "no"
-        tubeLog.notice("POST /\(endpoint, privacy: .public) [TV] auth=\(authLabel, privacy: .public)")
         let (data, response) = try await session.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            tubeLog.error("❌ HTTP \(statusCode, privacy: .public) for /\(endpoint, privacy: .public) [TV]")
             throw ITAPIError.httpError(statusCode)
         }
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            tubeLog.error("❌ Non-dictionary JSON root for /\(endpoint, privacy: .public) [TV]")
             throw ITAPIError.decodingError("Root JSON is not a dictionary")
-        }
-        if let error = json["error"] as? [String: Any] {
-            tubeLog.error("❌ API error in /\(endpoint, privacy: .public) [TV]: \(String(describing: error["message"] ?? error), privacy: .public)")
-        } else {
-            let topKeys = Array(json.keys.prefix(6))
-            tubeLog.notice("✅ /\(endpoint, privacy: .public) [TV] HTTP \(statusCode, privacy: .public) keys: \(topKeys, privacy: .public)")
         }
         return json
     }

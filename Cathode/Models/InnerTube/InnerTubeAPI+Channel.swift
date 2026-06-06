@@ -1,7 +1,4 @@
 import Foundation
-import os
-
-private let tubeLog = Logger(subsystem: appSubsystem, category: "InnerTube")
 
 // MARK: - Channel endpoints
 
@@ -11,15 +8,12 @@ extension InnerTubeAPI {
         // @handle strings are not valid browseIds — resolve to the real UC… channel ID first.
         let resolvedId: String
         if channelId.hasPrefix("@") {
-            tubeLog.notice("fetchChannel resolving handle \(channelId, privacy: .public)")
             resolvedId = try await resolveChannelHandle(channelId)
-            tubeLog.notice("fetchChannel resolved \(channelId, privacy: .public) → \(resolvedId, privacy: .public)")
         } else {
             resolvedId = channelId
         }
         var body = makeBody(client: webClientContext)
         body["browseId"] = resolvedId
-        tubeLog.notice("fetchChannel browseId=\(resolvedId, privacy: .public)")
         let data = try await post(endpoint: "browse", body: body)
         return try parseChannel(from: data, channelId: resolvedId)
     }
@@ -56,8 +50,6 @@ extension InnerTubeAPI {
             body["browseId"] = channelId
             body["params"] = "EgZ2aWRlb3PyBgQKAjoA"  // "Videos" tab parameter
         }
-        let videosParams = (body["params"] as? String) ?? "nil"
-        tubeLog.notice("fetchChannelVideos browseId=\(channelId, privacy: .public) hasContinuation=\(continuationToken != nil, privacy: .public) params=\(videosParams, privacy: .public)")
         let data = try await post(endpoint: "browse", body: body)
         return try parseVideoGroup(from: data, title: nil)
     }
@@ -80,21 +72,17 @@ extension InnerTubeAPI {
         let handleURL = "https://www.youtube.com/\(handle)"
         var body = makeBody(client: webClientContext)
         body["url"] = handleURL
-        tubeLog.notice("resolveChannelHandle url=\(handleURL, privacy: .public)")
         let data = try await post(endpoint: "navigation/resolve_url", body: body)
         // Response shape: { "endpoint": { "browseEndpoint": { "browseId": "UCxxx" } } }
         let endpoint = data["endpoint"] as? [String: Any]
         if let browseId = (endpoint?["browseEndpoint"] as? [String: Any])?["browseId"] as? String {
             return browseId
         }
-        let topKeys = data.keys.joined(separator: ", ")
-        tubeLog.error("resolveChannelHandle: unexpected response keys=[\(topKeys, privacy: .public)]")
         throw ITAPIError.decodingError("Could not resolve handle \(handle) to a channel ID")
     }
 
     private func parseChannel(from json: [String: Any], channelId: String) throws -> (Channel, VideoGroup) {
         let headerDict = json["header"] as? [String: Any]
-        tubeLog.notice("parseChannel header keys=[\((headerDict?.keys.joined(separator: ",")) ?? "nil", privacy: .public)]")
         let header = headerDict?["c4TabbedHeaderRenderer"] as? [String: Any]
             ?? headerDict?["pageHeaderRenderer"] as? [String: Any]
         let title = header.flatMap { $0["title"] as? String }
@@ -108,7 +96,6 @@ extension InnerTubeAPI {
                 return nil
             }()
             ?? ""
-        tubeLog.notice("parseChannel header=\(header != nil ? "found" : "nil", privacy: .public) title='\(title, privacy: .public)'")
         let description = header
             .flatMap { $0["description"] as? [String: Any] }
             .flatMap { extractText($0) }
@@ -151,8 +138,6 @@ extension InnerTubeAPI {
     private func parseChannelRenderers(from json: [String: Any]) -> [Channel] {
         var channels: [Channel] = []
         var seen = Set<String>()
-        // Collect all distinct renderer key names encountered for diagnostics
-        var encounteredRendererKeys = Set<String>()
 
         func extractChannel(from renderer: [String: Any]) -> Channel? {
             // channelId: direct "channelId" key, or from navigationEndpoint.browseEndpoint.browseId
@@ -200,36 +185,11 @@ extension InnerTubeAPI {
             return Channel(id: channelId, title: title, thumbnailURL: thumbURL)
         }
 
-        var avatarLockupDumped = false
-        var notificationDumped = false
-
         func walk(_ obj: Any, depth: Int = 0) {
             guard depth < 50 else {
-                tubeLog.warning("parseChannelRenderers: walk depth limit (50) reached — skipping subtree")
                 return
             }
             if let dict = obj as? [String: Any] {
-                // Track all "xxxRenderer" keys at this level for diagnostics
-                for k in dict.keys where k.hasSuffix("Renderer") || k.hasSuffix("ViewModel") {
-                    encounteredRendererKeys.insert(k)
-                }
-                // Dump the first avatarLockupRenderer that actually has a navigationEndpoint (i.e. is a channel, not a sort header)
-                if !avatarLockupDumped, let lockup = dict["avatarLockupRenderer"] as? [String: Any],
-                   lockup["navigationEndpoint"] != nil {
-                    avatarLockupDumped = true
-                    if let data = try? JSONSerialization.data(withJSONObject: lockup, options: [.sortedKeys]),
-                       let str = String(data: data, encoding: .utf8) {
-                        tubeLog.notice("avatarLockupRenderer (with nav) JSON: \(String(str.prefix(2000)), privacy: .public)")
-                    }
-                }
-                // Dump the first notificationMultiActionRenderer (these appear per-channel)
-                if !notificationDumped, let notif = dict["notificationMultiActionRenderer"] as? [String: Any] {
-                    notificationDumped = true
-                    if let data = try? JSONSerialization.data(withJSONObject: notif, options: [.sortedKeys]),
-                       let str = String(data: data, encoding: .utf8) {
-                        tubeLog.notice("notificationMultiActionRenderer JSON: \(String(str.prefix(2000)), privacy: .public)")
-                    }
-                }
                 // TVHTML5 channel tile
                 if let tile = dict["tileRenderer"] as? [String: Any],
                    let channel = extractChannelFromTile(tile) {
@@ -251,9 +211,6 @@ extension InnerTubeAPI {
         }
 
         walk(json)
-        let withThumbs = channels.filter { $0.thumbnailURL != nil }.count
-        let rendererSample = Array(encounteredRendererKeys.sorted().prefix(12))
-        tubeLog.notice("parseChannelRenderers → \(channels.count, privacy: .public) channels, \(withThumbs, privacy: .public) with thumbnail | renderer keys seen: \(rendererSample, privacy: .public)")
         return channels
     }
 

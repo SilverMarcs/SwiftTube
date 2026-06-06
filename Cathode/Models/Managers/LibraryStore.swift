@@ -16,10 +16,7 @@
 //
 
 import Foundation
-import os
 import SwiftUI
-
-private let libraryLog = Logger(subsystem: appSubsystem, category: "LibraryStore")
 
 @MainActor
 @Observable
@@ -54,7 +51,6 @@ final class LibraryStore {
     /// History additionally requires cookie auth — silently skipped otherwise.
     func refresh() async {
         guard YTTVAuthManager.shared.isSignedIn else {
-            libraryLog.notice("refresh: not signed in — skipping")
             return
         }
         if let existing = refreshTask, !existing.isCancelled {
@@ -68,36 +64,28 @@ final class LibraryStore {
     }
 
     private func performRefresh() async {
-        libraryLog.notice("refresh: starting")
 
         do {
             let channels = try await InnerTubeAPI.shared.fetchSubscribedChannels()
             self.subscribedChannels = channels
             for ch in channels { self.channelsById[ch.id] = ch }
-            libraryLog.notice("refresh: \(channels.count, privacy: .public) subscribed channels")
         } catch {
-            libraryLog.error("refresh: fetchSubscribedChannels failed: \(String(describing: error), privacy: .public)")
         }
 
         do {
             let group = try await InnerTubeAPI.shared.fetchPlaylistVideos(playlistId: "WL", continuationToken: nil)
             self.watchLater = group.videos
             self.watchLaterNextPageToken = group.nextPageToken
-            libraryLog.notice("refresh: \(group.videos.count, privacy: .public) watch-later videos")
         } catch {
-            libraryLog.error("refresh: fetchPlaylistVideos(WL) failed: \(String(describing: error), privacy: .public)")
         }
 
         do {
             let group = try await InnerTubeAPI.shared.fetchHistory(continuationToken: nil)
             self.history = group.videos
             self.historyNextPageToken = group.nextPageToken
-            libraryLog.notice("refresh: \(group.videos.count, privacy: .public) history videos")
         } catch {
-            libraryLog.error("refresh: fetchHistory failed: \(String(describing: error), privacy: .public)")
         }
 
-        libraryLog.notice("refresh: done")
     }
 
     // MARK: - Channel cache
@@ -170,7 +158,6 @@ final class LibraryStore {
                 do {
                     try await InnerTubeAPI.shared.unsubscribe(channelId: id)
                 } catch {
-                    libraryLog.error("unsubscribe failed for \(id, privacy: .public): \(String(describing: error), privacy: .public)")
                     await MainActor.run { self.insertSubscriptionLocal(removed) }
                 }
             }
@@ -181,7 +168,6 @@ final class LibraryStore {
                 do {
                     try await InnerTubeAPI.shared.subscribe(channelId: id)
                 } catch {
-                    libraryLog.error("subscribe failed for \(id, privacy: .public): \(String(describing: error), privacy: .public)")
                     await MainActor.run {
                         self.subscribedChannels.removeAll { $0.id == id }
                     }
@@ -217,7 +203,6 @@ final class LibraryStore {
                 do {
                     try await InnerTubeAPI.shared.removeFromWatchLater(videoId: id)
                 } catch {
-                    libraryLog.error("removeFromWatchLater failed for \(id, privacy: .public): \(String(describing: error), privacy: .public)")
                     await MainActor.run { self.insertBookmarkLocal(removed) }
                 }
             }
@@ -228,7 +213,6 @@ final class LibraryStore {
                 do {
                     try await InnerTubeAPI.shared.addToWatchLater(videoId: id)
                 } catch {
-                    libraryLog.error("addToWatchLater failed for \(id, privacy: .public): \(String(describing: error), privacy: .public)")
                     await MainActor.run {
                         self.watchLater.removeAll { $0.id == id }
                     }
@@ -250,7 +234,6 @@ final class LibraryStore {
             do {
                 try await InnerTubeAPI.shared.removeFromWatchLater(videoId: videoId)
             } catch {
-                libraryLog.error("removeFromWatchLater failed for \(videoId, privacy: .public): \(String(describing: error), privacy: .public)")
                 await MainActor.run { self.insertBookmarkLocal(removed) }
             }
         }

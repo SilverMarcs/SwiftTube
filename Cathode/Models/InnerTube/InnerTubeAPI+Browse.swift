@@ -1,10 +1,7 @@
 import Foundation
-import os
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-
-private let tubeLog = Logger(subsystem: appSubsystem, category: "InnerTube")
 
 // MARK: - Browse endpoints
 
@@ -26,7 +23,6 @@ extension InnerTubeAPI {
     public func fetchHome(continuationToken: String? = nil) async throws -> VideoGroup {
         let isAuth = authToken != nil
         if !isAuth {
-            tubeLog.notice("fetchHome: guest user. Fetching 'trending' search feed directly.")
             return try await search(query: "trending", continuationToken: continuationToken)
         }
         
@@ -57,12 +53,6 @@ extension InnerTubeAPI {
             : try await post(endpoint: "browse", body: body)
         updateVisitorData(from: data)
         let rows = parseVideoGroupRows(from: data)
-        tubeLog.notice("fetchHomeRows → \(rows.count, privacy: .public) shelves")
-        let rowShortsDetail = rows.map { row -> String in
-            let s = row.videos.filter { $0.isShort }.count
-            return "'\(row.title ?? "?")': \(s)/\(row.videos.count) shorts"
-        }.joined(separator: ", ")
-        tubeLog.notice("fetchHomeRows shelf detail: [\(rowShortsDetail, privacy: .public)]")
         return rows
     }
 
@@ -106,7 +96,6 @@ extension InnerTubeAPI {
         body["browseId"] = "FEchannels"
         let data = try await postTV(endpoint: "browse", body: body)
         let channels = parseChannelsTab(from: data)
-        tubeLog.notice("fetchSubscribedChannels FEchannels → \(channels.count, privacy: .public) channels")
         return channels
     }
 
@@ -194,7 +183,6 @@ extension InnerTubeAPI {
         // Without auth, fall back to postTVCategory (TV client, www.youtube.com), then
         // the WEB client, then a "#shorts" search as a last resort.
         let isAuth = authToken != nil
-        tubeLog.notice("fetchShorts: isAuth=\(isAuth, privacy: .public)")
 
         // Strategy 1 (authenticated): postTV — mirrors fetchHome/fetchSubscriptions
         if isAuth {
@@ -204,14 +192,10 @@ extension InnerTubeAPI {
                 let data = try await postTV(endpoint: "browse", body: body)
                 let group = try parseVideoGroup(from: data, title: "Shorts")
                 let shorts = group.videos.filter { $0.isShort }
-                let token = group.nextPageToken.map { String($0.prefix(16)) + "…" } ?? "nil"
-                tubeLog.notice("fetchShorts postTV → \(group.videos.count, privacy: .public) videos, \(shorts.count, privacy: .public) shorts, token=\(token, privacy: .public)")
                 if !shorts.isEmpty {
                     return VideoGroup(title: "Shorts", videos: shorts, nextPageToken: group.nextPageToken)
                 }
-                tubeLog.notice("fetchShorts postTV returned 0 shorts — trying postTVCategory")
             } catch {
-                tubeLog.notice("fetchShorts postTV failed (\(error, privacy: .public)) — trying postTVCategory")
             }
         }
 
@@ -222,14 +206,10 @@ extension InnerTubeAPI {
             let data = try await postTVCategory(endpoint: "browse", body: body)
             let group = try parseVideoGroup(from: data, title: "Shorts")
             let shorts = group.videos.filter { $0.isShort }
-            let token = group.nextPageToken.map { String($0.prefix(16)) + "…" } ?? "nil"
-            tubeLog.notice("fetchShorts postTVCategory → \(group.videos.count, privacy: .public) videos, \(shorts.count, privacy: .public) shorts, token=\(token, privacy: .public)")
             if !shorts.isEmpty {
                 return VideoGroup(title: "Shorts", videos: shorts, nextPageToken: group.nextPageToken)
             }
-            tubeLog.notice("fetchShorts postTVCategory returned 0 shorts — trying WEB client")
         } catch {
-            tubeLog.notice("fetchShorts postTVCategory failed (\(error, privacy: .public)) — trying WEB client")
         }
 
         // Strategy 3: WEB client (www.youtube.com) — returns richGridRenderer →
@@ -240,27 +220,21 @@ extension InnerTubeAPI {
             let data = try await post(endpoint: "browse", body: body)
             let group = try parseVideoGroup(from: data, title: "Shorts")
             let shorts = group.videos.filter { $0.isShort }
-            let token = group.nextPageToken.map { String($0.prefix(16)) + "…" } ?? "nil"
-            tubeLog.notice("fetchShorts WEB → \(group.videos.count, privacy: .public) videos, \(shorts.count, privacy: .public) shorts, token=\(token, privacy: .public)")
             if !shorts.isEmpty {
                 return VideoGroup(title: "Shorts", videos: shorts, nextPageToken: group.nextPageToken)
             }
-            tubeLog.notice("fetchShorts WEB returned 0 shorts — falling back to search")
         } catch {
-            tubeLog.notice("fetchShorts WEB failed (\(error, privacy: .public)) — falling back to search")
         }
 
         // Strategy 4 (last resort): search "#shorts".
         let searchGroup = try await search(query: "#shorts")
         let shorts = searchGroup.videos.filter { $0.isShort }
-        tubeLog.notice("fetchShorts search → \(searchGroup.videos.count, privacy: .public) total, \(shorts.count, privacy: .public) shorts, token=\(searchGroup.nextPageToken.map { String($0.prefix(16)) + "\u{2026}" } ?? "nil", privacy: .public)")
         return VideoGroup(title: "Shorts", videos: shorts, nextPageToken: searchGroup.nextPageToken)
     }
 
     public func fetchShortsMore(continuationToken: String) async throws -> VideoGroup {
         // Mirrors fetchShorts: try postTV first (for tokens issued by postTV), then
         // postTVCategory, then WEB — so the right host/auth combination is always used.
-        tubeLog.notice("fetchShortsMore token=\(continuationToken.prefix(16), privacy: .public)…")
         let isAuth = authToken != nil
 
         if isAuth {
@@ -269,13 +243,10 @@ extension InnerTubeAPI {
                 let data = try await postTV(endpoint: "browse", body: body)
                 let group = try parseVideoGroup(from: data, title: "Shorts")
                 let shorts = group.videos.filter { $0.isShort }
-                let token = group.nextPageToken.map { String($0.prefix(16)) + "…" } ?? "nil"
-                tubeLog.notice("fetchShortsMore postTV → \(group.videos.count, privacy: .public) videos, \(shorts.count, privacy: .public) shorts, token=\(token, privacy: .public)")
                 if !group.videos.isEmpty {
                     return VideoGroup(title: "Shorts", videos: shorts, nextPageToken: group.nextPageToken)
                 }
             } catch {
-                tubeLog.notice("fetchShortsMore postTV failed (\(error, privacy: .public)) — trying postTVCategory")
             }
         }
 
@@ -284,13 +255,10 @@ extension InnerTubeAPI {
             let data = try await postTVCategory(endpoint: "browse", body: body)
             let group = try parseVideoGroup(from: data, title: "Shorts")
             let shorts = group.videos.filter { $0.isShort }
-            let token = group.nextPageToken.map { String($0.prefix(16)) + "…" } ?? "nil"
-            tubeLog.notice("fetchShortsMore postTVCategory → \(group.videos.count, privacy: .public) videos, \(shorts.count, privacy: .public) shorts, token=\(token, privacy: .public)")
             if !group.videos.isEmpty {
                 return VideoGroup(title: "Shorts", videos: shorts, nextPageToken: group.nextPageToken)
             }
         } catch {
-            tubeLog.notice("fetchShortsMore postTVCategory failed (\(error, privacy: .public)) — trying WEB")
         }
 
         do {
@@ -298,20 +266,15 @@ extension InnerTubeAPI {
             let data = try await post(endpoint: "browse", body: body)
             let group = try parseVideoGroup(from: data, title: "Shorts")
             let shorts = group.videos.filter { $0.isShort }
-            let token = group.nextPageToken.map { String($0.prefix(16)) + "\u{2026}" } ?? "nil"
-            tubeLog.notice("fetchShortsMore WEB → \(group.videos.count, privacy: .public) videos, \(shorts.count, privacy: .public) shorts, token=\(token, privacy: .public)")
             if !group.videos.isEmpty {
                 return VideoGroup(title: "Shorts", videos: shorts, nextPageToken: group.nextPageToken)
             }
         } catch {
-            tubeLog.notice("fetchShortsMore WEB failed (\(error, privacy: .public)) — trying search continuation")
         }
 
         // Last resort: search continuation token (issued when fetchShorts fell back to strategy 4).
         let searchGroup = try await search(query: "#shorts", continuationToken: continuationToken)
         let searchShorts = searchGroup.videos.filter { $0.isShort }
-        let searchToken = searchGroup.nextPageToken.map { String($0.prefix(16)) + "\u{2026}" } ?? "nil"
-        tubeLog.notice("fetchShortsMore search → \(searchGroup.videos.count, privacy: .public) total, \(searchShorts.count, privacy: .public) shorts, token=\(searchToken, privacy: .public)")
         return VideoGroup(title: "Shorts", videos: searchShorts, nextPageToken: searchGroup.nextPageToken)
     }
 
@@ -326,7 +289,6 @@ extension InnerTubeAPI {
             let group = try parseVideoGroup(from: data, title: "Music")
             if !group.videos.isEmpty { return group }
         } catch {
-            tubeLog.notice("fetchMusic browse failed, falling back to search: \(error, privacy: .public)")
         }
         return try await search(query: "music")
     }
@@ -340,7 +302,6 @@ extension InnerTubeAPI {
             let group = try parseVideoGroup(from: data, title: "Gaming")
             if !group.videos.isEmpty { return group }
         } catch {
-            tubeLog.notice("fetchGaming browse failed, falling back to search: \(error, privacy: .public)")
         }
         return try await search(query: "gaming")
     }
@@ -358,7 +319,6 @@ extension InnerTubeAPI {
             let group = try parseVideoGroup(from: data, title: "Live")
             if !group.videos.isEmpty { return group }
         } catch {
-            tubeLog.notice("fetchLive browse failed, falling back to search: \(error, privacy: .public)")
         }
         return try await search(query: "live stream")
     }
@@ -372,7 +332,6 @@ extension InnerTubeAPI {
             let group = try parseVideoGroup(from: data, title: "Sports")
             if !group.videos.isEmpty { return group }
         } catch {
-            tubeLog.notice("fetchSports browse failed, falling back to search: \(error, privacy: .public)")
         }
         return try await search(query: "sports")
     }

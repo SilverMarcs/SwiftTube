@@ -1,7 +1,4 @@
 import Foundation
-import os
-
-private let tubeLog = Logger(subsystem: appSubsystem, category: "InnerTube")
 
 // MARK: - Video renderer parsers
 
@@ -35,16 +32,8 @@ extension InnerTubeAPI {
             "movingThumbnailRenderer",
         ]
 
-        func dumpJSON(_ obj: Any) -> String {
-            guard let data = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]),
-                  let str = String(data: data, encoding: .utf8) else { return "<unserializable>" }
-            // Truncate to avoid flooding the log
-            return str.count > 2000 ? String(str.prefix(2000)) + "\n...(truncated)" : str
-        }
-
         func walkShelfContents(_ obj: Any, depth: Int = 0) -> [Video] {
             guard depth < 50 else {
-                tubeLog.warning("walkShelfContents: depth limit (50) reached — skipping subtree")
                 return []
             }
             var videos: [Video] = []
@@ -60,21 +49,14 @@ extension InnerTubeAPI {
                               let v = parseReelItemRenderer(reel) {
                         videos.append(v)
                     } else {
-                        let contentKeys = content.keys.sorted()
-                        let isAd = contentKeys.contains(where: { adRendererKeys.contains($0) })
-                        if isAd {
-                            tubeLog.debug("walkShelfContents: skipping ad richItemRenderer keys=\(contentKeys, privacy: .public)")
-                        } else {
-                            tubeLog.notice("walkShelfContents: unrecognised richItemRenderer — add key to adRendererKeys if it is an ad\nkeys=\(contentKeys, privacy: .public)\nJSON=\(dumpJSON(content), privacy: .public)")
+                        let isAd = content.keys.contains(where: { adRendererKeys.contains($0) })
+                        if !isAd {
                             for value in content.values { videos += walkShelfContents(value, depth: depth + 1) }
                         }
                     }
                 } else {
-                    let dictKeys = dict.keys.sorted()
-                    let isAd = dictKeys.contains(where: { adRendererKeys.contains($0) })
-                    if isAd {
-                        tubeLog.debug("walkShelfContents: skipping ad renderer keys=\(dictKeys, privacy: .public)")
-                    } else {
+                    let isAd = dict.keys.contains(where: { adRendererKeys.contains($0) })
+                    if !isAd {
                         for value in dict.values { videos += walkShelfContents(value, depth: depth + 1) }
                     }
                 }
@@ -86,7 +68,6 @@ extension InnerTubeAPI {
 
         func walk(_ obj: Any, depth: Int = 0) {
             guard depth < 50 else {
-                tubeLog.warning("parseHomeSections: walk depth limit (50) reached — skipping subtree")
                 return
             }
             if let dict = obj as? [String: Any] {
@@ -113,18 +94,12 @@ extension InnerTubeAPI {
                     continuationToken = ct
                     return
                 }
-                // Log any richSectionRenderer whose inner content is not a richShelfRenderer
-                // (ads and promos often appear as richSectionRenderer wrapping a non-shelf renderer)
+                // Skip ad/promo richSectionRenderers — ads often appear as a
+                // richSectionRenderer wrapping a known ad renderer key.
                 if let section = dict["richSectionRenderer"] as? [String: Any],
                    let content = section["content"] as? [String: Any] {
-                    let contentKeys = content.keys.sorted()
-                    let isAd = contentKeys.contains(where: { adRendererKeys.contains($0) })
-                    if isAd {
-                        tubeLog.debug("walk: skipping ad richSectionRenderer content keys=\(contentKeys, privacy: .public)")
-                    } else if !contentKeys.contains("richShelfRenderer") {
-                        tubeLog.notice("walk: unrecognised richSectionRenderer — add key to adRendererKeys if it is an ad\nkeys=\(contentKeys, privacy: .public)\nJSON=\(dumpJSON(content), privacy: .public)")
-                        for value in dict.values { walk(value, depth: depth + 1) }
-                    } else {
+                    let isAd = content.keys.contains(where: { adRendererKeys.contains($0) })
+                    if !isAd {
                         for value in dict.values { walk(value, depth: depth + 1) }
                     }
                     return
@@ -167,7 +142,6 @@ extension InnerTubeAPI {
         // Matches Android MediaServiceCore ItemWrapper renderer dispatch order.
         func walk(_ obj: Any, depth: Int = 0) {
             guard depth < 50 else {
-                tubeLog.warning("parseVideoGroup: walk depth limit (50) reached — skipping subtree")
                 return
             }
             if let dict = obj as? [String: Any] {
@@ -190,7 +164,6 @@ extension InnerTubeAPI {
                     if let header = sectionRenderer["header"] as? [String: Any] {
                         let headerTitle = extractSectionTitle(from: header)
                         currentSectionDate = headerTitle.flatMap { parseSectionDate($0) }
-                        tubeLog.debug("parseVideoGroup: section '\(headerTitle ?? "nil", privacy: .public)' → date=\(currentSectionDate != nil ? "yes" : "nil", privacy: .public)")
                     }
                     walk(sectionRenderer["contents"] as Any, depth: depth + 1)
                     currentSectionDate = prevDate
@@ -252,7 +225,6 @@ extension InnerTubeAPI {
 
         walk(json)
         let shortsCount = videos.filter { $0.isShort }.count
-        tubeLog.notice("parseVideoGroup '\(title ?? "nil", privacy: .public)' → \(videos.count, privacy: .public) videos (\(videos.count - shortsCount, privacy: .public) regular, \(shortsCount, privacy: .public) shorts), nextPage=\(nextPageToken != nil ? "yes" : "no", privacy: .public)")
         return VideoGroup(title: title, videos: videos, nextPageToken: nextPageToken)
     }
 
@@ -265,15 +237,12 @@ extension InnerTubeAPI {
         // Also accept TILE_CONTENT_TYPE_REEL: FEshorts TVHTML5 response uses this type for
         // Short videos. Silently dropping all REEL tiles is why the Shorts row shows 0 results
         // from the dedicated FEshorts browse (only subs tiles, which are TILE_CONTENT_TYPE_VIDEO,
-        // survive). Log unrecognised types so future renderer changes can be diagnosed.
+        // survive).
         let contentType = tile["contentType"] as? String
         switch contentType {
         case "TILE_CONTENT_TYPE_VIDEO", "TILE_CONTENT_TYPE_REEL":
             break // accepted
         default:
-            if let ct = contentType {
-                tubeLog.notice("parseTileRenderer: dropping tile contentType=\(ct, privacy: .public)")
-            }
             return nil
         }
 
@@ -409,18 +378,6 @@ extension InnerTubeAPI {
             || isUstreamerShorts
             || isVerticalThumbnail
 
-        if isUstreamerShorts {
-            tubeLog.debug("tileRenderer isShort=true id=\(videoId, privacy: .public) signal=ustreamerConfig(\(ustreamerConfig ?? "", privacy: .public))")
-        }
-
-        // Diagnostic: log every TV-feed tile's Short signals so Console shows exactly
-        // which signals are (or aren't) present, even for non-Short tiles.
-        let overlayStyle = overlays?.compactMap {
-            ($0["thumbnailOverlayTimeStatusRenderer"] as? [String: Any])?["style"] as? String
-        }.first ?? "nil"
-        let durationStr = duration.map { Int($0).description } ?? "nil"
-        tubeLog.debug("tileRenderer id=\(videoId, privacy: .public) tileStyle=\(tile["style"] as? String ?? "nil", privacy: .public) reelEp=\(reelWatchEndpoint != nil, privacy: .public) overlayStyle=\(overlayStyle, privacy: .public) dur=\(durationStr, privacy: .public) vertThumb=\(isVerticalThumbnail, privacy: .public) ustreamerShorts=\(isUstreamerShorts, privacy: .public) → isShort=\(isShort, privacy: .public)")
-
         // publishedAt: best-effort from tileMetadata lines (second line may contain "2 years ago")
         let publishedAt: Date? = {
             guard let lines = tileMetadata?["lines"] as? [[String: Any]], lines.count > 1 else { return nil }
@@ -480,9 +437,6 @@ extension InnerTubeAPI {
         guard let videoId = reelEndpoint?["videoId"] as? String
                           ?? watchEndpoint?["videoId"] as? String else { return nil }
         let isShort = reelEndpoint != nil
-        if isShort {
-            tubeLog.debug("lockupViewModel isShort=true id=\(videoId, privacy: .public) signal=reelWatchEndpoint")
-        }
 
         // title: metadata.lockupMetadataViewModel.title
         // The field may be a TextViewModel ({"content": "…"}) in newer API responses,
@@ -679,19 +633,6 @@ extension InnerTubeAPI {
             } ?? false
             return isVerticalThumbnail
         }()
-        if isShort {
-            let signal: String
-            if let nav = r["navigationEndpoint"] as? [String: Any], nav["reelWatchEndpoint"] != nil {
-                signal = "reelWatchEndpoint"
-            } else {
-                let hasShortOverlay = (r["thumbnailOverlays"] as? [[String: Any]])?.contains {
-                    ($0["thumbnailOverlayTimeStatusRenderer"] as? [String: Any])?["style"] as? String == "SHORTS"
-                } ?? false
-                signal = hasShortOverlay ? "overlayStyle" : "ustreamerConfig/verticalThumb"
-            }
-            tubeLog.debug("videoRenderer isShort=true id=\(videoId, privacy: .public) signal=\(signal, privacy: .public) duration=\(Int(duration ?? -1))")
-        }
-
         let badges = (r["badges"] as? [[String: Any]])?.compactMap {
             ($0["metadataBadgeRenderer"] as? [String: Any])?["label"] as? String
         } ?? []

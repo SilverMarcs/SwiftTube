@@ -1,7 +1,5 @@
 import Foundation
 
-private let retryLog = ViewModelLogger(category: "RetryWithBackoff")
-
 /// Retries `operation` up to `maxAttempts` times on transient URLErrors,
 /// using exponential backoff. Permanent errors (e.g. `ITAPIError`, decoding
 /// failures) and Task cancellation are propagated immediately without retrying.
@@ -14,7 +12,6 @@ private let retryLog = ViewModelLogger(category: "RetryWithBackoff")
 /// network interruptions without dropping the user's scroll position.
 @discardableResult
 func retryWithBackoff<T>(
-    label: String = "",
     maxAttempts: Int = 3,
     initialDelay: TimeInterval = 1.0,
     maxDelay: TimeInterval = 10.0,
@@ -32,8 +29,6 @@ func retryWithBackoff<T>(
             return try await operation()
         } catch let urlError as URLError
                 where transientCodes.contains(urlError.code) && attempt < maxAttempts {
-            let tag = label.isEmpty ? "" : "[\(label)] "
-            retryLog.notice("\(tag)attempt \(attempt)/\(maxAttempts) failed (\(urlError.code.rawValue)), retrying in \(Int(delay))s")
             lastError = urlError
             try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             delay = min(delay * 2, maxDelay)

@@ -1,11 +1,8 @@
 import Foundation
-import os
 import Network
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-
-private let tubeLog = Logger(subsystem: appSubsystem, category: "InnerTube")
 
 // MARK: - InnerTubeAPI
 //
@@ -174,14 +171,11 @@ public actor InnerTubeAPI {
         lastPathStatus = path.status
         guard path.status == .satisfied, prev == .satisfied else { return }
         visitorData = nil
-        tubeLog.notice("visitorData cleared — network path changed (VPN/WiFi transition)")
     }
 
     // MARK: - Auth
 
     public func setAuthToken(_ token: String?) {
-        let msg = token != nil ? "token(\(token!.prefix(8))…)" : "nil"
-        tubeLog.notice("setAuthToken: \(msg, privacy: .public)")
         self.authToken = token
     }
 
@@ -192,6 +186,5 @@ public actor InnerTubeAPI {
     /// the next home-feed request uses YouTube's default shared recommendation algorithm.
     public func resetVisitorData() {
         visitorData = nil
-        tubeLog.notice("visitorData cleared (per-device recommendations disabled)")
     }
 }

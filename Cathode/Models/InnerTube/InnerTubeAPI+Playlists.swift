@@ -1,7 +1,4 @@
 import Foundation
-import os
-
-private let tubeLog = Logger(subsystem: appSubsystem, category: "InnerTube")
 
 // MARK: - Playlist endpoints
 
@@ -20,10 +17,6 @@ extension InnerTubeAPI {
         var body = makeBody(client: tvClientContext)
         body["browseId"] = "FElibrary"
         let data = try await postTV(endpoint: "browse", body: body)
-        // Log the second-level structure so it's easy to diagnose mismatches
-        // if the live response shape differs from the mock.
-        let contentsKeys = (data["contents"] as? [String: Any])?.keys.map { $0 } ?? []
-        tubeLog.notice("fetchUserPlaylists FElibrary contents keys: \(contentsKeys, privacy: .public)")
         var playlists = try parsePlaylists(from: data)
         // Watch Later (id "WL") is a special system playlist. On the TVHTML5 FElibrary
         // response it appears as a specialCollectionRenderer / video-item shelf rather
@@ -134,7 +127,6 @@ extension InnerTubeAPI {
                     .flatMap { $0["thumbnail"] as? [String: Any] }
                     .flatMap { $0["thumbnails"] as? [[String: Any]] }
             let thumbURL = thumbSources?.last.flatMap { $0["url"] as? String }.flatMap { URL(string: $0) }
-            tubeLog.notice("specialCollectionRenderer id=\(id, privacy: .public) keys=\(renderer.keys.sorted().joined(separator: ","), privacy: .public) thumbURL=\(thumbURL?.absoluteString ?? "nil", privacy: .public)")
             let count: Int? =
                 (renderer["videoCountText"] as? [String: Any]).flatMap { extractText($0) }.flatMap { extractNumber($0) }
                 ?? (renderer["totalCountText"] as? [String: Any]).flatMap { extractText($0) }.flatMap { extractNumber($0) }
@@ -164,7 +156,6 @@ extension InnerTubeAPI {
         }
 
         walk(json)
-        tubeLog.notice("parsePlaylists → \(playlists.count, privacy: .public) playlists")
         return playlists
     }
 }
