@@ -120,9 +120,7 @@ class VideoManager {
         }
     }
 
-    private func loadVideoStream(for video: Video, autoPlay: Bool) async {
-        await loadVideoStream(for: video, autoPlay: autoPlay, allowCacheRetry: true)
-    }
+
 
     /// Re-attempts stream resolution for the current video after a playback
     /// error. Re-uses the `setVideo` pipeline but skips its same-id guard so
@@ -192,18 +190,12 @@ class VideoManager {
     }
 
     // MARK: - Private Methods
-    private func resolveStreamWithRetry(id: String, attempts: Int = 2) async -> URL? {
-        for attempt in 0..<attempts {
-            if Task.isCancelled { return nil }
-            if let url = await StreamResolver.resolve(id: id) { return url }
-            if attempt < attempts - 1 {
-                try? await Task.sleep(nanoseconds: 500_000_000)
-            }
-        }
-        return nil
+    private func resolveStream(id: String) async -> URL? {
+        if Task.isCancelled { return nil }
+        return await StreamResolver.resolve(id: id)
     }
 
-    private func loadVideoStream(for video: Video, autoPlay: Bool, allowCacheRetry: Bool) async {
+    private func loadVideoStream(for video: Video, autoPlay: Bool) async {
         // If the requested video is no longer the current one, abort this task.
         guard currentVideo?.id == video.id, !Task.isCancelled else { return }
 
@@ -211,14 +203,14 @@ class VideoManager {
         #if os(iOS)
         if let local = DownloadManager.shared.localURL(for: video.id) {
             url = local
-        } else if let streamed = await resolveStreamWithRetry(id: video.id) {
+        } else if let streamed = await resolveStream(id: video.id) {
             url = streamed
         } else {
             await MainActor.run { self.surfaceStreamResolutionError(for: video) }
             return
         }
         #else
-        if let streamed = await resolveStreamWithRetry(id: video.id) {
+        if let streamed = await resolveStream(id: video.id) {
             url = streamed
         } else {
             await MainActor.run { self.surfaceStreamResolutionError(for: video) }
@@ -265,13 +257,13 @@ class VideoManager {
 
         await applyNavigationMarkers(for: video, on: playerItem)
 
-        // If AVPlayer fails to ready up (transient extraction or network glitch), retry once.
+        // If AVPlayer fails to ready up (transient extraction or network glitch), surface the error immediately.
         Task { [weak self] in
             let ready = await awaitPlayerItemReady(playerItem)
-            guard !ready, allowCacheRetry else { return }
+            guard !ready else { return }
             guard let self else { return }
             guard self.currentVideo?.id == video.id else { return }
-            await self.loadVideoStream(for: video, autoPlay: autoPlay, allowCacheRetry: false)
+            await MainActor.run { self.surfaceStreamResolutionError(for: video) }
         }
     }
 
