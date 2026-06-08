@@ -22,6 +22,13 @@ struct AVPlayerViewTvos: View {
         } else if let player = manager.player, let video = manager.currentVideo {
             AVPlayerTvos(player: player, video: video)
                 .ignoresSafeArea()
+                .overlay {
+                    if manager.isSetting {
+                        UniversalProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(.black)
+                    }
+                }
         } else {
             UniversalProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
