@@ -13,9 +13,6 @@ struct VideoDetailView: View {
 
     var showVideo: Bool = false
 
-    /// Description fetched lazily on appear. The Video objects in lists don't
-    /// carry a description (only InnerTube's /player response does), so we
-    /// pull it ourselves when not already populated on `video`.
     @State private var fetchedDescription: String?
     @State private var fetchedChannel: Channel?
 
@@ -27,6 +24,9 @@ struct VideoDetailView: View {
 
     var body: some View {
         NavigationStack {
+            #if os(macOS)
+            compactBody
+            #else
             if horizontalSizeClass == .regular {
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 0) {
@@ -49,24 +49,9 @@ struct VideoDetailView: View {
                     .containerRelativeFrame(.horizontal, count: 3, span: 1, spacing: 16)
                 }
             } else {
-                List {
-                    VideoDetailsListSection(
-                        video: video,
-                        description: description,
-                        fetchedChannel: fetchedChannel
-                    )
-                    VideoCommentsView(video: video)
-                }
-                #if os(iOS) || os(visionOS)
-                .statusBar(hidden: false)
-                .safeAreaBar(edge: .top) {
-                    if showVideo {
-                        AVPlayerViewIos()
-                            .background(.bar)
-                    }
-                }
-                #endif
+                compactBody
             }
+            #endif
         }
         .task(id: video.id) {
             let original = video.description?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -94,5 +79,25 @@ struct VideoDetailView: View {
                 print("VideoDetailView channel fetch failed: \(error)")
             }
         }
+    }
+
+    private var compactBody: some View {
+        List {
+            VideoDetailsListSection(
+                video: video,
+                description: description,
+                fetchedChannel: fetchedChannel
+            )
+            VideoCommentsView(video: video)
+        }
+        #if os(iOS) || os(visionOS)
+        .statusBar(hidden: false)
+        .safeAreaBar(edge: .top) {
+            if showVideo {
+                AVPlayerViewIos()
+                    .background(.bar)
+            }
+        }
+        #endif
     }
 }
