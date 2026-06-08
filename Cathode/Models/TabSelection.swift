@@ -9,6 +9,7 @@ import SwiftUI
 
 enum TabSelection: String, CaseIterable {
     case feed = "feed"
+    case recommendations = "recommendations"
     case shorts = "shorts"
     case library = "library"
     case search = "search"
@@ -18,19 +19,20 @@ enum TabSelection: String, CaseIterable {
     case history = "history"
 
 #if os(tvOS)
-    static let compactTabs: [TabSelection] = [.search, .feed, .channels, .library]
-    static let extendedTabs: [TabSelection] = [.search, .feed, .settings]
+    static let compactTabs: [TabSelection] = [.search, .feed, .recommendations, .channels, .library]
+    static let extendedTabs: [TabSelection] = [.search, .feed, .recommendations, .settings]
 #else
     static let compactTabs: [TabSelection] = [.search, .feed, .shorts, .channels, .library]
     static let extendedTabs: [TabSelection] = [.search, .feed, .shorts, .settings]
 #endif
     static let extendedSubscriptionTabs: [TabSelection] = [.channels]
     static let extendedLibraryTabs: [TabSelection] = [.bookmark, .history]
-    static let allCases: [TabSelection] = [.feed, .shorts, .library, .search, .settings, .channels, .bookmark, .history]
+    static let allCases: [TabSelection] = [.feed, .recommendations, .shorts, .library, .search, .settings, .channels, .bookmark, .history]
 
     var title: String {
         switch self {
         case .feed: return "Videos"
+        case .recommendations: return "Recommended"
         case .shorts: return "Shorts"
         case .library: return "Library"
         case .search: return "Search"
@@ -44,6 +46,7 @@ enum TabSelection: String, CaseIterable {
     var systemImage: String {
         switch self {
         case .feed: return "video"
+        case .recommendations: return "sparkles"
         case .shorts: return "play.rectangle.on.rectangle"
         case .library: return "rectangle.stack"
         case .search: return "magnifyingglass"
@@ -57,6 +60,7 @@ enum TabSelection: String, CaseIterable {
     var shortcutKey: String? {
         switch self {
         case .feed: return "1"
+        case .recommendations: return nil
         case .shorts: return "2"
         case .channels: return "3"
         case .library: return "4"
@@ -71,6 +75,7 @@ enum TabSelection: String, CaseIterable {
     var tabView: some View {
         switch self {
         case .feed: FeedView()
+        case .recommendations: RecommendationFeedView()
         case .shorts:
 #if os(tvOS)
             EmptyView()
