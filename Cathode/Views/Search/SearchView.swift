@@ -3,87 +3,54 @@ import SwiftUI
 struct SearchView: View {
     @Environment(LibraryStore.self) private var library
 
-    @State private var searchScope: SearchScope = .bookmark
+    @State private var searchScope: SearchScope = .video
     @State var searchText: String = ""
-    @State private var onlineVideos: [Video] = []
-    @State private var onlineNextPageToken: String?
-    @State private var onlineChannels: [Channel] = []
+
+    @State private var displayedVideos: [Video] = []
+    @State private var displayedChannels: [Channel] = []
+    @State private var displayedBookmarks: [Video] = []
+    @State private var displayedHistory: [Video] = []
+    @State private var nextPageToken: String?
+
     @State private var isLoading = false
     @State private var isLoadingMore = false
     @FocusState private var isSearchFocused: Bool
 
-    private var availableScopes: [SearchScope] {
-        [.bookmark, .history, .channel, .video]
+    private var availableScopes: [SearchScope] { [.video, .channel, .bookmark, .history] }
+
+    // Combined ID — changing either text or scope cancels and restarts the task.
+    private var searchQuery: SearchQuery {
+        SearchQuery(text: searchText, scope: searchScope)
     }
 
-    private func filter(_ videos: [Video]) -> [Video] {
-        let query = searchText.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return videos }
-        return videos.filter { video in
-            video.title.localizedCaseInsensitiveContains(query)
-                || video.channelTitle.localizedCaseInsensitiveContains(query)
+    private var query: String { searchText.trimmingCharacters(in: .whitespaces) }
+
+    private var currentResultsEmpty: Bool {
+        switch searchScope {
+        case .video:    return displayedVideos.isEmpty
+        case .channel:  return displayedChannels.isEmpty
+        case .bookmark: return displayedBookmarks.isEmpty
+        case .history:  return displayedHistory.isEmpty
         }
     }
 
-    private var filteredBookmarks: [Video] { filter(library.watchLater) }
-    private var filteredHistory: [Video] { filter(library.history) }
-
-    private var displayedChannels: [Channel] {
-        let query = searchText.trimmingCharacters(in: .whitespaces)
-        if !onlineChannels.isEmpty { return onlineChannels }
-        guard !query.isEmpty else { return library.subscribedChannels }
-        return library.subscribedChannels.filter {
-            $0.title.localizedCaseInsensitiveContains(query)
-        }
+    private func clearResults() {
+        displayedVideos = []
+        displayedChannels = []
+        displayedBookmarks = []
+        displayedHistory = []
+        nextPageToken = nil
     }
+
+    // MARK: - Body
 
     var body: some View {
         Group {
             switch searchScope {
-            case .bookmark:
-                VideoGridView(videos: filteredBookmarks)
-            case .history:
-                VideoGridView(videos: filteredHistory)
-            case .channel:
-                List {
-                    ForEach(displayedChannels) { channel in
-                        ChannelRowView(channel: channel)
-                    }
-                }
-            case .video:
-                if onlineVideos.isEmpty && !isLoading {
-                    ContentUnavailableView.search
-                } else {
-                    VideoGridView(
-                        videos: onlineVideos,
-                        isGuestAllowed: true,
-                        onReachEnd: {
-                            Task { await loadMore() }
-                        },
-                        onRefresh: {
-                            await performSearch()
-                        }
-                    )
-                }
-            }
-        }
-        .toolbar {
-            if searchScope == .video, !onlineVideos.isEmpty {
-                Button {
-                    onlineVideos = []
-                    onlineNextPageToken = nil
-                } label: {
-                    Label("Clear", systemImage: "eraser")
-                        .labelStyle(.titleOnly)
-                }
-            }
-            if searchScope == .channel, !onlineChannels.isEmpty {
-                Button {
-                    onlineChannels = []
-                } label: {
-                    Label("Clear", systemImage: "eraser")
-                        .labelStyle(.titleOnly)
-                }
+            case .video:    videoContent
+            case .channel:  channelContent
+            case .bookmark: bookmarkContent
+            case .history:  historyContent
             }
         }
         .navigationTitle("Search")
@@ -94,59 +61,109 @@ struct SearchView: View {
         #endif
         .searchPresentationToolbarBehavior(.avoidHidingContent)
         #if os(macOS)
-        .task {
-            isSearchFocused = true
-        }
+        .task { isSearchFocused = true }
         #endif
         .searchScopes($searchScope) {
             ForEach(availableScopes) { scope in
-                Text(scope.rawValue)
-                    .tag(scope)
+                Text(scope.rawValue).tag(scope)
             }
         }
-        .onChange(of: searchScope) {
-            onlineChannels = []
-            onlineVideos = []
-            onlineNextPageToken = nil
+        .task(id: searchQuery) {
+            clearResults()
+            guard !query.isEmpty else { return }
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            await performSearch()
         }
-        .onSubmit(of: .search) {
-            switch searchScope {
-            case .video:    Task { await performSearch() }
-            case .channel:  Task { await performChannelSearch() }
-            default:        break
+    }
+
+    // MARK: - Scope Content Views
+
+    private var videoContent: some View {
+        scopeContent(results: displayedVideos) {
+            VideoGridView(
+                videos: displayedVideos,
+                isGuestAllowed: true,
+                onReachEnd: { Task { await loadMore() } },
+                onRefresh: { await performSearch() }
+            )
+        }
+    }
+
+    private var channelContent: some View {
+        scopeContent(results: displayedChannels) {
+            List {
+                ForEach(displayedChannels) { channel in
+                    ChannelRowView(channel: channel)
+                }
             }
         }
     }
+
+    private var bookmarkContent: some View {
+        scopeContent(results: displayedBookmarks) {
+            VideoGridView(videos: displayedBookmarks)
+        }
+    }
+
+    private var historyContent: some View {
+        scopeContent(results: displayedHistory) {
+            VideoGridView(videos: displayedHistory)
+        }
+    }
+
+    @ViewBuilder
+    private func scopeContent<Results, Content: View>(
+        results: [Results],
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        if isLoading {
+            UniversalProgressView()
+        } else if results.isEmpty {
+            if query.isEmpty {
+                ContentUnavailableView(
+                    "Search \(searchScope.rawValue)",
+                    systemImage: "magnifyingglass",
+                    description: Text("Type to search \(searchScope.rawValue.lowercased()).")
+                )
+            } else {
+                ContentUnavailableView.search(text: query)
+            }
+        } else {
+            content()
+        }
+    }
+
+    // MARK: - Data Fetching
 
     private func performSearch() async {
-        guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        guard !query.isEmpty else { return }
         isLoading = true
         defer { isLoading = false }
-
-        do {
-            let group = try await InnerTubeAPI.shared.search(query: searchText)
-            self.onlineVideos = group.videos.filter { !isChannelEntry($0) }
-            self.onlineNextPageToken = group.nextPageToken
-        } catch {
-            print("Error in SearchView: \(error.localizedDescription)")
-        }
-    }
-
-    private func performChannelSearch() async {
-        let query = searchText.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return }
-        do {
-            let channels = try await InnerTubeAPI.shared.searchChannels(query: query)
-            self.onlineChannels = channels
-        } catch {
-            print("SearchView channel search: \(error.localizedDescription)")
+        switch searchScope {
+        case .video:
+            do {
+                let group = try await InnerTubeAPI.shared.search(query: query)
+                displayedVideos = group.videos.filter { !isChannelEntry($0) }
+                nextPageToken = group.nextPageToken
+            } catch {
+                print("SearchView video: \(error.localizedDescription)")
+            }
+        case .channel:
+            do {
+                displayedChannels = try await InnerTubeAPI.shared.searchChannels(query: query)
+            } catch {
+                print("SearchView channel: \(error.localizedDescription)")
+            }
+        case .bookmark:
+            displayedBookmarks = library.watchLater.filter { matchesQuery($0) }
+        case .history:
+            displayedHistory = library.history.filter { matchesQuery($0) }
         }
     }
 
     private func loadMore() async {
-        guard let token = onlineNextPageToken, !isLoadingMore else { return }
-        let query = searchText.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return }
+        guard let token = nextPageToken, !isLoadingMore, !query.isEmpty else { return }
         isLoadingMore = true
         defer { isLoadingMore = false }
         do {
@@ -155,13 +172,18 @@ struct SearchView: View {
                 continuationToken: token,
                 filter: .default
             )
-            let existing = Set(onlineVideos.map(\.id))
+            let existing = Set(displayedVideos.map(\.id))
             let newVideos = group.videos.filter { !isChannelEntry($0) && !existing.contains($0.id) }
-            onlineVideos.append(contentsOf: newVideos)
-            onlineNextPageToken = group.nextPageToken
+            displayedVideos.append(contentsOf: newVideos)
+            nextPageToken = group.nextPageToken
         } catch {
             print("SearchView loadMore: \(error.localizedDescription)")
         }
+    }
+
+    private func matchesQuery(_ video: Video) -> Bool {
+        video.title.localizedStandardContains(query)
+            || video.channelTitle.localizedStandardContains(query)
     }
 
     private func isChannelEntry(_ v: Video) -> Bool {
@@ -177,10 +199,17 @@ struct SearchView: View {
     }
 }
 
+// MARK: - Supporting Types
+
+private struct SearchQuery: Equatable, Hashable {
+    let text: String
+    let scope: SearchScope
+}
+
 enum SearchScope: String, Hashable, CaseIterable, Identifiable {
+    case video    = "Videos"
+    case channel  = "Channels"
     case bookmark = "Bookmarks"
-    case history = "History"
-    case channel = "Channels"
-    case video = "Videos"
+    case history  = "History"
     var id: String { rawValue }
 }
