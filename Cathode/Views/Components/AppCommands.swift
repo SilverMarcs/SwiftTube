@@ -16,11 +16,22 @@ struct AppCommands: Commands {
                 } label: {
                     Label(tab.title, systemImage: tab.systemImage)
                 }
-                .keyboardShortcut(
-                    KeyEquivalent(Character(tab.shortcutKey ?? "")),
-                    modifiers: [.command]
-                )
+                .modifier(OptionalShortcut(key: tab.shortcutKey))
             }
+        }
+    }
+}
+
+/// Applies a Command keyboard shortcut only when a non-empty key string is provided.
+/// Guards against `Character("")`, which is a fatal error when a tab has no shortcut.
+private struct OptionalShortcut: ViewModifier {
+    let key: String?
+
+    func body(content: Content) -> some View {
+        if let key, let character = key.first {
+            content.keyboardShortcut(KeyEquivalent(character), modifiers: [.command])
+        } else {
+            content
         }
     }
 }

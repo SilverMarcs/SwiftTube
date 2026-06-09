@@ -140,90 +140,107 @@ extension InnerTubeAPI {
         // Handles WEB (videoRenderer, richItemRenderer, compactVideoRenderer),
         // WEB grid (gridVideoRenderer), and TVHTML5 tileRenderer (subs/history/home on TV client).
         // Matches Android MediaServiceCore ItemWrapper renderer dispatch order.
-        func walk(_ obj: Any, depth: Int = 0) {
-            guard depth < 50 else {
-                return
-            }
-            if let dict = obj as? [String: Any] {
-                // TVHTML5 gridRenderer stores its continuation in
-                // gridRenderer.continuations[0].nextContinuationData.continuation.
-                // Check this independently of the renderer dispatch below so we still
-                // recurse into gridRenderer.items to collect the video tiles.
-                if let continuations = dict["continuations"] as? [[String: Any]],
-                   let token = continuations.first
-                       .flatMap({ $0["nextContinuationData"] as? [String: Any] })
-                       .flatMap({ $0["continuation"] as? String }) {
-                    nextPageToken = token
-                }
-
-                // TVHTML5 History groups tiles under itemSectionRenderer with a date
-                // header ("Today", "Yesterday", "This week", …). Capture that header
-                // and apply it as a fallback publishedAt for tiles with no explicit date.
-                if let sectionRenderer = dict["itemSectionRenderer"] as? [String: Any] {
-                    let prevDate = currentSectionDate
-                    if let header = sectionRenderer["header"] as? [String: Any] {
-                        let headerTitle = extractSectionTitle(from: header)
-                        currentSectionDate = headerTitle.flatMap { parseSectionDate($0) }
+        // Iterative tree walk (formerly recursive). A full home-feed renderer tree
+        // nests deep enough (~45+ levels) that recursive descent overflowed the small
+        // stack of Swift concurrency's cooperative threads, crashing in ___chkstk_darwin.
+        // An explicit heap stack keeps traversal depth off the call stack entirely.
+        // `.restoreDate` is a sentinel that restores currentSectionDate once an
+        // itemSectionRenderer's whole subtree has been processed, mirroring the scoped
+        // set/restore the recursive version performed around its walk of `contents`.
+        enum WalkItem {
+            case node(Any, Int)
+            case restoreDate(Date?)
+        }
+        var stack: [WalkItem] = [.node(json, 0)]
+        while let work = stack.popLast() {
+            switch work {
+            case .restoreDate(let date):
+                currentSectionDate = date
+                continue
+            case .node(let obj, let depth):
+                guard depth < 50 else { continue }
+                if let dict = obj as? [String: Any] {
+                    // TVHTML5 gridRenderer stores its continuation in
+                    // gridRenderer.continuations[0].nextContinuationData.continuation.
+                    // Check this independently of the renderer dispatch below so we still
+                    // recurse into gridRenderer.items to collect the video tiles.
+                    if let continuations = dict["continuations"] as? [[String: Any]],
+                       let token = continuations.first
+                           .flatMap({ $0["nextContinuationData"] as? [String: Any] })
+                           .flatMap({ $0["continuation"] as? String }) {
+                        nextPageToken = token
                     }
-                    walk(sectionRenderer["contents"] as Any, depth: depth + 1)
-                    currentSectionDate = prevDate
-                    return
-                }
 
-                if let renderer = dict["tileRenderer"] as? [String: Any] {
-                    // TVHTML5 client (subs, history, home) — Android ItemWrapper.tileRenderer
-                    if var v = parseTileRenderer(renderer) {
-                        if v.publishedAt == nil { v.publishedAt = currentSectionDate }
-                        videos.append(v)
+                    // TVHTML5 History groups tiles under itemSectionRenderer with a date
+                    // header ("Today", "Yesterday", "This week", …). Capture that header
+                    // and apply it as a fallback publishedAt for tiles with no explicit date.
+                    if let sectionRenderer = dict["itemSectionRenderer"] as? [String: Any] {
+                        let prevDate = currentSectionDate
+                        if let header = sectionRenderer["header"] as? [String: Any] {
+                            let headerTitle = extractSectionTitle(from: header)
+                            currentSectionDate = headerTitle.flatMap { parseSectionDate($0) }
+                        }
+                        // Push the restore sentinel first so it runs AFTER the contents
+                        // subtree (LIFO), then push the contents to walk next.
+                        stack.append(.restoreDate(prevDate))
+                        stack.append(.node(sectionRenderer["contents"] as Any, depth + 1))
+                        continue
                     }
-                } else if let renderer = dict["videoRenderer"] as? [String: Any] {
-                    if let v = parseVideoRenderer(renderer) { videos.append(v) }
-                } else if let renderer = dict["gridVideoRenderer"] as? [String: Any] {
-                    if let v = parseVideoRenderer(renderer) { videos.append(v) }
-                } else if let renderer = dict["reelItemRenderer"] as? [String: Any] {
-                    if let v = parseReelItemRenderer(renderer) { videos.append(v) }
-                } else if let renderer = dict["richItemRenderer"] as? [String: Any],
-                          let content = renderer["content"] as? [String: Any] {
-                    if let videoRenderer = content["videoRenderer"] as? [String: Any] {
-                        if let v = parseVideoRenderer(videoRenderer) { videos.append(v) }
-                    } else if let reelRenderer = content["reelItemRenderer"] as? [String: Any] {
-                        if let v = parseReelItemRenderer(reelRenderer) { videos.append(v) }
-                    } else if let lockup = content["lockupViewModel"] as? [String: Any] {
-                        // WEB home v2: richItemRenderer wraps lockupViewModel
-                        if let v = parseLockupViewModel(lockup) { videos.append(v) }
-                    } else if let contItem = content["continuationItemRenderer"] as? [String: Any],
+
+                    if let renderer = dict["tileRenderer"] as? [String: Any] {
+                        // TVHTML5 client (subs, history, home) — Android ItemWrapper.tileRenderer
+                        if var v = parseTileRenderer(renderer) {
+                            if v.publishedAt == nil { v.publishedAt = currentSectionDate }
+                            videos.append(v)
+                        }
+                    } else if let renderer = dict["videoRenderer"] as? [String: Any] {
+                        if let v = parseVideoRenderer(renderer) { videos.append(v) }
+                    } else if let renderer = dict["gridVideoRenderer"] as? [String: Any] {
+                        if let v = parseVideoRenderer(renderer) { videos.append(v) }
+                    } else if let renderer = dict["reelItemRenderer"] as? [String: Any] {
+                        if let v = parseReelItemRenderer(renderer) { videos.append(v) }
+                    } else if let renderer = dict["richItemRenderer"] as? [String: Any],
+                              let content = renderer["content"] as? [String: Any] {
+                        if let videoRenderer = content["videoRenderer"] as? [String: Any] {
+                            if let v = parseVideoRenderer(videoRenderer) { videos.append(v) }
+                        } else if let reelRenderer = content["reelItemRenderer"] as? [String: Any] {
+                            if let v = parseReelItemRenderer(reelRenderer) { videos.append(v) }
+                        } else if let lockup = content["lockupViewModel"] as? [String: Any] {
+                            // WEB home v2: richItemRenderer wraps lockupViewModel
+                            if let v = parseLockupViewModel(lockup) { videos.append(v) }
+                        } else if let contItem = content["continuationItemRenderer"] as? [String: Any],
+                                  let endpoint = contItem["continuationEndpoint"] as? [String: Any],
+                                  let command = endpoint["continuationCommand"] as? [String: Any],
+                                  let token = command["token"] as? String {
+                            // Continuation token nested inside richItemRenderer
+                            nextPageToken = token
+                        } else {
+                            for value in content.values { stack.append(.node(value, depth + 1)) }
+                        }
+                    } else if let renderer = dict["compactVideoRenderer"] as? [String: Any] {
+                        if let v = parseVideoRenderer(renderer) { videos.append(v) }
+                    } else if let renderer = dict["playlistVideoRenderer"] as? [String: Any] {
+                        // WEB browse response for VL<playlistId> — playlist video items
+                        // BUG-012 fix: use parsePlaylistVideoRenderer instead of parseVideoRenderer
+                        // so shortBylineText/shortViewCountText fields are read correctly.
+                        if let v = parsePlaylistVideoRenderer(renderer) { videos.append(v) }
+                    } else if let renderer = dict["lockupViewModel"] as? [String: Any] {
+                        // WEB home v2 (LockupItem in Android) — lockupViewModel
+                        if let v = parseLockupViewModel(renderer) { videos.append(v) }
+                    } else if let contItem = dict["continuationItemRenderer"] as? [String: Any],
                               let endpoint = contItem["continuationEndpoint"] as? [String: Any],
                               let command = endpoint["continuationCommand"] as? [String: Any],
                               let token = command["token"] as? String {
-                        // Continuation token nested inside richItemRenderer
                         nextPageToken = token
                     } else {
-                        for value in content.values { walk(value, depth: depth + 1) }
+                        for value in dict.values { stack.append(.node(value, depth + 1)) }
                     }
-                } else if let renderer = dict["compactVideoRenderer"] as? [String: Any] {
-                    if let v = parseVideoRenderer(renderer) { videos.append(v) }
-                } else if let renderer = dict["playlistVideoRenderer"] as? [String: Any] {
-                    // WEB browse response for VL<playlistId> — playlist video items
-                    // BUG-012 fix: use parsePlaylistVideoRenderer instead of parseVideoRenderer
-                    // so shortBylineText/shortViewCountText fields are read correctly.
-                    if let v = parsePlaylistVideoRenderer(renderer) { videos.append(v) }
-                } else if let renderer = dict["lockupViewModel"] as? [String: Any] {
-                    // WEB home v2 (LockupItem in Android) — lockupViewModel
-                    if let v = parseLockupViewModel(renderer) { videos.append(v) }
-                } else if let contItem = dict["continuationItemRenderer"] as? [String: Any],
-                          let endpoint = contItem["continuationEndpoint"] as? [String: Any],
-                          let command = endpoint["continuationCommand"] as? [String: Any],
-                          let token = command["token"] as? String {
-                    nextPageToken = token
-                } else {
-                    for value in dict.values { walk(value, depth: depth + 1) }
+                } else if let arr = obj as? [Any] {
+                    // Push in reverse so items pop (and their videos append) in source order.
+                    for item in arr.reversed() { stack.append(.node(item, depth + 1)) }
                 }
-            } else if let arr = obj as? [Any] {
-                for item in arr { walk(item, depth: depth + 1) }
             }
         }
-
-        walk(json)
         let shortsCount = videos.filter { $0.isShort }.count
         return VideoGroup(title: title, videos: videos, nextPageToken: nextPageToken)
     }
