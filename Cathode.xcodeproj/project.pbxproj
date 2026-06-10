@@ -72,6 +72,7 @@
 				Views/Shorts/ShortVideoCard.swift = (ios, macos, xros, );
 				Views/Shorts/ShortsView.swift = (ios, macos, xros, );
 				Views/Video/VideoDetailView.swift = (ios, macos, xros, );
+				Views/Video/VideoTitleSection.swift = (ios, xros, );
 			};
 			target = 08E62F842E871877007AD438 /* Cathode */;
 		};
