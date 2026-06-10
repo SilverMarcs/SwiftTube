@@ -101,7 +101,7 @@ class VideoManager {
         // When the user has opted to always use the iframe player, skip
         // the remote server stream-resolution step entirely.
         let rawMode = UserDefaults.standard.string(forKey: Self.playbackModeKey) ?? ""
-        let mode = PlaybackMode(rawValue: rawMode) ?? .simplified
+        let mode = PlaybackMode(rawValue: rawMode) ?? .remote
         if mode == .iframe {
             isSetting = false
             watchtime.begin(for: video)

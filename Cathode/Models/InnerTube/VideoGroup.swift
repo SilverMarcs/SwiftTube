@@ -182,32 +182,6 @@ public struct PlaylistInfo: Identifiable, Codable, Sendable {
     }
 }
 
-// MARK: - VideoFormat
-
-public struct VideoFormat: Identifiable, Hashable, Sendable {
-    public let id: UUID
-    public var label: String
-    public var width: Int
-    public var height: Int
-    public var fps: Int
-    public var mimeType: String
-    public var url: URL?
-    public var bitrate: Int?
-
-    public init(id: UUID = UUID(), label: String, width: Int, height: Int, fps: Int, mimeType: String, url: URL? = nil, bitrate: Int? = nil) {
-        self.id = id
-        self.label = label
-        self.width = width
-        self.height = height
-        self.fps = fps
-        self.mimeType = mimeType
-        self.url = url
-        self.bitrate = bitrate
-    }
-
-    public var qualityLabel: String { "\(height)p\(fps > 30 ? "\(fps)" : "")" }
-}
-
 // MARK: - ITSponsorSegment
 
 /// A SponsorBlock segment within a video.

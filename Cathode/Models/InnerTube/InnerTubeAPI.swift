@@ -27,17 +27,6 @@ public actor InnerTubeAPI {
     var visitorData: String?
     var authToken: String?
 
-    // MARK: - poToken storage (Step 1)
-    //
-    // Populated by a PoTokenProvider when configured; nil until then (zero behaviour change).
-    // All injection points are gated on `poToken != nil`.
-    var poToken: String?
-    var poTokenVideoId: String?
-    var poTokenExpiry: Date?
-
-    // MARK: - PoTokenProvider
-    let poTokenProvider: (any PoTokenProvider)?
-
     // MARK: - Network path monitoring
     //
     // Resets `visitorData` when the network path changes (VPN connect/disconnect,
@@ -79,20 +68,6 @@ public actor InnerTubeAPI {
     }
     let iosUserAgent = InnerTubeClients.iOS.userAgent
 
-    /// The Android client context used for download URL retrieval.
-    /// Exact params match yt-dlp's android client to avoid HTTP 400.
-    let androidClientContext: [String: Any] = [
-        "client": [
-            "hl": "en",
-            "gl": "US",
-            "clientName": InnerTubeClients.Android.name,
-            "clientVersion": InnerTubeClients.Android.version,
-            "androidSdkVersion": InnerTubeClients.Android.androidSdkVersion,
-            "osName": "Android",
-            "osVersion": "11",
-        ]
-    ]
-
     /// The TVHTML5 client context required for all authenticated InnerTube requests
     /// (subscriptions, history, playlists, personalised home).
     /// The OAuth token issued by the TV device-code flow is bound to this client.
@@ -103,20 +78,6 @@ public actor InnerTubeAPI {
             "gl": "US",
             "clientName": InnerTubeClients.TV.name,
             "clientVersion": InnerTubeClients.TV.version,
-        ]
-    ]
-
-    /// The Android VR (Oculus Quest) client context used for audio-only fallback.
-    /// Per yt-dlp research (May 2026), this client does not require a PO token for
-    /// adaptive audio streams. Used exclusively by `fetchPlayerInfoAndroidVR`.
-    let androidVRClientContext: [String: Any] = [
-        "client": [
-            "hl": "en",
-            "gl": "US",
-            "clientName": InnerTubeClients.AndroidVR.name,
-            "clientVersion": InnerTubeClients.AndroidVR.version,
-            "osName": "Android",
-            "osVersion": "12",
         ]
     ]
 
@@ -133,7 +94,7 @@ public actor InnerTubeAPI {
     /// Firebase issue 709b3e91 showed a 2m48s hang when this was left at the OS default.
     static let requestTimeoutInterval: TimeInterval = 30
 
-    public init(authToken: String? = nil, poTokenProvider: (any PoTokenProvider)? = nil) {
+    public init(authToken: String? = nil) {
         let config = URLSessionConfiguration.default
         // NW-4-FIX: 30 s request timeout. Slow/throttled youtubei.googleapis.com requests
         // previously hung for over 2 minutes (Firebase issue 709b3e91) because the OS default
@@ -144,7 +105,6 @@ public actor InnerTubeAPI {
         config.waitsForConnectivity = true
         self.session = URLSession(configuration: config)
         self.authToken = authToken
-        self.poTokenProvider = poTokenProvider
         // Start observing network path changes so visitorData is cleared on network transitions.
         // Callbacks arrive on pathMonitor's private queue; actor re-entry via Task is safe.
         pathMonitor.pathUpdateHandler = { [weak self] path in
@@ -158,7 +118,6 @@ public actor InnerTubeAPI {
     init(authToken: String?, session: URLSession) {
         self.session = session
         self.authToken = authToken
-        self.poTokenProvider = nil
     }
 
     // MARK: - Private: Network path handler

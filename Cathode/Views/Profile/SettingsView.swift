@@ -43,11 +43,13 @@ struct SettingsView: View {
                     #endif
             }
 
+            #if !os(tvOS)
             Section {
                 PlaybackModeSettingsRow()
             } header: {
                 Text("Playback")
             }
+            #endif
 
             Section("Cache") {
                 CacheManagerView()

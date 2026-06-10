@@ -8,7 +8,6 @@
 import Foundation
 
 enum PlaybackMode: String, CaseIterable, Identifiable {
-    case simplified = "simplified"
     case remote = "remote"
     #if !os(tvOS)
     case iframe = "iframe"
@@ -18,8 +17,6 @@ enum PlaybackMode: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .simplified:
-            return "Simplified"
         case .remote:
             return "Remote HLS"
         #if !os(tvOS)

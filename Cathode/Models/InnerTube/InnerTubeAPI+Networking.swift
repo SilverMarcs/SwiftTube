@@ -9,16 +9,13 @@ extension InnerTubeAPI {
 
     // MARK: - Body builders
 
-    func makeBody(client: [String: Any], continuationToken: String? = nil, includeVisitorData: Bool = false, includePoToken: Bool = false) -> [String: Any] {
+    func makeBody(client: [String: Any], continuationToken: String? = nil, includeVisitorData: Bool = false) -> [String: Any] {
         var body: [String: Any] = ["context": client]
         if let token = continuationToken {
             body["continuation"] = token
         }
         if includeVisitorData, let visitor = visitorData {
             body["visitorData"] = visitor
-        }
-        if includePoToken, let pot = poToken {
-            body["serviceIntegrityDimensions"] = ["poToken": pot]
         }
         return body
     }
@@ -38,32 +35,6 @@ extension InnerTubeAPI {
         request.setValue(iosUserAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(InnerTubeClients.iOS.nameID, forHTTPHeaderField: "X-YouTube-Client-Name")
         request.setValue(InnerTubeClients.iOS.version, forHTTPHeaderField: "X-YouTube-Client-Version")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, response) = try await session.data(for: request)
-        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw ITAPIError.httpError(statusCode)
-        }
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ITAPIError.decodingError("Root JSON is not a dictionary")
-        }
-        return json
-    }
-
-    /// Android client player request — used for download URL resolution.
-    /// Android client headers use googleapis.com like iOS, but with Android UA/client IDs.
-    func postAndroid(endpoint: String, body: [String: Any]) async throws -> [String: Any] {
-        guard var comps = URLComponents(url: playerBaseURL.appendingPathComponent(endpoint), resolvingAgainstBaseURL: false) else {
-            throw ITAPIError.invalidURL(endpoint)
-        }
-        comps.queryItems = [URLQueryItem(name: "key", value: apiKey)]
-        guard let url = comps.url else { throw ITAPIError.invalidURL(endpoint) }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(InnerTubeClients.Android.userAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue(InnerTubeClients.Android.nameID, forHTTPHeaderField: "X-YouTube-Client-Name")
-        request.setValue(InnerTubeClients.Android.version, forHTTPHeaderField: "X-YouTube-Client-Version")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await session.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0

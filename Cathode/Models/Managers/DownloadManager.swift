@@ -6,10 +6,16 @@
 
 import Foundation
 import SwiftUI
+@preconcurrency import YouTubeKit
 
 @Observable
 final class DownloadManager: NSObject {
     static let shared = DownloadManager()
+
+    /// Muxed (video+audio) itags for download: itag 22 (720p) when available,
+    /// itag 18 (360p) otherwise. Downloads need a single self-contained file,
+    /// so they take the muxed path rather than the playback HLS proxy.
+    private static let muxedItags: Set<Int> = [22, 18]
 
     private(set) var downloadedVideos: [Video] = []
     private(set) var downloadingVideos: [Video] = []
@@ -62,7 +68,7 @@ final class DownloadManager: NSObject {
     func download(_ video: Video) async {
         guard !isDownloaded(video.id), !isDownloading(video.id) else { return }
 
-        guard let streamURL = await StreamResolver.resolveMuxed(id: video.id) else {
+        guard let streamURL = await Self.resolveMuxedURL(for: video.id) else {
             print("Download: no stream for \(video.id)")
             return
         }
@@ -91,6 +97,30 @@ final class DownloadManager: NSObject {
             name: video.title
         )
         #endif
+    }
+
+    /// Resolves a direct googlevideo URL for a muxed (video+audio) stream via
+    /// YouTubeKit's on-device `.local` extraction, capped at 720p (itag 22) or
+    /// 360p (itag 18). Reuses `StreamResolver.withAnonymousCookies` so login
+    /// cookies don't make YouTube serve ciphered formats we can't decode.
+    private static func resolveMuxedURL(for id: String) async -> URL? {
+        do {
+            let yt = YouTube(videoID: id, methods: [.local])
+            yt.itagFilter = { muxedItags.contains($0) }
+            let streams = try await StreamResolver.withAnonymousCookies { try await yt.streams }
+
+            guard let stream = streams
+                .filterVideoAndAudio()
+                .filter({ $0.isNativelyPlayable })
+                .highestResolutionStream()
+            else {
+                return nil
+            }
+            return stream.url
+        } catch {
+            print("DownloadManager.resolveMuxedURL(\(id)) failed: \(error)")
+            return nil
+        }
     }
 
     func cancel(_ id: String) {

@@ -18,10 +18,6 @@ enum StreamResolver {
         139, 140,           // AAC audio-only: 48k, 128k
     ]
 
-    /// Itags for downloads and simplified playback: muxed AVC1+AAC. itag 22 (720p) when available,
-    /// itag 18 (360p) otherwise.
-    private static let muxedItags: Set<Int> = [22, 18]
-
     /// Single proxy server instance reused across every playback.
     private static let proxy: HLSProxyServer? = try? HLSProxyServer()
     private static var proxyStarted = false
@@ -37,7 +33,9 @@ enum StreamResolver {
     /// formats whose signature this YouTubeKit build can't decode, failing with
     /// `regexMatchError`. Anonymous extraction returns the androidVR plain-URL
     /// adaptive set the proxy needs.
-    private static func withAnonymousCookies<T>(_ body: () async throws -> T) async rethrows -> T {
+    /// `internal`, not `private`: `DownloadManager` reuses this to strip login
+    /// cookies before its own muxed-stream extraction.
+    static func withAnonymousCookies<T>(_ body: () async throws -> T) async rethrows -> T {
         let storage = HTTPCookieStorage.shared
         let ytCookies = (storage.cookies ?? []).filter {
             let d = $0.domain.trimmingCharacters(in: .init(charactersIn: "."))
@@ -51,44 +49,20 @@ enum StreamResolver {
     /// Resolves the stream based on the selected PlaybackMode.
     static func resolve(id: String) async -> URL? {
         let rawMode = UserDefaults.standard.string(forKey: "playbackMode") ?? ""
-        let mode = PlaybackMode(rawValue: rawMode) ?? .simplified
+        let mode = PlaybackMode(rawValue: rawMode) ?? .remote
         return await resolve(id: id, mode: mode)
     }
 
     static func resolve(id: String, mode: PlaybackMode) async -> URL? {
         switch mode {
-        case .simplified:
-            return await resolveSimplified(id: id)
         case .remote:
             return await resolveRemoteHLS(id: id)
         #if !os(tvOS)
         case .iframe:
-            // The iframe player does not go through StreamResolver's resolve path.
-            // But we can fallback to simplified if called.
-            return await resolveSimplified(id: id)
+            // The iframe player does not go through StreamResolver's resolve path;
+            // fall back to the HLS proxy if it ever reaches here.
+            return await resolveRemoteHLS(id: id)
         #endif
-        }
-    }
-
-    /// Returns a direct googlevideo URL for a muxed (video+audio) stream.
-    /// Capped at 720p (itag 22) or 360p (itag 18) for natively playable format.
-    static func resolveSimplified(id: String) async -> URL? {
-        do {
-            let yt = YouTube(videoID: id, methods: [.local])
-            yt.itagFilter = { muxedItags.contains($0) }
-            let streams = try await withAnonymousCookies { try await yt.streams }
-
-            guard let stream = streams
-                .filterVideoAndAudio()
-                .filter({ $0.isNativelyPlayable })
-                .highestResolutionStream()
-            else {
-                return nil
-            }
-            return stream.url
-        } catch {
-            print("StreamResolver.resolveSimplified(\(id)) failed: \(error)")
-            return nil
         }
     }
 
@@ -138,11 +112,6 @@ enum StreamResolver {
             print("StreamResolver.resolveRemoteHLS(\(id)) failed: \(error)")
             return nil
         }
-    }
-
-    /// Direct googlevideo URL for a muxed (video+audio) stream.
-    static func resolveMuxed(id: String) async -> URL? {
-        await resolveSimplified(id: id)
     }
 
     // MARK: - Private
