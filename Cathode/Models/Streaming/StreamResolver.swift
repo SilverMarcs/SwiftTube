@@ -11,7 +11,10 @@ enum StreamResolver {
 
     /// Itags we play (video-only + audio-only AVC1/AAC) for HLS stitching.
     private static let playbackItags: Set<Int> = [
-        134, 135, 136, 137, // AVC1 video-only: 360p, 480p, 720p, 1080p
+        134, 135, 136, 137, // AVC1 video-only 30fps: 360p, 480p, 720p, 1080p
+        298, 299,           // AVC1 video-only 60fps: 720p60, 1080p60 — 60fps
+                            // videos publish NO 136/137, so without these a
+                            // 60fps clip caps at itag 135 (480p).
         139, 140,           // AAC audio-only: 48k, 128k
     ]
 
