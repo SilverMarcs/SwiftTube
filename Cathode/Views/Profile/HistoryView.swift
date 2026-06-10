@@ -49,5 +49,6 @@ struct HistoryFullView: View {
             RefreshButton { await LibraryStore.shared.refresh() }
         }
         .contentMargins(.top, 5)
+        .task { await LibraryStore.shared.refresh() }
     }
 }
