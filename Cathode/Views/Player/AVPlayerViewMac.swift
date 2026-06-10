@@ -71,27 +71,10 @@ struct AVPlayerViewMac: View {
                 VideoDetailView(video: video)
                     .id(video.id)
                     .toolbar {
-                        ToolbarItemGroup(placement: .primaryAction) {
-                            if let video = videoManager.currentVideo {
-                                if let url = video.watchURL {
-                                    ShareLink(item: url) {
-                                        Label("Share Video", systemImage: "square.and.arrow.up")
-                                    }
-                                }
+                        VideoActionsToolbarContent(video: video)
 
-                                Button {
-                                    userDefaults.toggleBookmark(video)
-                                } label: {
-                                    Label(
-                                        userDefaults.isBookmarked(video.id) ? "Remove Bookmark" : "Add Bookmark",
-                                        systemImage: userDefaults.isBookmarked(video.id) ? "bookmark.fill" : "bookmark"
-                                    )
-                                }
-                            }
-                        }
-                        
                         ToolbarSpacer()
-                        
+
                         ToolbarItem {
                             Button {
                                 showDetail.toggle()

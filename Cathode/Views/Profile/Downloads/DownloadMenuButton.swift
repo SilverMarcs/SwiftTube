@@ -26,7 +26,7 @@ struct DownloadMenuButton: View {
             Button {
                 Task { await downloads.download(video) }
             } label: {
-                Label("Download", systemImage: "arrow.down.circle")
+                Label("Download", systemImage: "arrow.down")
             }
         }
     }

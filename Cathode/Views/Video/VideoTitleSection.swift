@@ -21,8 +21,6 @@ struct VideoTitleSection: View {
                 }
 
                 Spacer()
-
-                VideoDetailMenuView(video: video)
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
