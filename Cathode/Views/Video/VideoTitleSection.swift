@@ -26,6 +26,7 @@ struct VideoTitleSection: View {
             .foregroundStyle(.secondary)
             .listRowSeparator(.hidden, edges: .bottom)
             .listRowInsets([.vertical], 0)
+            .listRowInsets([.leading], 25)
         }
         .headerProminence(.increased)
         .listRowBackground(Color.clear)
