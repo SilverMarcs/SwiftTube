@@ -15,6 +15,22 @@ import Foundation
 
 extension InnerTubeAPI {
 
+    // MARK: - Session
+    //
+    // Dedicated session for account-bound watchtime calls. Cookie auto-handling
+    // is OFF (no shared cookie storage) so the `Cookie` header we set explicitly
+    // from `YTCookieAuth`'s in-memory snapshot is authoritative. This isolates
+    // the history path from `HTTPCookieStorage.shared`, which `StreamResolver`
+    // strips during anonymous extraction — sharing `self.session` here let that
+    // strip starve the tracking-URL fetch, silently killing watch history.
+    private static let watchtimeSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.httpShouldSetCookies = false
+        config.httpCookieStorage = nil
+        config.timeoutIntervalForRequest = 30
+        return URLSession(configuration: config)
+    }()
+
     // MARK: - CPN
 
     /// Generates a Client Playback Nonce — 16 chars, random base64url alphabet.
@@ -47,9 +63,16 @@ extension InnerTubeAPI {
             request.setValue(InnerTubeClients.Web.version, forHTTPHeaderField: "X-YouTube-Client-Version")
             request.setValue(authHeader, forHTTPHeaderField: "Authorization")
             request.setValue("https://www.youtube.com", forHTTPHeaderField: "X-Origin")
+            // Explicit Cookie header from YTCookieAuth's snapshot — this session
+            // doesn't auto-attach cookies, and the shared store may be stripped
+            // for a concurrent anonymous extraction. Without account cookies here
+            // YouTube returns no `playbackTracking`, so nothing is recorded.
+            if let cookieHeader = await YTCookieAuth.shared.cookieHeader(for: url) {
+                request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+            }
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await Self.watchtimeSession.data(for: request)
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
             guard (200..<300).contains(statusCode) else { return nil }
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
@@ -117,7 +140,7 @@ extension InnerTubeAPI {
         if let cookieHeader { request.setValue(cookieHeader, forHTTPHeaderField: "Cookie") }
 
         do {
-            let (_, response) = try await session.data(for: request)
+            let (_, response) = try await Self.watchtimeSession.data(for: request)
             return (response as? HTTPURLResponse)?.statusCode ?? -1
         } catch is CancellationError {
             return -2

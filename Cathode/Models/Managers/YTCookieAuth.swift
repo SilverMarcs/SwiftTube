@@ -50,6 +50,14 @@ public final class YTCookieAuth {
     /// Refreshed every time `refreshSignInState()` runs.
     private(set) var sapisid: String?
 
+    /// In-memory snapshot of the user's YouTube/Google auth cookies, refreshed
+    /// on every `refreshSignInState()`. The watchtime/history path reads this
+    /// instead of `HTTPCookieStorage.shared` because `StreamResolver`
+    /// transiently strips that shared store to force anonymous extraction
+    /// (ciphered `web` formats fail when login cookies ride along). Reading a
+    /// private snapshot keeps account-bound tracking alive across that strip.
+    private(set) var authCookies: [HTTPCookie] = []
+
 #if canImport(WebKit)
     /// The default website data store. YouTubePlayerKit uses this same store
     /// when `useNonPersistentWebsiteDataStore` is `false` (its default).
@@ -157,6 +165,7 @@ public final class YTCookieAuth {
 #endif
         if let sapis = ytCookies.first(where: { $0.name == "SAPISID" })?.value {
             sapisid = sapis
+            authCookies = ytCookies
             isSignedIn = true
             lastSyncedAt = Date()
 #if canImport(WebKit)
@@ -185,6 +194,7 @@ public final class YTCookieAuth {
             }
         }
         sapisid = nil
+        authCookies = []
         isSignedIn = false
         hydratedFromICloud = false
         iCloudSyncedAt = nil
@@ -204,17 +214,14 @@ public final class YTCookieAuth {
         return "SAPISIDHASH \(ts)_\(hex)"
     }
 
-    /// Returns the `Cookie:` header value to attach to URLSession requests
-    /// when we can't rely on `HTTPCookieStorage.shared` being honoured.
-    public func cookieHeader(for url: URL) async -> String? {
-#if canImport(WebKit)
-        let cookies = await dataStore.httpCookieStore.allCookies()
-#else
-        let cookies = HTTPCookieStorage.shared.cookies ?? []
-#endif
-        let matching = cookies.filter { cookie in
-            guard let host = url.host else { return false }
-            return host.hasSuffix(cookie.domain.trimmingCharacters(in: .init(charactersIn: ".")))
+    /// Returns the `Cookie:` header value to attach to URLSession requests for
+    /// the account. Built from the in-memory `authCookies` snapshot — NOT the
+    /// live cookie stores — so it survives the window in which `StreamResolver`
+    /// strips `HTTPCookieStorage.shared` for anonymous extraction.
+    public func cookieHeader(for url: URL) -> String? {
+        guard let host = url.host else { return nil }
+        let matching = authCookies.filter { cookie in
+            host.hasSuffix(cookie.domain.trimmingCharacters(in: .init(charactersIn: ".")))
                 || cookie.domain.hasSuffix(host)
         }
         guard !matching.isEmpty else { return nil }
