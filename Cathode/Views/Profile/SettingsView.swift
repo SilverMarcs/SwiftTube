@@ -53,9 +53,10 @@ struct SettingsView: View {
                 CacheManagerView()
             }
         }
+        .tint(.accent)
         .formStyle(.grouped)
         #if os(iOS)
-        .platformTopBar("Settings") {
+        .platformTopBar("Settings", titleDisplayMode: .inline) {
             Button(role: .close) {
                 dismiss()
             }

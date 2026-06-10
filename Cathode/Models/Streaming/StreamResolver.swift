@@ -3,13 +3,11 @@ import Foundation
 
 /// Resolves YouTube video IDs to AVPlayer-friendly URLs.
 ///
-/// Extraction goes through your YouTubeKit-Server's WebSocket endpoint so the
-/// user's residential IP is what YouTube sees during the player call.
+/// Extraction runs on-device via YouTubeKit's `.local` method (JavaScriptCore
+/// cipher solving). The hosted `.remote` server was returning only itag 18
+/// (360p muxed) and dropping every adaptive format, which starved the HLS-proxy
+/// path; `.local` surfaces the full AVC1 + AAC adaptive set the proxy needs.
 enum StreamResolver {
-
-    /// YouTubeKit-Server endpoint. Currently points at alexeichhorn's hosted
-    /// public server — works reliably, ~5-7s extraction, free.
-    private static let serverURL = URL(string: "https://remote-production.youtubekit.dev")!
 
     /// Itags we play (video-only + audio-only AVC1/AAC) for HLS stitching.
     private static let playbackItags: Set<Int> = [
@@ -25,6 +23,27 @@ enum StreamResolver {
     private static let proxy: HLSProxyServer? = try? HLSProxyServer()
     private static var proxyStarted = false
     private static let proxyLock = NSLock()
+
+    /// Runs `body` with the user's YouTube/Google auth cookies temporarily
+    /// removed from `HTTPCookieStorage.shared`, then restores them.
+    ///
+    /// YouTubeKit extracts via `URLSession.shared`, which reads the shared
+    /// cookie store. On a signed-in device (tvOS injects the iCloud cookie set
+    /// into `HTTPCookieStorage.shared` for SAPISIDHASH auth) those login cookies
+    /// ride along on the extraction requests; YouTube then serves ciphered `web`
+    /// formats whose signature this YouTubeKit build can't decode, failing with
+    /// `regexMatchError`. Anonymous extraction returns the androidVR plain-URL
+    /// adaptive set the proxy needs.
+    private static func withAnonymousCookies<T>(_ body: () async throws -> T) async rethrows -> T {
+        let storage = HTTPCookieStorage.shared
+        let ytCookies = (storage.cookies ?? []).filter {
+            let d = $0.domain.trimmingCharacters(in: .init(charactersIn: "."))
+            return d.hasSuffix("youtube.com") || d.hasSuffix("google.com")
+        }
+        ytCookies.forEach { storage.deleteCookie($0) }
+        defer { ytCookies.forEach { storage.setCookie($0) } }
+        return try await body()
+    }
 
     /// Resolves the stream based on the selected PlaybackMode.
     static func resolve(id: String) async -> URL? {
@@ -52,9 +71,9 @@ enum StreamResolver {
     /// Capped at 720p (itag 22) or 360p (itag 18) for natively playable format.
     static func resolveSimplified(id: String) async -> URL? {
         do {
-            let yt = YouTube(videoID: id, methods: [.remote(serverURL: serverURL)])
+            let yt = YouTube(videoID: id, methods: [.local])
             yt.itagFilter = { muxedItags.contains($0) }
-            let streams = try await yt.streams
+            let streams = try await withAnonymousCookies { try await yt.streams }
 
             guard let stream = streams
                 .filterVideoAndAudio()
@@ -75,9 +94,9 @@ enum StreamResolver {
     /// byte-range HLS manifest.
     static func resolveRemoteHLS(id: String) async -> URL? {
         do {
-            let yt = YouTube(videoID: id, methods: [.remote(serverURL: serverURL)])
+            let yt = YouTube(videoID: id, methods: [.local])
             yt.itagFilter = { playbackItags.contains($0) }
-            let streams = try await yt.streams
+            let streams = try await withAnonymousCookies { try await yt.streams }
 
             guard let video = streams
                 .filterVideoOnly()
@@ -87,10 +106,12 @@ enum StreamResolver {
                 return nil
             }
 
+            // Pick the highest-bitrate AAC-LC track (itag 140, 128k) — matches the
+            // "mp4a.40.2" codec declared in the master playlist below.
             guard let audio = streams
                 .filterAudioOnly()
                 .filter({ $0.audioCodec == .mp4a })
-                .lowestAudioBitrateStream()
+                .highestAudioBitrateStream()
             else {
                 return nil
             }
@@ -119,15 +140,6 @@ enum StreamResolver {
     /// Direct googlevideo URL for a muxed (video+audio) stream.
     static func resolveMuxed(id: String) async -> URL? {
         await resolveSimplified(id: id)
-    }
-
-    /// Cheap HTTP ping at the server's /warm endpoint. Warms DNS, TLS session,
-    /// and Cloudflare Worker cold-start before the user's first click.
-    static func prewarm() {
-        Task.detached(priority: .utility) {
-            let warmURL = serverURL.appendingPathComponent("warm")
-            _ = try? await URLSession.shared.data(from: warmURL)
-        }
     }
 
     // MARK: - Private
