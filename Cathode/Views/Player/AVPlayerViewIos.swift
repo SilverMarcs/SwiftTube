@@ -54,7 +54,6 @@ struct AVPlayerViewIos: View {
         .overlay {
             if manager.isSetting {
                 UniversalProgressView()
-                    .background(.black)
             }
         }
     }

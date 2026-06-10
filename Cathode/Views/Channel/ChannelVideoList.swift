@@ -38,7 +38,7 @@ struct ChannelVideoList: View {
                 await loadChannelVideos()
             }
         )
-        .platformTopBar(displayTitle) {
+        .platformTopBar(displayTitle, titleDisplayMode: .inline) {
             if !channelId.isEmpty {
                 subscribeButton
             }
