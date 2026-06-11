@@ -23,17 +23,7 @@ struct CathodeApp: App {
     var body: some Scene {
         #if os(macOS)
         macOSScene
-        Window("Media Player", id: "media-player") {
-            AVPlayerViewMac()
-                .modifier(SharedEnvironment(
-                    videoLoader: videoLoader,
-                    videoManager: videoManager,
-                    store: store,
-                    ytAuth: ytAuth,
-                    cookieAuth: cookieAuth
-                ))
-        }
-        .restorationBehavior(.disabled)
+        macOSPlayerScene
         #elseif os(tvOS)
         tvOSScene
         #else
@@ -74,6 +64,20 @@ struct CathodeApp: App {
         .commands {
             AppCommands(selectedTab: $selectedTab)
         }
+    }
+    
+    private var macOSPlayerScene: some Scene {
+        Window("Media Player", id: "media-player") {
+            AVPlayerViewMac()
+                .modifier(SharedEnvironment(
+                    videoLoader: videoLoader,
+                    videoManager: videoManager,
+                    store: store,
+                    ytAuth: ytAuth,
+                    cookieAuth: cookieAuth
+                ))
+        }
+        .restorationBehavior(.disabled)
     }
     #endif
 
