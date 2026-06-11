@@ -108,7 +108,7 @@ struct ContentView: View {
         .fullScreenCover(isPresented: $isPresented) {
             if let video = manager.currentVideo {
                 VideoDetailView(video: video, showVideo: true)
-                  .accentColor(.accent)
+                  // .accentColor(.accent)
                     .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
             }
         }

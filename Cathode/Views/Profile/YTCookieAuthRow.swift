@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct YTCookieAuthRow: View {
-    @Environment(YTCookieAuth.self) private var auth
+    private let auth = YTCookieAuth.shared
     @State private var showSheet = false
     @State private var confirmSignOut = false
 

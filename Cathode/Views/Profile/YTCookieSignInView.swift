@@ -20,7 +20,7 @@ private let signInURL = URL(string: "https://accounts.google.com/ServiceLogin?se
 
 struct YTCookieSignInView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(YTCookieAuth.self) private var auth
+    private let auth = YTCookieAuth.shared
 
     @State private var page: WebPage
     @State private var dataStore: WKWebsiteDataStore

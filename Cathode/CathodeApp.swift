@@ -16,7 +16,6 @@ struct CathodeApp: App {
     let videoManager = VideoManager()
     let store = LibraryStore.shared
     let ytAuth = YTTVAuthManager.shared
-    let cookieAuth = YTCookieAuth.shared
 
     @State var selectedTab: TabSelection = .feed
 
@@ -32,6 +31,14 @@ struct CathodeApp: App {
     }
 
     private func coldLaunchLoad() async {
+        // Warm the cookie-auth singleton from this post-launch task rather than
+        // holding it as an App stored property. As a stored property it was
+        // built during App.init() — before the window/appearance existed — and
+        // its eager WKWebView pinned the macOS control accent to the system
+        // default, leaving sidebar icons system-blue instead of our accent.
+        // Touching it here primes the cookie store without that side effect.
+        _ = YTCookieAuth.shared
+
         if ytAuth.isSignedIn {
             await store.refresh()
             videoLoader.mode = .subscriptions
@@ -56,8 +63,7 @@ struct CathodeApp: App {
                     videoLoader: videoLoader,
                     videoManager: videoManager,
                     store: store,
-                    ytAuth: ytAuth,
-                    cookieAuth: cookieAuth
+                    ytAuth: ytAuth
                 ))
                 .task { await coldLaunchLoad() }
         }
@@ -73,8 +79,7 @@ struct CathodeApp: App {
                     videoLoader: videoLoader,
                     videoManager: videoManager,
                     store: store,
-                    ytAuth: ytAuth,
-                    cookieAuth: cookieAuth
+                    ytAuth: ytAuth
                 ))
         }
         .restorationBehavior(.disabled)
@@ -89,8 +94,7 @@ struct CathodeApp: App {
                     videoLoader: videoLoader,
                     videoManager: videoManager,
                     store: store,
-                    ytAuth: ytAuth,
-                    cookieAuth: cookieAuth
+                    ytAuth: ytAuth
                 ))
                 .environment(DownloadManager.shared)
                 .task(id: scenePhase) {
@@ -115,8 +119,7 @@ struct CathodeApp: App {
                     videoLoader: videoLoader,
                     videoManager: videoManager,
                     store: store,
-                    ytAuth: ytAuth,
-                    cookieAuth: cookieAuth
+                    ytAuth: ytAuth
                 ))
                 .task { await coldLaunchLoad() }
                 .onOpenURL { url in

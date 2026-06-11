@@ -5,7 +5,6 @@ struct SharedEnvironment: ViewModifier {
     let videoManager: VideoManager
     let store: LibraryStore
     let ytAuth: YTTVAuthManager
-    let cookieAuth: YTCookieAuth
 
     func body(content: Content) -> some View {
         content
@@ -13,8 +12,7 @@ struct SharedEnvironment: ViewModifier {
             .environment(videoManager)
             .environment(store)
             .environment(ytAuth)
-            .environment(cookieAuth)
-            .accentColor(.accent)
+            // .accentColor(.accent)
             .environment(\.openURL, OpenURLAction { url in
                 if let videoId = url.youtubeVideoID {
                     Task {
