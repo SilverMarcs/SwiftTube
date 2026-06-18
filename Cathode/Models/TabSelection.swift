@@ -28,6 +28,9 @@ enum TabSelection: String, CaseIterable {
     static let extendedSubscriptionTabs: [TabSelection] = [.channels]
     static let extendedLibraryTabs: [TabSelection] = [.bookmark, .history]
     static let allCases: [TabSelection] = [.feed, .recommendations, .shorts, .library, .search, .settings, .channels, .bookmark, .history]
+    // Menu-bar commands (macOS only). Excludes .recommendations, which exists only on tvOS — driving the
+    // menu from allCases produced a dead "Recommended" menu item on macOS.
+    static let commandTabs: [TabSelection] = [.feed, .shorts, .channels, .library, .search, .settings, .bookmark, .history]
 
     var title: String {
         switch self {
