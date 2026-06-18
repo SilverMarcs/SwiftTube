@@ -42,12 +42,15 @@ extension InnerTubeAPI {
     }
 
     /// Removes a video from the authenticated user's Watch Later playlist (id "WL").
-    /// Mirrors `addToWatchLater` but uses `ACTION_REMOVE_VIDEO`.
+    /// Mirrors `addToWatchLater`, but removal is by video ID via
+    /// ACTION_REMOVE_VIDEO_BY_VIDEO_ID: plain ACTION_REMOVE_VIDEO expects a
+    /// per-entry `setVideoId` (the playlist-item ID), not the video ID, and
+    /// returns INVALID_ARGUMENT (400) when handed a video ID instead.
     /// Requires authentication.
     public func removeFromWatchLater(videoId: String) async throws {
         var body = makeBody(client: tvClientContext)
         body["playlistId"] = "WL"
-        body["actions"] = [["removedVideoId": videoId, "action": "ACTION_REMOVE_VIDEO"]]
+        body["actions"] = [["removedVideoId": videoId, "action": "ACTION_REMOVE_VIDEO_BY_VIDEO_ID"]]
         _ = try await postTV(endpoint: "browse/edit_playlist", body: body)
     }
 

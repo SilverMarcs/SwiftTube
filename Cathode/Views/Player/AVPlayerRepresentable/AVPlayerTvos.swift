@@ -10,6 +10,7 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
     @Environment(LibraryStore.self) private var cloudStore
 
     private static let skipSponsorActionId = UIAction.Identifier("cathode.skipSponsor")
+    private static let bookmarkActionId = UIAction.Identifier("cathode.toggleBookmark")
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
@@ -17,6 +18,7 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
         controller.allowsPictureInPicturePlayback = true
         controller.transportBarIncludesTitleView = true
         controller.customInfoViewControllers = makeInfoTabs()
+        controller.transportBarCustomMenuItems = [makeBookmarkAction()]
         return controller
     }
 
@@ -31,6 +33,15 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
             uiViewController.contextualActions = [makeSkipSponsorAction()]
         } else if !inSponsor && hasAction {
             uiViewController.contextualActions = []
+        }
+
+        // Keep the bookmark item in sync with library state (it can change here
+        // or elsewhere in the app). Rebuild only on transition to avoid flicker.
+        let desiredTitle = bookmarkTitle(isBookmarked: cloudStore.isBookmarked(video.id))
+        let currentItem = uiViewController.transportBarCustomMenuItems
+            .first { ($0 as? UIAction)?.identifier == Self.bookmarkActionId } as? UIAction
+        if currentItem?.title != desiredTitle {
+            uiViewController.transportBarCustomMenuItems = [makeBookmarkAction()]
         }
     }
 
@@ -55,6 +66,20 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
     private func makeSkipSponsorAction() -> UIAction {
         UIAction(title: "Skip Sponsor", identifier: Self.skipSponsorActionId) { [videoManager] _ in
             videoManager.skipCurrentSponsorSegment()
+        }
+    }
+
+    private func bookmarkTitle(isBookmarked: Bool) -> String {
+        isBookmarked ? "Remove Bookmark" : "Add Bookmark"
+    }
+
+    private func makeBookmarkAction() -> UIAction {
+        let isBookmarked = cloudStore.isBookmarked(video.id)
+        let image = UIImage(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+        return UIAction(title: bookmarkTitle(isBookmarked: isBookmarked),
+                        image: image,
+                        identifier: Self.bookmarkActionId) { [cloudStore, video] _ in
+            cloudStore.toggleBookmark(video)
         }
     }
 }
