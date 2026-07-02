@@ -18,10 +18,13 @@ enum StreamResolver {
         139, 140,           // AAC audio-only: 48k, 128k
     ]
 
-    /// Single proxy server instance reused across every playback.
-    private static let proxy: HLSProxyServer? = try? HLSProxyServer()
-    private static var proxyStarted = false
-    private static let proxyLock = NSLock()
+    /// Single proxy server instance reused across every playback. Its
+    /// listener socket dies on app suspension (see HLSProxyServer), so every
+    /// resolve health-checks it via `ensureProxy` and restarts it when dead —
+    /// the old started-once flag left a defunct socket serving nothing, and
+    /// every post-suspension playback spun forever until app relaunch.
+    private static let proxy = HLSProxyServer()
+    private static var proxyStart: Task<Bool, Never>?
 
     /// Runs `body` with the user's YouTube/Google auth cookies temporarily
     /// removed from `HTTPCookieStorage.shared`, then restores them.
@@ -97,7 +100,7 @@ enum StreamResolver {
             async let audioInfo = FMP4Parser.parse(url: audio.url)
             let (vInfo, aInfo) = try await (videoInfo, audioInfo)
 
-            guard let proxy = try await ensureProxy() else { return nil }
+            guard let proxy = await ensureProxy() else { return nil }
             proxy.configure(
                 videoURL: video.url,
                 videoInfo: vInfo,
@@ -116,18 +119,26 @@ enum StreamResolver {
 
     // MARK: - Private
 
-    private static func ensureProxy() async throws -> HLSProxyServer? {
-        guard let proxy else { return nil }
-        proxyLock.lock()
-        let started = proxyStarted
-        proxyLock.unlock()
-        if !started {
-            try await proxy.start()
-            proxyLock.lock()
-            proxyStarted = true
-            proxyLock.unlock()
+    /// Returns the proxy only after proving its listener accepts connections,
+    /// (re)starting it otherwise. Concurrent resolves share one in-flight
+    /// start via `proxyStart` instead of racing two listeners.
+    private static func ensureProxy() async -> HLSProxyServer? {
+        if await proxy.healthCheck() { return proxy }
+        if proxyStart == nil {
+            proxyStart = Task {
+                do {
+                    try await proxy.start()
+                    return true
+                } catch {
+                    print("StreamResolver: HLSProxyServer (re)start failed: \(error)")
+                    return false
+                }
+            }
         }
-        return proxy
+        guard let task = proxyStart else { return nil }
+        let ok = await task.value
+        proxyStart = nil
+        return ok ? proxy : nil
     }
 
     private static func codecString(for stream: YouTubeKit.Stream) -> String? {

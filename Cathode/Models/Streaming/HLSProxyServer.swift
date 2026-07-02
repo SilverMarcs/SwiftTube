@@ -3,15 +3,23 @@ import Network
 
 /// Tiny localhost HTTP server serving three synthesized HLS playlists
 /// constructed from parsed fragmented-MP4 sidx info.
+///
+/// The listener socket does NOT survive app suspension — the system defuncts
+/// it, sometimes without ever delivering a `.failed` state update (Apple's
+/// guidance: don't keep listeners across suspension; a dead NWListener can't
+/// be restarted, only replaced). That killed every post-resume playback until
+/// app relaunch (2026-07 "new videos stop loading after a while" bug), so
+/// `start()` is re-callable — it builds a fresh listener on a fresh port each
+/// time — and `healthCheck()` proves the socket actually accepts connections
+/// before a playback URL is handed to AVPlayer. In-flight playbacks don't
+/// care: segment byte-ranges point straight at googlevideo, so this socket is
+/// only touched when a new player item loads its manifests.
 final class HLSProxyServer {
-    private let listener: NWListener
+    private var listener: NWListener?
     private let queue = DispatchQueue(label: "hls-proxy")
     private var manifests: [String: String] = [:]
+    private var alive = false
     private(set) var boundPort: UInt16 = 0
-
-    init() throws {
-        self.listener = try NWListener(using: .tcp, on: .any)
-    }
 
     func configure(videoURL: URL, videoInfo: FMP4Info, videoCodec: String, videoBandwidth: Int,
                    audioURL: URL, audioInfo: FMP4Info, audioCodec: String) {
@@ -53,31 +61,60 @@ final class HLSProxyServer {
         return lines.joined(separator: "\n")
     }
 
+    /// (Re)creates the listener. Any previous listener is cancelled and
+    /// replaced; configured manifests survive the swap.
     func start() async throws {
-        listener.newConnectionHandler = { [weak self] conn in self?.handle(conn) }
+        let fresh = try NWListener(using: .tcp, on: .any)
+        fresh.newConnectionHandler = { [weak self] conn in self?.handle(conn) }
+        let old: NWListener? = queue.sync {
+            let previous = listener
+            listener = fresh
+            alive = false
+            return previous
+        }
+        old?.cancel()
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             var resumed = false
-            listener.stateUpdateHandler = { [weak self] state in
-                guard let self else { return }
+            fresh.stateUpdateHandler = { [weak self] state in
+                // Ignore callbacks from a listener that start() has already
+                // replaced — a late .cancelled from the old one must not
+                // clobber `alive` for the new one.
+                guard let self, self.listener === fresh else { return }
                 switch state {
                 case .ready:
-                    if !resumed, let port = self.listener.port?.rawValue {
+                    self.alive = true
+                    if !resumed, let port = fresh.port?.rawValue {
                         self.boundPort = port
                         resumed = true
                         cont.resume()
                     }
                 case .failed(let err):
+                    self.alive = false
                     if !resumed { resumed = true; cont.resume(throwing: err) }
                 case .cancelled:
+                    self.alive = false
                     if !resumed { resumed = true; cont.resume(throwing: CancellationError()) }
                 default: break
                 }
             }
-            listener.start(queue: queue)
+            fresh.start(queue: queue)
         }
     }
 
-    func stop() { listener.cancel() }
+    /// Round-trips a real HTTP request through the listener. State callbacks
+    /// alone can't be trusted here: a suspended app's socket can be defuncted
+    /// with no `.failed` delivery, leaving `alive` stale-true.
+    func healthCheck() async -> Bool {
+        let (isAlive, port) = queue.sync { (alive, boundPort) }
+        guard isAlive, port != 0 else { return false }
+        guard let url = URL(string: "http://127.0.0.1:\(port)/health") else { return false }
+        var req = URLRequest(url: url)
+        // Never satisfy from URLCache — a cached response would fake health.
+        req.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        req.timeoutInterval = 1
+        guard let (_, response) = try? await URLSession.shared.data(for: req) else { return false }
+        return response is HTTPURLResponse
+    }
 
     private func handle(_ conn: NWConnection) {
         conn.start(queue: queue)
@@ -95,7 +132,10 @@ final class HLSProxyServer {
     private func respond(_ conn: NWConnection, path: String) {
         // Strip query string so cache-busting params don't break lookup.
         let pathOnly = path.split(separator: "?", maxSplits: 1).first.map(String.init) ?? path
-        if let body = manifests[pathOnly] {
+        if pathOnly == "/health" {
+            let resp = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            conn.send(content: Data(resp.utf8), completion: .contentProcessed { _ in conn.cancel() })
+        } else if let body = manifests[pathOnly] {
             let bytes = Data(body.utf8)
             let header = """
             HTTP/1.1 200 OK\r
