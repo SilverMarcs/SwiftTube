@@ -1,5 +1,7 @@
 # Cathode
 
+<a href="https://www.buymeacoffee.com/SilverMarcs" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 35px !important;width: 150px !important;" ></a>
+
 Simple SwiftUI Youtube client with Liquid Glass.
 
 <a href="https://apps.apple.com/app/id6765878641"><img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us" alt="Download on the App Store" height="50"></a>
