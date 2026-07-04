@@ -19,6 +19,12 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
         controller.transportBarIncludesTitleView = true
         controller.customInfoViewControllers = makeInfoTabs()
         controller.transportBarCustomMenuItems = [makeBookmarkAction()]
+        controller.speeds = [
+            AVPlaybackSpeed(rate: 0.5, localizedName: "0.5×"),
+            AVPlaybackSpeed(rate: 1.0, localizedName: "1×"),
+            AVPlaybackSpeed(rate: 1.25, localizedName: "1.25×"),
+            AVPlaybackSpeed(rate: 2.0, localizedName: "2×")
+        ]
         return controller
     }
 
