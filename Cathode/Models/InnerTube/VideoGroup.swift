@@ -13,6 +13,10 @@ public struct VideoGroup: Identifiable, Sendable {
     /// `.row` renders as a horizontal scrolling shelf (home feed rows);
     /// `.grid` renders as the default adaptive vertical grid.
     public var layout: Layout
+    /// Continuation token for loading MORE items *within this shelf* (horizontal
+    /// pagination). Distinct from `nextPageToken`, which pages the feed/next set of
+    /// shelves. Set for `.row` shelves that carry a horizontalListRenderer continuation.
+    public var shelfContinuationToken: String? = nil
 
     public enum Action: Sendable {
         case append

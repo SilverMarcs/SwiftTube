@@ -17,7 +17,7 @@ struct CathodeApp: App {
     let store = LibraryStore.shared
     let ytAuth = YTTVAuthManager.shared
 
-    @State var selectedTab: TabSelection = .feed
+    @State var selectedTab: TabSelection = .home
 
     var body: some Scene {
         #if os(macOS)
@@ -97,10 +97,9 @@ struct CathodeApp: App {
                     ytAuth: ytAuth
                 ))
                 .environment(DownloadManager.shared)
-                .task(id: scenePhase) {
-                    if scenePhase == .active {
-                        await coldLaunchLoad()
-                    } else if scenePhase == .background || scenePhase == .inactive {
+                .task { await coldLaunchLoad() }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .background || phase == .inactive {
                         videoManager.persistCurrentTime()
                     }
                 }

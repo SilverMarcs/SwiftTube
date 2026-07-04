@@ -10,12 +10,17 @@ import SwiftUI
 
 struct ProfileView: View {
     @Environment(LibraryStore.self) var userDefaults
-    #if os(iOS)
-    @State private var showingSettings = false
-    #endif
 
     var body: some View {
-        Form {
+        Form { // TODO: use list view here
+            Section {
+                NavigationLink {
+                    FeedView()
+                } label: {
+                    Label("All videos", systemImage: "video")
+                }
+            }
+            
             BookmarkView()
 
             HistoryView()
@@ -26,21 +31,7 @@ struct ProfileView: View {
         }
         .formStyle(.grouped)
         .contentMargins(.top, 5)
-        #if os(iOS)
-        .platformTopBar("Library") {
-            Button {
-                showingSettings = true
-            } label: {
-                Label("Settings", systemImage: "gear")
-            }
-        }
-        .sheet(isPresented: $showingSettings) {
-            NavigationStack {
-                SettingsView()
-            }
-        }
-        #else
         .platformTopBar("Library")
-        #endif
+        .iosSettingsToolbarItem()
     }
 }

@@ -30,6 +30,7 @@ struct ChannelListView: View {
                     )
                 }
             }
+            .iosSettingsToolbarItem()
         }
     }
 }

@@ -38,7 +38,11 @@ extension InnerTubeAPI {
             }
             var videos: [Video] = []
             if let dict = obj as? [String: Any] {
-                if let vr = dict["videoRenderer"] as? [String: Any], let v = parseVideoRenderer(vr) {
+                if let tr = dict["tileRenderer"] as? [String: Any] {
+                    // TVHTML5 home shelves: horizontalListRenderer.items[].tileRenderer.
+                    // parseTileRenderer drops ads/playlists (non-video contentTypes).
+                    if let v = parseTileRenderer(tr) { videos.append(v) }
+                } else if let vr = dict["videoRenderer"] as? [String: Any], let v = parseVideoRenderer(vr) {
                     videos.append(v)
                 } else if let ri = dict["richItemRenderer"] as? [String: Any],
                           let content = ri["content"] as? [String: Any] {
@@ -66,6 +70,22 @@ extension InnerTubeAPI {
             return videos
         }
 
+        // TVHTML5 shelfRenderer title: header.shelfHeaderRenderer.avatarLockup
+        // .avatarLockupRenderer.title (topic/channel shelves) or a plain title field.
+        func shelfTitle(_ shelf: [String: Any]) -> String? {
+            if let t = (shelf["title"] as? [String: Any]).flatMap({ extractText($0) }), !t.isEmpty {
+                return t
+            }
+            guard let header = (shelf["headerRenderer"] as? [String: Any])?["shelfHeaderRenderer"] as? [String: Any] else {
+                return nil
+            }
+            if let lockup = (header["avatarLockup"] as? [String: Any])?["avatarLockupRenderer"] as? [String: Any],
+               let t = (lockup["title"] as? [String: Any]).flatMap({ extractText($0) }) {
+                return t
+            }
+            return (header["title"] as? [String: Any]).flatMap { extractText($0) }
+        }
+
         func walk(_ obj: Any, depth: Int = 0) {
             guard depth < 50 else {
                 return
@@ -87,11 +107,42 @@ extension InnerTubeAPI {
                     }
                     return
                 }
+                // TVHTML5 home feed (signed-in): each shelf is a shelfRenderer whose
+                // content.horizontalListRenderer.items[] are tileRenderers.
+                if let shelf = dict["shelfRenderer"] as? [String: Any] {
+                    let title = shelfTitle(shelf)
+                    let content = shelf["content"] as? [String: Any]
+                    let videos = walkShelfContents(content as Any)
+                    if !videos.isEmpty {
+                        var group = VideoGroup(title: title, videos: videos, layout: .row)
+                        // Per-shelf horizontal continuation → lets the UI load more
+                        // items within this one shelf as it scrolls right.
+                        group.shelfContinuationToken = ((content?["horizontalListRenderer"] as? [String: Any])?["continuations"] as? [[String: Any]])?
+                            .first
+                            .flatMap { $0["nextContinuationData"] as? [String: Any] }
+                            .flatMap { $0["continuation"] as? String }
+                        rows.append(group)
+                    }
+                    return
+                }
                 if let contItem = dict["continuationItemRenderer"] as? [String: Any],
                    let contEndpoint = contItem["continuationEndpoint"] as? [String: Any],
                    let contCmd = contEndpoint["continuationCommand"] as? [String: Any],
                    let ct = contCmd["token"] as? String {
                     continuationToken = ct
+                    return
+                }
+                // TVHTML5 home feed: the page-level "load more shelves" token lives at
+                // sectionListRenderer.continuations[].nextContinuationData.continuation.
+                // Read it only here (not from a shelf's own horizontalListRenderer
+                // continuation, which would page items within a single shelf instead).
+                if let sectionList = dict["sectionListRenderer"] as? [String: Any] {
+                    if let token = (sectionList["continuations"] as? [[String: Any]])?.first
+                        .flatMap({ $0["nextContinuationData"] as? [String: Any] })
+                        .flatMap({ $0["continuation"] as? String }) {
+                        continuationToken = token
+                    }
+                    for value in sectionList.values { walk(value, depth: depth + 1) }
                     return
                 }
                 // Skip ad/promo richSectionRenderers — ads often appear as a

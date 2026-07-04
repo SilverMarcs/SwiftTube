@@ -4,20 +4,20 @@ import SwiftUI
 struct FeedView: View {
     @Environment(VideoLoader.self) private var videoLoader
     @Environment(LibraryStore.self) private var library
+    @Environment(YTTVAuthManager.self) private var ytAuth
     #if os(tvOS)
     @Environment(VideoManager.self) private var videoManager
     #endif
 
     var body: some View {
         VideoGridView(
-            videos: videoLoader.currentVideos,
-            isGuestAllowed: true,
+            videos: videoLoader.videos,
+            isGuestAllowed: false,
             onReachEnd: {
-                guard videoLoader.mode == .subscriptions else { return }
                 Task { await videoLoader.loadMore() }
             },
             onRefresh: {
-                await videoLoader.refreshCurrent()
+                await videoLoader.loadAllChannelVideos()
             }
         ) {
             #if os(tvOS)
@@ -30,8 +30,11 @@ struct FeedView: View {
             }
             #endif
         }
-        .platformTopBar("Feed") {
-            FeedToolbar()
+        .platformTopBar("Videos") {
+            if !ytAuth.isSignedIn {
+                Button {} label: { Text("Not signed in") }
+            }
+            RefreshButton { await videoLoader.loadAllChannelVideos() }
         }
     }
 }

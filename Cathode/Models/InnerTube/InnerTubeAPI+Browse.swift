@@ -68,6 +68,33 @@ extension InnerTubeAPI {
         return all
     }
 
+    /// Pages the home feed as named shelves (one `.row` VideoGroup each) and
+    /// concatenates them, preserving shelf order. The page-level continuation is
+    /// carried on the last shelf's `nextPageToken` (set by `parseVideoGroupRows`);
+    /// paging stops when a page yields no shelves or no further token.
+    public func fetchAllRecommendationRows(maxPages: Int = 6) async throws -> [VideoGroup] {
+        var all: [VideoGroup] = []
+        var token: String? = nil
+        for _ in 0..<maxPages {
+            let rows = try await fetchHomeRows(continuationToken: token)
+            guard !rows.isEmpty else { break }
+            all.append(contentsOf: rows)
+            guard let next = rows.last?.nextPageToken, !next.isEmpty else { break }
+            token = next
+        }
+        return all
+    }
+
+    /// Loads MORE items for a single home shelf via its horizontal continuation
+    /// token. Uses the generic flat parser, which walks tileRenderers and captures
+    /// the next continuation regardless of the continuation wrapper's exact key.
+    /// Only `.videos` and `.nextPageToken` (the shelf's next token) are meaningful here.
+    public func fetchHomeShelfContinuation(continuationToken: String) async throws -> VideoGroup {
+        let body = makeBody(client: tvClientContext, continuationToken: continuationToken)
+        let data = try await postTV(endpoint: "browse", body: body)
+        return try parseVideoGroup(from: data, title: nil)
+    }
+
     // MARK: - Subscriptions
 
     /// Fetches subscriptions feed (requires auth).

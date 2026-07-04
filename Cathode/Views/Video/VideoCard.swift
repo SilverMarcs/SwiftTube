@@ -21,10 +21,12 @@ struct VideoCard: View {
     var body: some View {
         PlayVideoButton(video: video) {
             VStack(alignment: .leading) {
-                CachedAsyncImage(url: video.thumbnailURL, targetSize: 500)
-                    .aspectRatio(16/9, contentMode: .fill)
-                    .frame(maxWidth: .infinity)
+                Color.clear
                     .aspectRatio(16/9, contentMode: .fit)
+                    .overlay {
+                        CachedAsyncImage(url: video.thumbnailURL, targetSize: 500)
+                            .scaledToFill()
+                    }
                     .clipped()
                     .overlay(alignment: .bottomTrailing) {
                         if let duration = video.duration {

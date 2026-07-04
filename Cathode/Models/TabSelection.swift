@@ -7,9 +7,9 @@
 
 import SwiftUI
 
-enum TabSelection: String, CaseIterable {
+enum TabSelection: String {
+    case home = "home"
     case feed = "feed"
-    case recommendations = "recommendations"
     case shorts = "shorts"
     case library = "library"
     case search = "search"
@@ -18,24 +18,34 @@ enum TabSelection: String, CaseIterable {
     case bookmark = "watchLater"
     case history = "history"
 
-#if os(tvOS)
-    static let compactTabs: [TabSelection] = [.search, .feed, .recommendations, .channels, .library]
-    static let extendedTabs: [TabSelection] = [.search, .feed, .recommendations, .settings]
-#else
-    static let compactTabs: [TabSelection] = [.search, .feed, .shorts, .channels, .library]
-    static let extendedTabs: [TabSelection] = [.search, .feed, .shorts, .settings]
-#endif
-    static let extendedSubscriptionTabs: [TabSelection] = [.channels]
-    static let extendedLibraryTabs: [TabSelection] = [.bookmark, .history]
-    static let allCases: [TabSelection] = [.feed, .recommendations, .shorts, .library, .search, .settings, .channels, .bookmark, .history]
-    // Menu-bar commands (macOS only). Excludes .recommendations, which exists only on tvOS — driving the
-    // menu from allCases produced a dead "Recommended" menu item on macOS.
-    static let commandTabs: [TabSelection] = [.feed, .shorts, .channels, .library, .search, .settings, .bookmark, .history]
+    // The UI picks one of two layouts from the horizontal size class:
+    //   • compact width (iPhone)              → a flat bottom TAB BAR: `tabBarTabs`
+    //   • regular width (iPad / macOS / tvOS) → a SIDEBAR: `sidebarTabs` on top,
+    //                                           with the grouped `sidebar*` sections below.
+
+    /// Bottom tab bar (iPhone). Home leads; Search is the trailing `.search`-role tab.
+    static let tabBarTabs: [TabSelection] = [.home, .shorts, .channels, .library, .search]
+
+    /// Sidebar primary items (iPad / macOS / tvOS). Search pinned to the top.
+    static let sidebarTabs: [TabSelection] = {
+        #if os(tvOS)
+        [.search, .home, .feed, .settings]            // Shorts doesn't exist on tvOS
+        #else
+        [.search, .home, .feed, .shorts, .settings]
+        #endif
+    }()
+
+    /// Grouped sidebar sections (regular width only).
+    static let sidebarSubscriptionTabs: [TabSelection] = [.channels]
+    static let sidebarLibraryTabs: [TabSelection] = [.bookmark, .history]
+
+    /// Menu-bar / keyboard-shortcut commands (macOS + iPad).
+    static let commandTabs: [TabSelection] = [.home, .feed, .shorts, .channels, .library, .search, .settings, .bookmark, .history]
 
     var title: String {
         switch self {
+        case .home: return "Home"
         case .feed: return "Videos"
-        case .recommendations: return "Recommended"
         case .shorts: return "Shorts"
         case .library: return "Library"
         case .search: return "Search"
@@ -48,8 +58,8 @@ enum TabSelection: String, CaseIterable {
 
     var systemImage: String {
         switch self {
+        case .home: return "house"
         case .feed: return "video"
-        case .recommendations: return "sparkles"
         case .shorts: return "play.rectangle.on.rectangle"
         case .library: return "rectangle.stack"
         case .search: return "magnifyingglass"
@@ -62,23 +72,23 @@ enum TabSelection: String, CaseIterable {
 
     var shortcutKey: String? {
         switch self {
-        case .feed: return "1"
-        case .recommendations: return nil
-        case .shorts: return "2"
-        case .channels: return "3"
-        case .library: return "4"
+        case .home: return "1"
+        case .feed: return "2"
+        case .shorts: return "3"
+        case .channels: return "4"
+        case .library: return "5"
         case .search: return "f"
         case .settings: return ","
-        case .bookmark: return "5"
-        case .history: return "6"
+        case .bookmark: return "6"
+        case .history: return "7"
         }
     }
 
     @ViewBuilder
     var tabView: some View {
         switch self {
+        case .home: HomeView()
         case .feed: FeedView()
-        case .recommendations: RecommendationFeedView()
         case .shorts:
 #if os(tvOS)
             EmptyView()

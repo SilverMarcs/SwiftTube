@@ -21,7 +21,7 @@ struct ContentView: View {
     private var isCompactSize: Bool { horizontalSizeClass == .compact }
 
     private var primaryTabs: [TabSelection] {
-        isCompactSize ? TabSelection.compactTabs : TabSelection.extendedTabs
+        isCompactSize ? TabSelection.tabBarTabs : TabSelection.sidebarTabs
     }
 
     var body: some View {
@@ -42,7 +42,7 @@ struct ContentView: View {
 
             if !isCompactSize {
                 TabSection {
-                    ForEach(TabSelection.extendedSubscriptionTabs, id: \.self) { tab in
+                    ForEach(TabSelection.sidebarSubscriptionTabs, id: \.self) { tab in
                         Tab(tab.title,
                             systemImage: tab.systemImage,
                             value: tab)
@@ -57,7 +57,7 @@ struct ContentView: View {
                 }
 
                 TabSection {
-                    ForEach(TabSelection.extendedLibraryTabs, id: \.self) { tab in
+                    ForEach(TabSelection.sidebarLibraryTabs, id: \.self) { tab in
                         Tab(tab.title,
                             systemImage: tab.systemImage,
                             value: tab)

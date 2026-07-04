@@ -58,9 +58,11 @@ struct SettingsView: View {
         .tint(.accent)
         .formStyle(.grouped)
         #if os(iOS)
-        .platformTopBar("Settings", titleDisplayMode: .inline) {
-            Button(role: .close) {
-                dismiss()
+        .platformTopBar("Settings", titleDisplayMode: Device.isIPhone ? .inline : .inlineLarge) {
+            if Device.isIPhone {
+                Button(role: .close) {
+                    dismiss()
+                }
             }
         }
         #else
