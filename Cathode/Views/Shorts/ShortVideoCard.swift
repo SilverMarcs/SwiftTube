@@ -33,19 +33,21 @@ struct ShortVideoCard: View {
                     .buttonStyle(.plain)
                 }
 
+                // Info button hidden for now — Shorts carry no per-item metadata to
+                // show. Uncomment to restore the detail sheet.
                 #if !os(tvOS)
-                Button {
-                    showDetail = true
-                } label: {
-                    Image(systemName: "info")
-                }
-                .buttonStyle(.glass)
-                #if os(macOS)
-                .controlSize(.extraLarge)
-                #else
-                .controlSize(.large)
-                #endif
-                .buttonBorderShape(.circle)
+                // Button {
+                //     showDetail = true
+                // } label: {
+                //     Image(systemName: "info")
+                // }
+                // .buttonStyle(.glass)
+                // #if os(macOS)
+                // .controlSize(.extraLarge)
+                // #else
+                // .controlSize(.large)
+                // #endif
+                // .buttonBorderShape(.circle)
                 #endif
             }
             .padding(.horizontal, 16)

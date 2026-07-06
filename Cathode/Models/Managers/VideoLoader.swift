@@ -43,12 +43,12 @@ final class VideoLoader {
     /// `nil` once the end of the feed has been reached or before the first load.
     private(set) var nextPageToken: String?
 
-    /// In-memory order for shorts (video IDs). Shuffled on first feed load of the
-    /// process; subsequent reloads preserve this order so prefetched stream URLs
-    /// stay aligned with what the user actually swipes through.
-    private var shortsOrder: [String] = []
+    /// Continuation token for the next page of the Shorts feed (reel_watch_sequence).
+    private var shortsPageToken: String?
+    private var isLoadingShorts = false
 
-    /// Reloads the subscriptions feed from scratch.
+    /// Reloads the subscriptions feed from scratch. Shorts are a separate feed —
+    /// subscription Shorts are dropped here so they don't clutter the Feed grid.
     func loadAllChannelVideos() async {
         guard YTTVAuthManager.shared.isSignedIn else { return }
         if isLoadingChannelVideos { return }
@@ -58,7 +58,7 @@ final class VideoLoader {
             let group = try await InnerTubeAPI.shared.fetchSubscriptions()
             nextPageToken = group.nextPageToken
 
-            let (shorts, regular) = splitShorts(group.videos)
+            let (_, regular) = splitShorts(group.videos)
             let sortedVideos = regular.sorted {
                 ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast)
             }
@@ -66,9 +66,38 @@ final class VideoLoader {
             withAnimation {
                 self.videos = sortedVideos.removingDuplicates()
             }
-            self.shortVideos = applyStableShuffle(to: shorts)
         } catch {
             print("Error loading subscriptions: \(error)")
+        }
+    }
+
+    /// Loads the personalised "For You" Shorts feed: the home Shorts shelf first,
+    /// then endless `reel_watch_sequence` pages via `loadMoreShorts()`.
+    func loadShorts() async {
+        if isLoadingShorts { return }
+        isLoadingShorts = true
+        defer { isLoadingShorts = false }
+        do {
+            let group = try await InnerTubeAPI.shared.fetchShorts()
+            self.shortVideos = group.videos.removingDuplicates()
+            self.shortsPageToken = group.nextPageToken
+        } catch {
+            print("Error loading shorts: \(error)")
+        }
+    }
+
+    /// Appends the next page of the Shorts feed. No-op when exhausted or already loading.
+    func loadMoreShorts() async {
+        guard let token = shortsPageToken, !isLoadingShorts else { return }
+        isLoadingShorts = true
+        defer { isLoadingShorts = false }
+        do {
+            let group = try await InnerTubeAPI.shared.fetchShortsMore(continuationToken: token)
+            shortsPageToken = group.nextPageToken
+            let existing = Set(shortVideos.map(\.id))
+            shortVideos.append(contentsOf: group.videos.filter { !existing.contains($0.id) })
+        } catch {
+            print("Error loading more shorts: \(error)")
         }
     }
 
@@ -126,11 +155,10 @@ final class VideoLoader {
 
     func clearSubscriptions() {
         self.videos = []
-        self.shortVideos = []
         self.nextPageToken = nil
     }
 
-    /// Loads the next page of the subscriptions feed, appending to `videos`/`shortVideos`.
+    /// Loads the next page of the subscriptions feed, appending to `videos`.
     /// No-ops when there is no continuation token or a page load is already in flight.
     func loadMore() async {
         guard YTTVAuthManager.shared.isSignedIn else { return }
@@ -141,17 +169,12 @@ final class VideoLoader {
             let group = try await InnerTubeAPI.shared.fetchSubscriptions(continuationToken: token)
             nextPageToken = group.nextPageToken
 
-            let (shorts, regular) = splitShorts(group.videos)
-
+            let (_, regular) = splitShorts(group.videos)
             let existingIds = Set(self.videos.map(\.id))
             let regularNew = regular
                 .removingDuplicates()
                 .filter { !existingIds.contains($0.id) }
             self.videos.append(contentsOf: regularNew)
-
-            let existingShortIds = Set(self.shortVideos.map(\.id))
-            let shortsNew = shorts.filter { !existingShortIds.contains($0.id) }
-            self.shortVideos.append(contentsOf: shortsNew)
         } catch {
             print("Error loading more subscriptions: \(error)")
         }
@@ -166,21 +189,5 @@ final class VideoLoader {
         let shorts = all.filter { $0.isShort || ($0.duration.map { $0 > 0 && $0 <= 60 } ?? false) }
         let regular = all.filter { !$0.isShort && !($0.duration.map { $0 > 0 && $0 <= 60 } ?? false) }
         return (shorts, regular)
-    }
-
-    private func applyStableShuffle(to shorts: [Video]) -> [Video] {
-        if shortsOrder.isEmpty {
-            let shuffled = shorts.shuffled()
-            shortsOrder = shuffled.map(\.id)
-            return shuffled
-        }
-        let rank = Dictionary(uniqueKeysWithValues: shortsOrder.enumerated().map { ($1, $0) })
-        let known = shorts
-            .filter { rank[$0.id] != nil }
-            .sorted { rank[$0.id]! < rank[$1.id]! }
-        let new = shorts.filter { rank[$0.id] == nil }.shuffled()
-        let merged = known + new
-        shortsOrder = merged.map(\.id)
-        return merged
     }
 }

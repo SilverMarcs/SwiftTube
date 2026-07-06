@@ -6,7 +6,7 @@ struct ShortsView: View {
     @Environment(VideoManager.self) var videoManager
 
     @State private var activeVideoId: String?
-
+    @State private var hasLoaded = false
 
     var body: some View {
         Group {
@@ -51,10 +51,32 @@ struct ShortsView: View {
             .ignoresSafeArea()
 #endif
         }
-        .onAppear {
+        .overlay {
+            if videoLoader.shortVideos.isEmpty {
+                if hasLoaded {
+                    ContentUnavailableView("No Shorts", systemImage: "play.rectangle.on.rectangle")
+                } else {
+                    UniversalProgressView()
+                }
+            }
+        }
+        .task {
             videoManager.player?.pause()
+            if videoLoader.shortVideos.isEmpty {
+                await videoLoader.loadShorts()
+            }
+            hasLoaded = true
             if activeVideoId == nil {
                 activeVideoId = videoLoader.shortVideos.first?.id
+            }
+        }
+        .onChange(of: activeVideoId) { _, newValue in
+            guard let newValue,
+                  let index = videoLoader.shortVideos.firstIndex(where: { $0.id == newValue })
+            else { return }
+            // Page the endless feed when the user nears the end of the loaded set.
+            if index >= videoLoader.shortVideos.count - 3 {
+                Task { await videoLoader.loadMoreShorts() }
             }
         }
     }
