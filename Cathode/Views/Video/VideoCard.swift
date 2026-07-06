@@ -12,6 +12,11 @@ struct VideoCard: View {
         return v.formatted(.number.notation(.compactName))
     }
 
+    private var channelAvatarURL: URL? {
+        guard let channelId = video.channelId else { return nil }
+        return library.channel(forId: channelId)?.thumbnailURL
+    }
+
     private var watchProgressRatio: Double? {
         guard let seconds = library.resumeSeconds(for: video),
               let duration = video.duration, duration > 0 else { return nil }
@@ -60,16 +65,19 @@ struct VideoCard: View {
                         #endif
 
                     HStack(alignment: .center, spacing: 10) {
-                        if let channelId = video.channelId,
-                           let avatarURL = library.channel(forId: channelId)?.thumbnailURL {
-                            CachedAsyncImage(url: avatarURL, targetSize: 80)
-                                #if os(tvOS)
-                                .frame(width: 28, height: 28)
-                                #else
-                                .frame(width: 20, height: 20)
-                                #endif
-                                .clipShape(.circle)
+                        CachedAsyncImage(url: channelAvatarURL, targetSize: 80) {
+                            Image(systemName: "person.crop.circle.fill")
+                                .resizable()
+                                .scaledToFit()
+                                .foregroundStyle(.tertiary)
                         }
+                        .scaledToFill()
+                        #if os(tvOS)
+                        .frame(width: 28, height: 28)
+                        #else
+                        .frame(width: 20, height: 20)
+                        #endif
+                        .clipShape(.circle)
 
                         Text(video.channelTitle)
                             .lineLimit(1)
