@@ -76,6 +76,11 @@ enum StreamResolver {
         do {
             let yt = YouTube(videoID: id, methods: [.local])
             yt.itagFilter = { playbackItags.contains($0) }
+            // The user tapped a video from a feed, so it's known playable — skip
+            // the watchHTML availability fetch (~0.7-1s) and rely on the persisted
+            // js/ytcfg cache. On failure the streams getter retries cold with the
+            // availability check, so private/age-restricted errors still surface.
+            yt.skipAvailabilityCheck = true
             let streams = try await withAnonymousCookies { try await yt.streams }
 
             guard let video = streams
@@ -113,6 +118,34 @@ enum StreamResolver {
             return URL(string: "http://127.0.0.1:\(proxy.boundPort)/master.m3u8?id=\(id)")
         } catch {
             print("StreamResolver.resolveRemoteHLS(\(id)) failed: \(error)")
+            return nil
+        }
+    }
+
+    /// Resolves a direct googlevideo **muxed** (video+audio in one progressive
+    /// stream) URL that AVPlayer can play with no HLS proxy — the fastest path
+    /// to first frame. Picks the **highest-resolution** muxed format: itag 22
+    /// (720p) when the video publishes it, else itag 18 (360p). Muxed tops out
+    /// at 720p on YouTube; higher resolutions are adaptive-only and need the HLS
+    /// proxy. Used by the shorts feed. `.local` on-device extraction only, login
+    /// cookies stripped (see `withAnonymousCookies`) so YouTube serves plain
+    /// non-ciphered URLs.
+    static func resolveMuxed(id: String) async -> URL? {
+        do {
+            let yt = YouTube(videoID: id, methods: [.local])
+            yt.itagFilter = { $0 == 18 || $0 == 22 }
+            // We only reach here for a short the user is already viewing, so the
+            // video is known playable — skip YouTubeKit's watchHTML availability
+            // fetch and lean on the persisted js/ytcfg disk cache.
+            yt.skipAvailabilityCheck = true
+            let streams = try await withAnonymousCookies { try await yt.streams }
+            return streams
+                .filterVideoAndAudio()
+                .filter { $0.isNativelyPlayable }
+                .highestResolutionStream()?
+                .url
+        } catch {
+            print("StreamResolver.resolveMuxed(\(id)) failed: \(error)")
             return nil
         }
     }

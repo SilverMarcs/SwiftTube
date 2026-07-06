@@ -1,5 +1,4 @@
 import SwiftUI
-import YouTubePlayerKit
 
 struct ShortVideoCard: View {
     @Environment(LibraryStore.self) private var library
@@ -7,23 +6,17 @@ struct ShortVideoCard: View {
     let isActive: Bool
 
     @State private var showDetail = false
-    @State private var iframe: YouTubePlayer?
+    @State private var streamURL: URL?
+    @State private var isResolving = false
     @State private var fetchedChannel: Channel?
 
     var body: some View {
         ZStack {
             Color.black
-            if let iframe {
-                YouTubePlayerView(iframe) { state in
-                    switch state {
-                    case .idle:
-                        UniversalProgressView()
-                    case .ready:
-                        EmptyView()
-                    case .error:
-                        EmptyView()
-                    }
-                }
+            if let streamURL {
+                ShortPlayerView(url: streamURL, isActive: isActive)
+            } else if isResolving {
+                UniversalProgressView()
             }
         }
         .aspectRatio(9 / 16, contentMode: .fit)
@@ -65,11 +58,8 @@ struct ShortVideoCard: View {
             #endif
         }
         .task(id: isActive) {
-            if isActive {
-                iframe = makePlayer()
-            } else {
-                iframe = nil
-            }
+            guard isActive else { return }
+            await resolveStreamIfNeeded()
         }
         .task(id: video.channelId) {
             guard let channelId = video.channelId, !channelId.isEmpty else { return }
@@ -97,21 +87,14 @@ struct ShortVideoCard: View {
         }
     }
 
-    private func makePlayer() -> YouTubePlayer {
-        let parameters = YouTubePlayer.Parameters(
-            autoPlay: true,
-            loopEnabled: true,
-            showControls: false,
-            showFullscreenButton: false
-        )
-        let configuration = YouTubePlayer.Configuration(
-            allowsInlineMediaPlayback: true,
-            allowsPictureInPictureMediaPlayback: false
-        )
-        return YouTubePlayer(
-            source: .video(id: video.id),
-            parameters: parameters,
-            configuration: configuration
-        )
+    /// Resolves the muxed stream once, then caches it so scrolling back to a
+    /// card doesn't re-extract. Local `.local` extraction, 360p-preferred.
+    private func resolveStreamIfNeeded() async {
+        guard streamURL == nil, !isResolving else { return }
+        isResolving = true
+        let url = await StreamResolver.resolveMuxed(id: video.id)
+        guard !Task.isCancelled else { return }
+        streamURL = url
+        isResolving = false
     }
 }
