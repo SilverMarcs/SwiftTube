@@ -10,6 +10,10 @@ struct AVPlayerViewMac: View {
 
     @State private var showDetail = false
 
+    private var upNextBinding: Binding<Bool> {
+        Binding(get: { videoManager.showUpNext }, set: { videoManager.showUpNext = $0 })
+    }
+
     var body: some View {
         Group {
             if let iframe = videoManager.iframePlayer {
@@ -58,6 +62,9 @@ struct AVPlayerViewMac: View {
         }
         .overlay {
             SponsorSkipOverlay()
+        }
+        .sheet(isPresented: upNextBinding) {
+            UpNextSheet()
         }
         .ignoresSafeArea()
         .windowFullScreenBehavior(.disabled)

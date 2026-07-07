@@ -22,6 +22,20 @@ class VideoManager {
     /// resolution fails outright. Cleared at the start of every `setVideo`.
     private(set) var playbackError: String?
 
+    /// Related "up next" videos for the current video, from InnerTube's `/next`
+    /// endpoint. Powers the tvOS content proposal + Related tab and the
+    /// iOS/macOS end-of-video sheet. Empty until the async fetch resolves.
+    private(set) var upNextVideos: [Video] = []
+
+    /// True while the `/next` related-videos fetch is in flight, so the tvOS
+    /// Related tab can show a spinner instead of an empty state during load.
+    private(set) var isLoadingUpNext = false
+
+    /// Set true when the current item plays to its end (iOS/macOS only) so the
+    /// up-next sheet presents. tvOS uses the native `AVContentProposal` instead,
+    /// so this stays false there.
+    var showUpNext: Bool = false
+
     let sponsor = SponsorTracker()
     #if !os(tvOS)
     let iframe = IframePlaybackController()
@@ -39,6 +53,15 @@ class VideoManager {
     @ObservationIgnored
     private var loadingTask: Task<Void, Never>?
 
+    /// In-flight `/next` related-videos fetch, cancelled on each `setVideo`.
+    @ObservationIgnored
+    private var upNextTask: Task<Void, Never>?
+
+    /// `AVPlayerItemDidPlayToEndTime` observer for the current item, used to
+    /// surface the up-next overlay when a video finishes.
+    @ObservationIgnored
+    private var endObserver: NSObjectProtocol?
+
     // MARK: - Sponsor passthroughs (kept for call-site stability)
     var sponsorSegments: [SponsorSegment] { sponsor.segments }
     var currentSponsorSegment: SponsorSegment? { sponsor.currentSegment }
@@ -54,6 +77,7 @@ class VideoManager {
         if let token = timeObserverToken {
             player?.removeTimeObserver(token)
         }
+        removeEndObserver()
     }
 
     private func attachPeriodicObserver(to player: AVPlayer) {
@@ -75,6 +99,56 @@ class VideoManager {
         }
     }
 
+    // MARK: - Up Next
+
+    /// Kicks off the InnerTube `/next` fetch for the given video's related
+    /// videos. Cancels any in-flight fetch and clears stale state so the
+    /// overlay/proposal never shows the previous video's suggestions.
+    private func fetchUpNext(for video: Video) {
+        upNextTask?.cancel()
+        upNextVideos = []
+        showUpNext = false
+        isLoadingUpNext = true
+        upNextTask = Task { [weak self] in
+            guard let self else { return }
+            let info = try? await InnerTubeAPI.shared.fetchNextInfo(videoId: video.id)
+            await MainActor.run {
+                guard self.currentVideo?.id == video.id else { return }
+                self.upNextVideos = info?.relatedVideos ?? []
+                self.isLoadingUpNext = false
+            }
+        }
+    }
+
+    /// Registers a one-shot end-of-playback observer for `item`, replacing any
+    /// previous one. On iOS/macOS this raises the up-next overlay; tvOS relies
+    /// on the native content proposal so it only persists the final position.
+    private func observeItemEnd(_ item: AVPlayerItem) {
+        removeEndObserver()
+        endObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handlePlaybackEnded()
+        }
+    }
+
+    private func removeEndObserver() {
+        if let endObserver {
+            NotificationCenter.default.removeObserver(endObserver)
+            self.endObserver = nil
+        }
+    }
+
+    private func handlePlaybackEnded() {
+        persistCurrentTime()
+        #if !os(tvOS)
+        guard !upNextVideos.isEmpty else { return }
+        showUpNext = true
+        #endif
+    }
+
     func setVideo(_ video: Video, autoPlay: Bool = true) {
         isExpanded = autoPlay
         persistCurrentTime()
@@ -94,6 +168,7 @@ class VideoManager {
         currentVideo = video
         sponsor.reset()
         playbackError = nil
+        fetchUpNext(for: video)
 
         #if !os(tvOS)
         tearDownIframe()
@@ -134,6 +209,7 @@ class VideoManager {
         isSetting = true
         playbackError = nil
         sponsor.reset()
+        showUpNext = false
 
         #if !os(tvOS)
         tearDownIframe()
@@ -159,6 +235,7 @@ class VideoManager {
             player?.removeTimeObserver(token)
             timeObserverToken = nil
         }
+        removeEndObserver()
         player?.pause()
         player = nil
         playbackError = "This video can't be played right now. YouTube didn't return a playable stream."
@@ -221,6 +298,7 @@ class VideoManager {
 
         let playerItem = AVPlayerItem(url: url)
         playerItem.preferredForwardBufferDuration = 30
+        observeItemEnd(playerItem)
 
         // Ensure we're still targeting the same video before mutating the player
         guard currentVideo?.id == video.id, !Task.isCancelled else { return }
@@ -339,6 +417,7 @@ extension VideoManager {
             player?.removeTimeObserver(token)
             timeObserverToken = nil
         }
+        removeEndObserver()
         player?.pause()
         player = nil
 
@@ -347,7 +426,13 @@ extension VideoManager {
             for: video,
             autoPlay: autoPlay,
             resumeSeconds: resume,
-            onStateChange: { [weak self] in self?.persistCurrentTime() }
+            onStateChange: { [weak self] in
+                guard let self else { return }
+                self.persistCurrentTime()
+                if self.iframe.playbackState == .ended, !self.upNextVideos.isEmpty {
+                    self.showUpNext = true
+                }
+            }
         )
     }
 

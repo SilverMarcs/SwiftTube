@@ -6,6 +6,10 @@ struct AVPlayerViewIos: View {
     @Environment(VideoManager.self) var manager
     @Environment(VideoLoader.self) private var videoLoader
 
+    private var upNextBinding: Binding<Bool> {
+        Binding(get: { manager.showUpNext }, set: { manager.showUpNext = $0 })
+    }
+
     var body: some View {
         Group {
             if let iframe = manager.iframePlayer {
@@ -57,6 +61,9 @@ struct AVPlayerViewIos: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(.black)
             }
+        }
+        .sheet(isPresented: upNextBinding) {
+            UpNextSheet()
         }
     }
 }

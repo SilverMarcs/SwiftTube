@@ -196,24 +196,34 @@ extension InnerTubeAPI {
     }
 
     /// Parses related / suggested videos from a `/next` response.
-    /// Related videos appear as `compactVideoRenderer` in `secondaryResults`.
+    ///
+    /// Related videos live under `secondaryResults` on WEB two-column watch
+    /// pages, or in the TV client's related shelf. The item renderer varies by
+    /// client/API version: the TV client returns `compactVideoRenderer`, while
+    /// the modern WEB client returns `lockupViewModel` (v2). Rather than match a
+    /// single renderer, we scope to the `secondaryResults` subtree (so we don't
+    /// scoop up the primary video or the autoplay/watch-queue entries) and hand
+    /// it to the shared `parseVideoGroup`, which already dispatches every
+    /// renderer variant. Falls back to the whole response if the subtree isn't
+    /// found (older TV layouts).
     private func parseRelatedVideos(from json: [String: Any]) -> [Video] {
-        var videos: [Video] = []
-        func walk(_ obj: Any, depth: Int = 0) {
-            guard depth < 50 else { return }
+        var subtree: [String: Any]? = nil
+        func findSecondary(_ obj: Any, depth: Int = 0) {
+            guard subtree == nil, depth < 60 else { return }
             if let dict = obj as? [String: Any] {
-                if let r = dict["compactVideoRenderer"] as? [String: Any],
-                   let v = parseVideoRenderer(r) {
-                    videos.append(v)
-                } else {
-                    for value in dict.values { walk(value, depth: depth + 1) }
-                }
+                if let s = dict["secondaryResults"] as? [String: Any] { subtree = s; return }
+                for value in dict.values { findSecondary(value, depth: depth + 1) }
             } else if let arr = obj as? [Any] {
-                for item in arr { walk(item, depth: depth + 1) }
+                for item in arr { findSecondary(item, depth: depth + 1) }
             }
         }
-        walk(json)
-        return Array(videos.prefix(25))
+        findSecondary(json)
+
+        let source = subtree ?? json
+        let group = try? parseVideoGroup(from: source, title: nil)
+        var seen = Set<String>()
+        let related = (group?.videos ?? []).filter { seen.insert($0.id).inserted }
+        return Array(related.prefix(25))
     }
 
     /// Parses video chapters from a `/next` response.
