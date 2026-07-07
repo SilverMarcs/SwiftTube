@@ -49,11 +49,13 @@ struct HistoryFullView: View {
                 await LibraryStore.shared.refresh()
             }
         ) {
+            #if !os(tvOS)
             if !shorts.isEmpty {
                 ShortsRail(shorts: shorts, onReachEnd: {
                     Task { await LibraryStore.shared.loadMoreHistory() }
                 })
             }
+            #endif
         }
         .platformTopBar("History") {
             RefreshButton { await LibraryStore.shared.refresh() }

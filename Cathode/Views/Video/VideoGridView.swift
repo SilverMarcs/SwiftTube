@@ -94,7 +94,9 @@ struct VideoGridView<Header: View>: View {
             } else {
                 List {
                     header()
+                        #if !os(tvOS)
                         .listRowSeparator(.hidden)
+                        #endif
                         .listRowInsets(.horizontal, 0)
                         .listRowInsets(.vertical, 0)
                     ForEach(videos) { video in
