@@ -118,6 +118,9 @@ final class LibraryStore {
         }
     }
 
+    /// Whether the history stream has another page to fetch.
+    var canLoadMoreHistory: Bool { historyNextPageToken != nil }
+
     func loadMoreHistory() async {
         guard let token = historyNextPageToken, !isLoadingMoreHistory else { return }
         isLoadingMoreHistory = true

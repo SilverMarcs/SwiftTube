@@ -93,6 +93,10 @@ struct VideoGridView<Header: View>: View {
                 .modifier(RefreshableModifier(onRefresh: onRefresh))
             } else {
                 List {
+                    header()
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(.horizontal, 0)
+                        .listRowInsets(.vertical, 0)
                     ForEach(videos) { video in
                         listRow(for: video)
                             #if os(iOS)
