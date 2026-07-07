@@ -6,11 +6,16 @@ import AVFoundation
 /// The player is built when the card becomes active and torn down when it
 /// scrolls away, so only the visible short holds a decoder.
 struct ShortPlayerView: View {
+    let video: Video
     let url: URL
     let isActive: Bool
 
     @State private var player: AVQueuePlayer?
     @State private var looper: AVPlayerLooper?
+    // Reports watch progress so YouTube records the Short as watched and stops
+    // re-serving it in recommendations (mirrors VideoManager for regular videos).
+    @State private var watchtime = WatchtimeReporter()
+    @State private var timeObserver: Any?
 
     var body: some View {
         PlayerLayerView(player: player)
@@ -42,10 +47,26 @@ struct ShortPlayerView: View {
         // replacing the iframe's `loopEnabled`.
         looper = AVPlayerLooper(player: queue, templateItem: AVPlayerItem(url: url))
         queue.play()
+
+        watchtime.begin(for: video)
+        let interval = CMTime(seconds: 1, preferredTimescale: 600)
+        let id = video.id
+        let reporter = watchtime
+        timeObserver = queue.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak queue] _ in
+            guard let queue else { return }
+            let seconds = queue.currentTime().seconds
+            guard seconds.isFinite, seconds > 0, queue.timeControlStatus == .playing else { return }
+            reporter.report(videoId: id, position: seconds, isFinal: false)
+        }
         player = queue
     }
 
     private func teardown() {
+        if let timeObserver {
+            player?.removeTimeObserver(timeObserver)
+            self.timeObserver = nil
+        }
+        watchtime.finalize(playerPosition: player?.currentTime().seconds)
         player?.pause()
         looper?.disableLooping()
         looper = nil

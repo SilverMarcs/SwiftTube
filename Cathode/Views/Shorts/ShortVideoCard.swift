@@ -14,7 +14,7 @@ struct ShortVideoCard: View {
         ZStack {
             Color.black
             if let streamURL {
-                ShortPlayerView(url: streamURL, isActive: isActive)
+                ShortPlayerView(video: video, url: streamURL, isActive: isActive)
             } else if isResolving {
                 UniversalProgressView()
             }
