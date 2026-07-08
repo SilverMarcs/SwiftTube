@@ -43,8 +43,7 @@ struct ShortPlayerView: View {
     private func setup() {
         teardown()
         let queue = AVQueuePlayer()
-        // AVPlayerLooper seamlessly re-enqueues the item for gapless looping,
-        // replacing the iframe's `loopEnabled`.
+        // AVPlayerLooper seamlessly re-enqueues the item for gapless looping.
         looper = AVPlayerLooper(player: queue, templateItem: AVPlayerItem(url: url))
         queue.play()
 

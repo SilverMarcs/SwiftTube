@@ -3,10 +3,9 @@
 //  Cathode
 //
 //  Presents YouTube's sign-in flow inside a SwiftUI `WebView`. After the user
-//  logs in, the session cookies land in `WKWebsiteDataStore.default()` — the
-//  same store YouTubePlayerKit uses — so iframe playback becomes logged-in
-//  automatically and `YTCookieAuth` can mint SAPISIDHASH headers for native
-//  /player calls.
+//  logs in, the session cookies land in `WKWebsiteDataStore.default()`, where
+//  `YTCookieAuth` reads them to mint SAPISIDHASH headers for native /player
+//  calls.
 //
 //  A `WKHTTPCookieStoreObserver` watches the data store and dismisses the
 //  sheet the moment SAPISID arrives, instead of polling on each navigation.

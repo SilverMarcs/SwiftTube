@@ -58,26 +58,6 @@ enum StreamResolver {
         return try await body()
     }
 
-    /// Resolves the stream based on the selected PlaybackMode.
-    static func resolve(id: String) async -> Resolved? {
-        let rawMode = UserDefaults.standard.string(forKey: "playbackMode") ?? ""
-        let mode = PlaybackMode(rawValue: rawMode) ?? .remote
-        return await resolve(id: id, mode: mode)
-    }
-
-    static func resolve(id: String, mode: PlaybackMode) async -> Resolved? {
-        switch mode {
-        case .remote:
-            return await resolveRemoteHLS(id: id)
-        #if !os(tvOS)
-        case .iframe:
-            // The iframe player does not go through StreamResolver's resolve path;
-            // fall back to the HLS proxy if it ever reaches here.
-            return await resolveRemoteHLS(id: id)
-        #endif
-        }
-    }
-
     /// Returns a localhost HLS URL that AVPlayer can stream — up to 1080p AVC1
     /// via separate video+audio renditions stitched in a sidx-derived
     /// byte-range HLS manifest.

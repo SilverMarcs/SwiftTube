@@ -1,6 +1,5 @@
 import SwiftUI
 import AVKit
-import YouTubePlayerKit
 
 struct AVPlayerViewMac: View {
     // TODO: pass vdieo dirtvy to it rathe rthan videomanager.
@@ -16,23 +15,7 @@ struct AVPlayerViewMac: View {
 
     var body: some View {
         Group {
-            if let iframe = videoManager.iframePlayer {
-                YouTubePlayerView(iframe) { state in
-                    switch state {
-                    case .idle:
-                        UniversalProgressView()
-                    case .ready:
-                        EmptyView()
-                    case .error(let error):
-                        ContentUnavailableView(
-                            "Playback Error",
-                            systemImage: "exclamationmark.triangle.fill",
-                            description: Text(error.localizedDescription)
-                        )
-                    }
-                }
-                .id(videoManager.currentVideo?.id ?? "iframe")
-            } else if videoManager.isSetting {
+            if videoManager.isSetting {
                 UniversalProgressView()
                     .background(.black)
             } else if let error = videoManager.playbackError {

@@ -12,7 +12,6 @@
 		08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */ = {isa = PBXBuildFile; productRef = 08E630542E87AD56007AD438 /* SwiftMediaViewer */; };
 		08F0BEEF000000000000A003 /* TVServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08F0BEEF000000000000A002 /* TVServices.framework */; };
 		08F0BEEF000000000000A004 /* TopShelf.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 08F0BEEF000000000000A001 /* TopShelf.appex */; platformFilters = (tvos, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		AAA000000000000000000008 /* YouTubePlayerKit in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, macos, xros, ); productRef = AAA000000000000000000007 /* YouTubePlayerKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -107,7 +106,6 @@
 			files = (
 				08E630552E87AD56007AD438 /* SwiftMediaViewer in Frameworks */,
 				08E630522E87AD2A007AD438 /* SwiftMediaViewer in Frameworks */,
-				AAA000000000000000000008 /* YouTubePlayerKit in Frameworks */,
 				082FBDBA2FCD536C00F598FC /* YouTubeKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -174,7 +172,6 @@
 			packageProductDependencies = (
 				08E630512E87AD2A007AD438 /* SwiftMediaViewer */,
 				08E630542E87AD56007AD438 /* SwiftMediaViewer */,
-				AAA000000000000000000007 /* YouTubePlayerKit */,
 				082FBDB92FCD536C00F598FC /* YouTubeKit */,
 			);
 			productName = Cathode;
@@ -232,7 +229,6 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */,
-				AAA000000000000000000006 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */,
 				082FBDB82FCD536C00F598FC /* XCRemoteSwiftPackageReference "YouTubeKit" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -652,14 +648,6 @@
 				kind = branch;
 			};
 		};
-		AAA000000000000000000006 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/SvenTiigi/YouTubePlayerKit";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.0;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -676,11 +664,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 08E630532E87AD56007AD438 /* XCRemoteSwiftPackageReference "SwiftMediaViewer" */;
 			productName = SwiftMediaViewer;
-		};
-		AAA000000000000000000007 /* YouTubePlayerKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AAA000000000000000000006 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */;
-			productName = YouTubePlayerKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

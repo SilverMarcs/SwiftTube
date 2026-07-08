@@ -7,9 +7,7 @@
 //  Sign-in flow (iOS / macOS / visionOS): user authenticates inside a WKWebView
 //  pointed at accounts.google.com → continues to youtube.com. The resulting
 //  session cookies (SAPISID, __Secure-3PSID, HSID, SSID, APISID, LOGIN_INFO)
-//  live in `WKWebsiteDataStore.default()`, which is also the data store used
-//  by `YouTubePlayerKit` — so iframe playback automatically syncs watch
-//  progress to YouTube's servers.
+//  live in `WKWebsiteDataStore.default()`.
 //
 //  tvOS: no WebKit, so no interactive sign-in. Instead, the cookie set is
 //  pulled from iCloud Keychain (written by an iOS device that did sign in)
@@ -59,8 +57,8 @@ public final class YTCookieAuth {
     private(set) var authCookies: [HTTPCookie] = []
 
 #if canImport(WebKit)
-    /// The default website data store. YouTubePlayerKit uses this same store
-    /// when `useNonPersistentWebsiteDataStore` is `false` (its default).
+    /// The default website data store, where the sign-in WebView's session
+    /// cookies persist across launches.
     nonisolated let dataStore = WKWebsiteDataStore.default()
 
     /// Persistent WKWebView that exists only to wake the default data store

@@ -1,6 +1,5 @@
 import SwiftUI
 import AVKit
-import YouTubePlayerKit
 
 struct AVPlayerViewIos: View {
     @Environment(VideoManager.self) var manager
@@ -12,23 +11,7 @@ struct AVPlayerViewIos: View {
 
     var body: some View {
         Group {
-            if let iframe = manager.iframePlayer {
-                YouTubePlayerView(iframe) { state in
-                    switch state {
-                    case .idle:
-                        UniversalProgressView()
-                    case .ready:
-                        EmptyView()
-                    case .error(let error):
-                        ContentUnavailableView(
-                            "Playback Error",
-                            systemImage: "exclamationmark.triangle.fill",
-                            description: Text(error.localizedDescription)
-                        )
-                    }
-                }
-                .id(manager.currentVideo?.id ?? "iframe")
-            } else if let error = manager.playbackError {
+            if let error = manager.playbackError {
                 ContentUnavailableView {
                     Label("Can't Play This Video", systemImage: "exclamationmark.triangle.fill")
                 } description: {

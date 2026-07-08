@@ -6,10 +6,6 @@
 //  client authenticated via SAPISIDHASH (cookie-derived), since the TV-client
 //  /player endpoint is consistently UNPLAYABLE from non-TV IPs.
 //
-//  The iframe playback path does not use this code — its embedded WebView
-//  already reports watch progress as part of being a logged-in YouTube
-//  session, courtesy of shared cookies in `WKWebsiteDataStore.default()`.
-//
 
 import Foundation
 
