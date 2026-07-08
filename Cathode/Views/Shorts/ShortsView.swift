@@ -53,11 +53,19 @@ struct ShortsView: View {
         }
         .overlay {
             if videoLoader.shortVideos.isEmpty {
-                if hasLoaded {
-                    ContentUnavailableView("No Shorts", systemImage: "play.rectangle.on.rectangle")
-                } else {
-                    UniversalProgressView()
+                Group {
+                    if hasLoaded {
+                        ContentUnavailableView("No Shorts", systemImage: "play.rectangle.on.rectangle")
+                    } else {
+                        UniversalProgressView()
+                                        #if !os(macOS)
+                .environment(\.colorScheme, .dark)
+                #endif
+                    }
                 }
+                // #if !os(macOS)
+                // .environment(\.colorScheme, .dark)
+                // #endif
             }
         }
         .task {

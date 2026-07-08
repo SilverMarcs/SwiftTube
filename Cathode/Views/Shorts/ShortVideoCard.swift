@@ -17,6 +17,7 @@ struct ShortVideoCard: View {
                 ShortPlayerView(video: video, url: streamURL, isActive: isActive)
             } else if isResolving {
                 UniversalProgressView()
+                    .environment(\.colorScheme, .dark)
             }
         }
         .aspectRatio(9 / 16, contentMode: .fit)

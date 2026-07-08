@@ -33,11 +33,19 @@ extension InnerTubeAPI {
         let rich = (try? parseVideoGroup(from: data, title: "Shorts").videos.filter(\.isShort)) ?? []
         let scanned = Self.reelShortVideos(from: data)
         let shorts = scanned.count > rich.count ? scanned : rich
-        let seed = shorts.first?.id
-        return VideoGroup(
-            title: "Shorts",
-            videos: shorts,
-            nextPageToken: seed.map { Self.reelSeedPrefix + $0 })
+        if let seed = shorts.first?.id {
+            return VideoGroup(
+                title: "Shorts",
+                videos: shorts,
+                nextPageToken: Self.reelSeedPrefix + seed)
+        }
+        // 2026-07: the authenticated home feed stopped carrying a Shorts shelf
+        // entirely. The reel sequence still works and personalises via the
+        // account cookies, so seed it from a random first-shelf video.
+        guard let seed = parseVideoGroupRows(from: data).first?.videos.randomElement()?.id else {
+            return VideoGroup(title: "Shorts", videos: [], nextPageToken: nil)
+        }
+        return try await fetchShortsMore(continuationToken: Self.reelSeedPrefix + seed)
     }
 
     /// Next page of the Shorts feed via `reel_watch_sequence`. The token is either a

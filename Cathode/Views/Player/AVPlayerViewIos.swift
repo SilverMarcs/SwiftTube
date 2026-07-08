@@ -43,6 +43,7 @@ struct AVPlayerViewIos: View {
                 UniversalProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(.black)
+                    .environment(\.colorScheme, .dark)
             }
         }
         .sheet(isPresented: upNextBinding) {
