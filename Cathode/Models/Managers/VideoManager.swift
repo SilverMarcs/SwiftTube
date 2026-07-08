@@ -57,6 +57,13 @@ class VideoManager {
     @ObservationIgnored
     private var upNextTask: Task<Void, Never>?
 
+    /// When the current player item's googlevideo URLs stop being servable
+    /// (from `StreamResolver.Resolved.expiresAt`). Nil for local downloads and
+    /// iframe playback, which never expire. `refreshExpiredStream()` consults
+    /// this on scene activation.
+    @ObservationIgnored
+    private var streamExpiresAt: Date?
+
     /// `AVPlayerItemDidPlayToEndTime` observer for the current item, used to
     /// surface the up-next overlay when a video finishes.
     @ObservationIgnored
@@ -168,6 +175,7 @@ class VideoManager {
         currentVideo = video
         sponsor.reset()
         playbackError = nil
+        streamExpiresAt = nil
         fetchUpNext(for: video)
 
         #if !os(tvOS)
@@ -225,6 +233,38 @@ class VideoManager {
         }
     }
 
+    /// Re-resolves the current video's stream in place when its googlevideo
+    /// URLs have expired (~6h TTL). Without this, a video left paused across a
+    /// long suspension keeps an AVPlayer item that looks ready but 403s on
+    /// every byte-range request — play does nothing and the user had to switch
+    /// to another video and back to force a refetch. Called on scene
+    /// activation; keeps the local playhead and never autoplays. Cheap no-op
+    /// while the stream is still fresh.
+    func refreshExpiredStream() {
+        guard let video = currentVideo,
+              player != nil,
+              let expiresAt = streamExpiresAt,
+              // 5-minute margin so we don't hand back a stream that dies
+              // moments after the user presses play.
+              Date().addingTimeInterval(5 * 60) >= expiresAt
+        else { return }
+
+        let seconds = player?.currentTime().seconds
+        let resumeAt = (seconds?.isFinite == true) ? seconds : nil
+
+        loadingTask?.cancel()
+        player?.pause()
+        isSetting = true
+        playbackError = nil
+
+        loadingTask = Task { [weak self] in
+            await self?.loadVideoStream(for: video, autoPlay: false, resumeAt: resumeAt)
+            if self?.currentVideo?.id == video.id {
+                self?.isSetting = false
+            }
+        }
+    }
+
     /// Called when stream resolution returns nothing. Leaves `currentVideo`
     /// set (so the mini-player still shows the title/thumb) but clears the
     /// AVPlayer and publishes a user-facing error string the player views
@@ -267,34 +307,38 @@ class VideoManager {
     }
 
     // MARK: - Private Methods
-    private func resolveStream(id: String) async -> URL? {
+    private func resolveStream(id: String) async -> StreamResolver.Resolved? {
         if Task.isCancelled { return nil }
         return await StreamResolver.resolve(id: id)
     }
 
-    private func loadVideoStream(for video: Video, autoPlay: Bool) async {
+    private func loadVideoStream(for video: Video, autoPlay: Bool, resumeAt: Double? = nil) async {
         // If the requested video is no longer the current one, abort this task.
         guard currentVideo?.id == video.id, !Task.isCancelled else { return }
 
         let url: URL
+        var expiresAt: Date?
         #if os(iOS)
         if let local = DownloadManager.shared.localURL(for: video.id) {
             url = local
         } else if let streamed = await resolveStream(id: video.id) {
-            url = streamed
+            url = streamed.url
+            expiresAt = streamed.expiresAt
         } else {
             await MainActor.run { self.surfaceStreamResolutionError(for: video) }
             return
         }
         #else
         if let streamed = await resolveStream(id: video.id) {
-            url = streamed
+            url = streamed.url
+            expiresAt = streamed.expiresAt
         } else {
             await MainActor.run { self.surfaceStreamResolutionError(for: video) }
             return
         }
         #endif
         if Task.isCancelled { return }
+        streamExpiresAt = expiresAt
 
         let playerItem = AVPlayerItem(url: url)
         playerItem.preferredForwardBufferDuration = 30
@@ -322,7 +366,12 @@ class VideoManager {
         playerItem.externalMetadata = externalMeta
         #endif
 
-        let savedProgress = await MainActor.run { LibraryStore.shared.resumeSeconds(for: video) ?? 0 }
+        let savedProgress: Double
+        if let resumeAt {
+            savedProgress = resumeAt
+        } else {
+            savedProgress = await MainActor.run { LibraryStore.shared.resumeSeconds(for: video) ?? 0 }
+        }
         if savedProgress > 5 {
             let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
             guard currentVideo?.id == video.id else { return }

@@ -9,6 +9,15 @@ import Foundation
 /// path; `.local` surfaces the full AVC1 + AAC adaptive set the proxy needs.
 enum StreamResolver {
 
+    /// A playable URL plus the moment its underlying googlevideo URLs stop
+    /// being servable. googlevideo grants ~6h per extraction; a player item
+    /// built from this is dead after `expiresAt` even though AVPlayer still
+    /// reports it ready, so callers must re-resolve rather than replay it.
+    struct Resolved {
+        let url: URL
+        let expiresAt: Date
+    }
+
     /// Itags we play (video-only + audio-only AVC1/AAC) for HLS stitching.
     private static let playbackItags: Set<Int> = [
         134, 135, 136, 137, // AVC1 video-only 30fps: 360p, 480p, 720p, 1080p
@@ -50,13 +59,13 @@ enum StreamResolver {
     }
 
     /// Resolves the stream based on the selected PlaybackMode.
-    static func resolve(id: String) async -> URL? {
+    static func resolve(id: String) async -> Resolved? {
         let rawMode = UserDefaults.standard.string(forKey: "playbackMode") ?? ""
         let mode = PlaybackMode(rawValue: rawMode) ?? .remote
         return await resolve(id: id, mode: mode)
     }
 
-    static func resolve(id: String, mode: PlaybackMode) async -> URL? {
+    static func resolve(id: String, mode: PlaybackMode) async -> Resolved? {
         switch mode {
         case .remote:
             return await resolveRemoteHLS(id: id)
@@ -72,7 +81,7 @@ enum StreamResolver {
     /// Returns a localhost HLS URL that AVPlayer can stream — up to 1080p AVC1
     /// via separate video+audio renditions stitched in a sidx-derived
     /// byte-range HLS manifest.
-    static func resolveRemoteHLS(id: String) async -> URL? {
+    static func resolveRemoteHLS(id: String) async -> Resolved? {
         do {
             let yt = YouTube(videoID: id, methods: [.local])
             yt.itagFilter = { playbackItags.contains($0) }
@@ -115,7 +124,10 @@ enum StreamResolver {
                 audioInfo: aInfo,
                 audioCodec: "mp4a.40.2"
             )
-            return URL(string: "http://127.0.0.1:\(proxy.boundPort)/master.m3u8?id=\(id)")
+            guard let url = URL(string: "http://127.0.0.1:\(proxy.boundPort)/master.m3u8?id=\(id)") else {
+                return nil
+            }
+            return Resolved(url: url, expiresAt: expiry(of: video.url, audio.url))
         } catch {
             print("StreamResolver.resolveRemoteHLS(\(id)) failed: \(error)")
             return nil
@@ -151,6 +163,21 @@ enum StreamResolver {
     }
 
     // MARK: - Private
+
+    /// googlevideo URLs carry their server-side TTL as an `expire` query
+    /// parameter (unix seconds, ~6h from extraction). Takes the earliest
+    /// across the given track URLs; if YouTube ever stops sending it, assumes
+    /// a conservative 4h so the expiry-refresh path still fires.
+    private static func expiry(of urls: URL...) -> Date {
+        let stamps = urls
+            .compactMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems }
+            .compactMap { items in items.first(where: { $0.name == "expire" })?.value }
+            .compactMap(TimeInterval.init)
+        guard let earliest = stamps.min() else {
+            return Date().addingTimeInterval(4 * 3600)
+        }
+        return Date(timeIntervalSince1970: earliest)
+    }
 
     /// Returns the proxy only after proving its listener accepts connections,
     /// (re)starting it otherwise. Concurrent resolves share one in-flight

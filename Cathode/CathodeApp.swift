@@ -66,12 +66,21 @@ struct CathodeApp: App {
                     ytAuth: ytAuth
                 ))
                 .task { await coldLaunchLoad() }
+                // macOS never suspends the app, but googlevideo URLs expire on
+                // the server regardless (~6h) — a player left paused overnight
+                // is just as dead as on iOS. scenePhase stays .active while any
+                // window is visible, so app re-activation is the signal here.
+                .onReceive(NotificationCenter.default.publisher(
+                    for: NSApplication.didBecomeActiveNotification
+                )) { _ in
+                    videoManager.refreshExpiredStream()
+                }
         }
         .commands {
             AppCommands(selectedTab: $selectedTab)
         }
     }
-    
+
     private var macOSPlayerScene: some Scene {
         Window("Media Player", id: "media-player") {
             AVPlayerViewMac()
@@ -101,6 +110,8 @@ struct CathodeApp: App {
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .background || phase == .inactive {
                         videoManager.persistCurrentTime()
+                    } else if phase == .active {
+                        videoManager.refreshExpiredStream()
                     }
                 }
         }
@@ -121,6 +132,11 @@ struct CathodeApp: App {
                     ytAuth: ytAuth
                 ))
                 .task { await coldLaunchLoad() }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active {
+                        videoManager.refreshExpiredStream()
+                    }
+                }
                 .onOpenURL { url in
                     handleTopShelfURL(url)
                 }
