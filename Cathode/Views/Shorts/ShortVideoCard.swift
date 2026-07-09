@@ -90,12 +90,13 @@ struct ShortVideoCard: View {
         }
     }
 
-    /// Resolves the muxed stream once, then caches it so scrolling back to a
-    /// card doesn't re-extract. Local `.local` extraction, 360p-preferred.
+    /// Resolves the stream once, then caches it so scrolling back to a card
+    /// doesn't re-extract. Uses the same adaptive HLS-proxy path as regular
+    /// videos so Shorts play at full quality, not a 360p muxed fallback.
     private func resolveStreamIfNeeded() async {
         guard streamURL == nil, !isResolving else { return }
         isResolving = true
-        let url = await StreamResolver.resolveMuxed(id: video.id)
+        let url = await StreamResolver.resolveRemoteHLS(id: video.id)?.url
         guard !Task.isCancelled else { return }
         streamURL = url
         isResolving = false

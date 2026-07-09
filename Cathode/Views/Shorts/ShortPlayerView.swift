@@ -1,10 +1,10 @@
 import SwiftUI
 import AVFoundation
 
-/// Chromeless, auto-looping AVPlayer surface for the shorts feed. Plays a
-/// direct muxed (progressive) stream — no transport controls, no HLS proxy.
-/// The player is built when the card becomes active and torn down when it
-/// scrolls away, so only the visible short holds a decoder.
+/// Chromeless, auto-looping AVPlayer surface for the shorts feed. Plays the
+/// same adaptive HLS stream as regular videos — no transport controls. The
+/// player is built when the card becomes active and torn down when it scrolls
+/// away, so only the visible short holds a decoder.
 struct ShortPlayerView: View {
     let video: Video
     let url: URL

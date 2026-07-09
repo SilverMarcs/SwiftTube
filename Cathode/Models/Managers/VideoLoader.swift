@@ -182,7 +182,11 @@ final class VideoLoader {
 
     @MainActor
     func getMostRecentHistoryVideo() -> Video? {
-        LibraryStore.shared.history.first
+        // Prefer the most recent regular video; fall back to the most recent
+        // item (a Short) only when the loaded history page carries no regular
+        // videos. `splitShorts` preserves order, so `.regular.first` is newest.
+        let history = LibraryStore.shared.history
+        return splitShorts(history).regular.first ?? history.first
     }
 
     private func splitShorts(_ all: [Video]) -> (shorts: [Video], regular: [Video]) {
