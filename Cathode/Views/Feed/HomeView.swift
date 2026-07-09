@@ -49,7 +49,7 @@ struct HomeView: View {
                 UniversalProgressView()
             }
         }
-        .platformTopBar("Home") {
+        .platformTopBar("Feed") {
             RefreshButton { await videoLoader.loadRecommendations() }
         }
         .iosSettingsToolbarItem()

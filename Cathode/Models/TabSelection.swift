@@ -9,7 +9,6 @@ import SwiftUI
 
 enum TabSelection: String {
     case home = "home"
-    case feed = "feed"
     case shorts = "shorts"
     case library = "library"
     case search = "search"
@@ -29,9 +28,9 @@ enum TabSelection: String {
     /// Sidebar primary items (iPad / macOS / tvOS). Search pinned to the top.
     static let sidebarTabs: [TabSelection] = {
         #if os(tvOS)
-        [.search, .home, .feed, .settings]            // Shorts doesn't exist on tvOS
+        [.search, .home, .settings]            // Shorts doesn't exist on tvOS
         #else
-        [.search, .home, .feed, .shorts, .settings]
+        [.search, .home, .shorts, .settings]
         #endif
     }()
 
@@ -40,12 +39,11 @@ enum TabSelection: String {
     static let sidebarLibraryTabs: [TabSelection] = [.bookmark, .history]
 
     /// Menu-bar / keyboard-shortcut commands (macOS + iPad).
-    static let commandTabs: [TabSelection] = [.home, .feed, .shorts, .channels, .library, .search, .settings, .bookmark, .history]
+    static let commandTabs: [TabSelection] = [.home, .shorts, .channels, .library, .search, .settings, .bookmark, .history]
 
     var title: String {
         switch self {
-        case .home: return "Home"
-        case .feed: return "Videos"
+        case .home: return "Videos"
         case .shorts: return "Shorts"
         case .library: return "Library"
         case .search: return "Search"
@@ -58,8 +56,7 @@ enum TabSelection: String {
 
     var systemImage: String {
         switch self {
-        case .home: return "house"
-        case .feed: return "video"
+        case .home: return "video"
         case .shorts: return "play.rectangle.on.rectangle"
         case .library: return "rectangle.stack"
         case .search: return "magnifyingglass"
@@ -73,7 +70,6 @@ enum TabSelection: String {
     var shortcutKey: String? {
         switch self {
         case .home: return "1"
-        case .feed: return "2"
         case .shorts: return "3"
         case .channels: return "4"
         case .library: return "5"
@@ -88,7 +84,6 @@ enum TabSelection: String {
     var tabView: some View {
         switch self {
         case .home: HomeView()
-        case .feed: FeedView()
         case .shorts:
 #if os(tvOS)
             EmptyView()

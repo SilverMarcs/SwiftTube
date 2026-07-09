@@ -13,14 +13,6 @@ struct ProfileView: View {
 
     var body: some View {
         Form { // TODO: use list view here
-            Section {
-                NavigationLink {
-                    FeedView()
-                } label: {
-                    Label("All videos", systemImage: "video")
-                }
-            }
-            
             BookmarkView()
 
             HistoryView()
