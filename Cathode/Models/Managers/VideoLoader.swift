@@ -45,7 +45,11 @@ final class VideoLoader {
 
     /// Continuation token for the next page of the Shorts feed (reel_watch_sequence).
     private var shortsPageToken: String?
-    private var isLoadingShorts = false
+    /// The in-flight initial Shorts fetch, so the cold-launch prefetch and the
+    /// Shorts-tab-appear trigger coalesce onto one request: the tab awaits the
+    /// launch prefetch instead of racing it (which flashed an empty state).
+    private var shortsLoadTask: Task<Void, Never>?
+    private var isLoadingMoreShorts = false
 
     /// Reloads the subscriptions feed from scratch. Shorts are a separate feed —
     /// subscription Shorts are dropped here so they don't clutter the Feed grid.
@@ -74,23 +78,30 @@ final class VideoLoader {
     /// Loads the personalised "For You" Shorts feed: the home Shorts shelf first,
     /// then endless `reel_watch_sequence` pages via `loadMoreShorts()`.
     func loadShorts() async {
-        if isLoadingShorts { return }
-        isLoadingShorts = true
-        defer { isLoadingShorts = false }
-        do {
-            let group = try await InnerTubeAPI.shared.fetchShorts()
-            self.shortVideos = group.videos.removingDuplicates()
-            self.shortsPageToken = group.nextPageToken
-        } catch {
-            print("Error loading shorts: \(error)")
+        if let existing = shortsLoadTask {
+            await existing.value
+            return
         }
+        let task = Task { @MainActor in
+            do {
+                let group = try await InnerTubeAPI.shared.fetchShorts()
+                self.shortVideos = group.videos.removingDuplicates()
+                self.shortsPageToken = group.nextPageToken
+            } catch {
+                print("Error loading shorts: \(error)")
+            }
+        }
+        shortsLoadTask = task
+        await task.value
+        shortsLoadTask = nil
     }
 
     /// Appends the next page of the Shorts feed. No-op when exhausted or already loading.
     func loadMoreShorts() async {
-        guard let token = shortsPageToken, !isLoadingShorts else { return }
-        isLoadingShorts = true
-        defer { isLoadingShorts = false }
+        if let existing = shortsLoadTask { await existing.value }
+        guard let token = shortsPageToken, !isLoadingMoreShorts else { return }
+        isLoadingMoreShorts = true
+        defer { isLoadingMoreShorts = false }
         do {
             let group = try await InnerTubeAPI.shared.fetchShortsMore(continuationToken: token)
             shortsPageToken = group.nextPageToken

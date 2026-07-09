@@ -30,6 +30,10 @@ struct VideoGridView<Header: View>: View {
     var showChannelLinkInContextMenu: Bool = true
     var showsBookmarkIcon: Bool = true
     var isGuestAllowed: Bool = false
+    /// When `true` (default), any Shorts in `videos` are pulled into a horizontal
+    /// rail on top and the vertical grid shows only non-Shorts. Turn off where the
+    /// order is meaningful (e.g. the Up Next queue).
+    var extractsShorts: Bool = true
     /// Called when the user reaches the last card. Wire this to a paginator
     /// (e.g. `VideoLoader.loadMore`) for infinite scroll.
     var onReachEnd: (() -> Void)? = nil
@@ -37,6 +41,27 @@ struct VideoGridView<Header: View>: View {
     /// neither affordance is shown.
     var onRefresh: (() async -> Void)? = nil
     @ViewBuilder var header: () -> Header
+
+    /// tvOS uses the vertical grid layout with focus-scaled landscape cards; a
+    /// portrait Shorts rail doesn't fit that model, so we never extract there and
+    /// let Shorts render inline in the grid instead.
+    private var shortsExtractionEnabled: Bool {
+        #if os(tvOS)
+        false
+        #else
+        extractsShorts
+        #endif
+    }
+
+    private var shorts: [Video] {
+        shortsExtractionEnabled ? videos.filter(\.isShort) : []
+    }
+
+    /// The videos shown in the vertical grid/list — everything not pulled into the
+    /// Shorts rail.
+    private var mainVideos: [Video] {
+        shortsExtractionEnabled ? videos.filter { !$0.isShort } : videos
+    }
 
     private var gridColumns: [GridItem] {
         #if os(tvOS)
@@ -74,17 +99,23 @@ struct VideoGridView<Header: View>: View {
             if horizontalSizeClass == .regular {
                 ScrollView {
                     LazyVStack(spacing: gridSpacing) {
+                        // Full-width so the rail blends to the device edge like the
+                        // Home shelves; `HorizontalShelf` supplies its own leading gutter.
+                        if !shorts.isEmpty {
+                            ShortsRail(shorts: shorts, onReachEnd: onReachEnd)
+                        }
                         header()
+                            .scenePadding(.horizontal)
                         LazyVGrid(columns: gridColumns, spacing: gridSpacing) {
-                            ForEach(videos) { video in
+                            ForEach(mainVideos) { video in
                                 VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsBookmarkIcon: showsBookmarkIcon)
                                     .task {
-                                        if video.id == videos.last?.id { onReachEnd?() }
+                                        if video.id == mainVideos.last?.id { onReachEnd?() }
                                     }
                             }
                         }
+                        .scenePadding(.horizontal)
                     }
-                    .scenePadding(.horizontal)
                     .scenePadding(.bottom)
                 }
                 #if os(macOS)
@@ -93,13 +124,21 @@ struct VideoGridView<Header: View>: View {
                 .modifier(RefreshableModifier(onRefresh: onRefresh))
             } else {
                 List {
+                    if !shorts.isEmpty {
+                        ShortsRail(shorts: shorts, onReachEnd: onReachEnd)
+                            #if !os(tvOS)
+                            .listRowSeparator(.hidden)
+                            #endif
+                            .listRowInsets(.horizontal, 0)
+                            .listRowInsets(.vertical, 0)
+                    }
                     header()
                         #if !os(tvOS)
                         .listRowSeparator(.hidden)
                         #endif
                         .listRowInsets(.horizontal, 0)
                         .listRowInsets(.vertical, 0)
-                    ForEach(videos) { video in
+                    ForEach(mainVideos) { video in
                         listRow(for: video)
                             #if os(iOS)
                             // Compact rows show a divider only below each row (not above);
@@ -117,7 +156,7 @@ struct VideoGridView<Header: View>: View {
                             .listRowInsets(.horizontal, 10)
                             #endif
                             .task {
-                                if video.id == videos.last?.id { onReachEnd?() }
+                                if video.id == mainVideos.last?.id { onReachEnd?() }
                             }
                     }
                 }
@@ -190,6 +229,7 @@ extension VideoGridView where Header == EmptyView {
         showChannelLinkInContextMenu: Bool = true,
         showsBookmarkIcon: Bool = true,
         isGuestAllowed: Bool = false,
+        extractsShorts: Bool = true,
         onReachEnd: (() -> Void)? = nil,
         onRefresh: (() async -> Void)? = nil
     ) {
@@ -197,6 +237,7 @@ extension VideoGridView where Header == EmptyView {
         self.showChannelLinkInContextMenu = showChannelLinkInContextMenu
         self.showsBookmarkIcon = showsBookmarkIcon
         self.isGuestAllowed = isGuestAllowed
+        self.extractsShorts = extractsShorts
         self.onReachEnd = onReachEnd
         self.onRefresh = onRefresh
         self.header = { EmptyView() }

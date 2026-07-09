@@ -11,7 +11,7 @@ struct UpNextSheet: View {
 
     var body: some View {
         NavigationStack {
-            VideoGridView(videos: manager.upNextVideos, isGuestAllowed: true)
+            VideoGridView(videos: manager.upNextVideos, isGuestAllowed: true, extractsShorts: false)
                 .navigationTitle("Up Next")
                 .toolbarTitleDisplayMode(.inline)
                 .toolbar {

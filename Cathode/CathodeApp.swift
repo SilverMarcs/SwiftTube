@@ -47,7 +47,8 @@ struct CathodeApp: App {
         }
         async let subs: Void = videoLoader.loadAllChannelVideos()
         async let recs: Void = videoLoader.loadRecommendations()
-        _ = await (subs, recs)
+        async let shorts: Void = videoLoader.loadShorts()
+        _ = await (subs, recs, shorts)
 
         if videoManager.currentVideo == nil,
            let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
