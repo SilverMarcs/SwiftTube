@@ -40,6 +40,16 @@ struct CathodeApp: App {
         _ = YTCookieAuth.shared
 
         if ytAuth.isSignedIn {
+            // Fresh launches usually arrive with the ~1h OAuth access token
+            // expired: loadFromKeychain() nils it, so InnerTubeAPI holds no
+            // bearer and every launch fetch went out unauthenticated —
+            // personalised home returned no shelves and the feed sat on its
+            // spinner until a manual refresh (by which time the background
+            // token refresh had landed). Refresh the token and hand it to
+            // InnerTubeAPI before any fetch starts.
+            if let token = try? await ytAuth.validAccessToken() {
+                await InnerTubeAPI.shared.setAuthToken(token)
+            }
             await store.refresh()
             videoLoader.mode = .subscriptions
         } else {
