@@ -64,6 +64,30 @@ class VideoManager {
     @ObservationIgnored
     private var endObserver: NSObjectProtocol?
 
+    /// KVO on the current item's `status`, driving the item-health watcher
+    /// (`observeItemHealth`). Replaced whenever a new item installs.
+    @ObservationIgnored
+    private var statusObservation: NSKeyValueObservation?
+
+    /// `AVPlayerItemFailedToPlayToEndTime` observer for the current item —
+    /// mid-play fatal errors don't always flip `status` to `.failed`, so both
+    /// signals route into `handleItemFailure`.
+    @ObservationIgnored
+    private var failObserver: NSObjectProtocol?
+
+    /// Armed when the current item first reaches `.readyToPlay`; a later
+    /// failure consumes it for one automatic in-place reload. A failure while
+    /// disarmed (never got ready, or the reload itself died) surfaces the
+    /// error instead, so a dead network can't spin an infinite resolve loop.
+    @ObservationIgnored
+    private var autoReloadArmed = false
+
+    /// The item whose failure was already handled. `.failed` KVO and
+    /// FailedToPlayToEndTime can both fire for one death; the second callback
+    /// must not re-enter `handleItemFailure` and clobber the in-flight reload.
+    @ObservationIgnored
+    private var handledFailureItem: AVPlayerItem?
+
     // MARK: - Sponsor passthroughs (kept for call-site stability)
     var sponsorSegments: [SponsorSegment] { sponsor.segments }
     var currentSponsorSegment: SponsorSegment? { sponsor.currentSegment }
@@ -73,6 +97,7 @@ class VideoManager {
             player?.removeTimeObserver(token)
         }
         removeEndObserver()
+        removeHealthObservers()
     }
 
     private func attachPeriodicObserver(to player: AVPlayer) {
@@ -133,6 +158,79 @@ class VideoManager {
         if let endObserver {
             NotificationCenter.default.removeObserver(endObserver)
             self.endObserver = nil
+        }
+    }
+
+    // MARK: - Item health
+
+    /// Watches `item` for the rest of its life and reloads the stream in
+    /// place when it dies. Wall-clock expiry tracking alone missed items that
+    /// die *before* the ~6h googlevideo TTL — media-services reset during a
+    /// long suspension, or googlevideo 403ing early after a network hop (the
+    /// URLs are IP-locked) — leaving a player that ignored play until app
+    /// relaunch (2026-07 "backgrounded a while, current video won't load").
+    /// Also subsumes the old one-shot `awaitPlayerItemReady` error check:
+    /// a failure before first ready surfaces the resolution error.
+    private func observeItemHealth(_ item: AVPlayerItem, for video: Video) {
+        removeHealthObservers()
+        autoReloadArmed = false
+        handledFailureItem = nil
+        statusObservation = item.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                switch item.status {
+                case .readyToPlay: self.autoReloadArmed = true
+                case .failed: self.handleItemFailure(item, for: video)
+                default: break
+                }
+            }
+        }
+        failObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemFailedToPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleItemFailure(item, for: video)
+        }
+    }
+
+    private func removeHealthObservers() {
+        statusObservation?.invalidate()
+        statusObservation = nil
+        if let failObserver {
+            NotificationCenter.default.removeObserver(failObserver)
+            self.failObserver = nil
+        }
+    }
+
+    /// One automatic in-place reload when the current item dies after having
+    /// been ready, resuming at the local playhead (a `.failed` item still
+    /// reports its last `currentTime`). Never autoplays — same conservative
+    /// choice as `refreshExpiredStream`.
+    private func handleItemFailure(_ item: AVPlayerItem, for video: Video) {
+        guard item !== handledFailureItem else { return }
+        guard currentVideo?.id == video.id, player?.currentItem === item else { return }
+        handledFailureItem = item
+
+        guard autoReloadArmed else {
+            surfaceStreamResolutionError(for: video)
+            return
+        }
+        autoReloadArmed = false
+
+        let seconds = player?.currentTime().seconds
+        let resumeAt = (seconds?.isFinite == true) ? seconds : nil
+
+        loadingTask?.cancel()
+        player?.pause()
+        isSetting = true
+        playbackError = nil
+
+        loadingTask = Task { [weak self] in
+            await self?.loadVideoStream(for: video, autoPlay: false, resumeAt: resumeAt)
+            if self?.currentVideo?.id == video.id {
+                self?.isSetting = false
+            }
         }
     }
 
@@ -243,6 +341,7 @@ class VideoManager {
             timeObserverToken = nil
         }
         removeEndObserver()
+        removeHealthObservers()
         player?.pause()
         player = nil
         playbackError = "This video can't be played right now. YouTube didn't return a playable stream."
@@ -301,6 +400,7 @@ class VideoManager {
         let playerItem = AVPlayerItem(url: url)
         playerItem.preferredForwardBufferDuration = 30
         observeItemEnd(playerItem)
+        observeItemHealth(playerItem, for: video)
 
         // Ensure we're still targeting the same video before mutating the player
         guard currentVideo?.id == video.id, !Task.isCancelled else { return }
@@ -341,15 +441,6 @@ class VideoManager {
         }
 
         await applyNavigationMarkers(for: video, on: playerItem)
-
-        // If AVPlayer fails to ready up (transient extraction or network glitch), surface the error immediately.
-        Task { [weak self] in
-            let ready = await awaitPlayerItemReady(playerItem)
-            guard !ready else { return }
-            guard let self else { return }
-            guard self.currentVideo?.id == video.id else { return }
-            await MainActor.run { self.surfaceStreamResolutionError(for: video) }
-        }
     }
 
     // MARK: - Navigation Markers (chapters + sponsor segments)
