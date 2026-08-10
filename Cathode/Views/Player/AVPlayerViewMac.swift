@@ -5,7 +5,6 @@ struct AVPlayerViewMac: View {
     // TODO: pass vdieo dirtvy to it rathe rthan videomanager.
     @Environment(VideoManager.self) var videoManager
     @Environment(LibraryStore.self) private var userDefaults
-    @Environment(VideoLoader.self) private var videoLoader
 
     @State private var showDetail = false
 
@@ -37,9 +36,6 @@ struct AVPlayerViewMac: View {
                     .onDisappear {
                         videoManager.persistCurrentTime()
                         videoManager.player?.pause()
-                        if let mostRecent = videoLoader.getMostRecentHistoryVideo() {
-                            videoManager.setVideo(mostRecent, autoPlay: false)
-                        }
                     }
             }
         }
