@@ -98,6 +98,9 @@ extension InnerTubeAPI {
         request.setValue(InnerTubeClients.Web.nameID, forHTTPHeaderField: "X-YouTube-Client-Name")
         request.setValue(InnerTubeClients.Web.version, forHTTPHeaderField: "X-YouTube-Client-Version")
         request.setValue(authHeader, forHTTPHeaderField: "Authorization")
+        if let cookieHeader = await YTCookieAuth.shared.cookieHeader(for: url) {
+            request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await session.data(for: request)

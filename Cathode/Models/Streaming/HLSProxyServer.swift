@@ -1,8 +1,8 @@
 import Foundation
 import Network
 
-/// Tiny localhost HTTP server serving three synthesized HLS playlists
-/// constructed from parsed fragmented-MP4 sidx info.
+/// Tiny localhost HTTP server serving namespaced synthesized HLS playlists
+/// and their fragmented-MP4 byte ranges.
 ///
 /// The listener socket does NOT survive app suspension — the system defuncts
 /// it, sometimes without ever delivering a `.failed` state update (Apple's
@@ -11,20 +11,57 @@ import Network
 /// app relaunch (2026-07 "new videos stop loading after a while" bug), so
 /// `start()` is re-callable — it builds a fresh listener on a fresh port each
 /// time — and `healthCheck()` proves the socket actually accepts connections
-/// before a playback URL is handed to AVPlayer. In-flight playbacks don't
-/// care: segment byte-ranges point straight at googlevideo, so this socket is
-/// only touched when a new player item loads its manifests.
-final class HLSProxyServer {
+/// before a playback URL is handed to AVPlayer.
+///
+/// Media is proxied as well as manifests. This keeps required request headers
+/// and transport behavior under Cathode's control instead of handing signed
+/// googlevideo URLs directly to AVFoundation.
+final class HLSProxyServer: @unchecked Sendable {
+    private struct MediaSource: Sendable {
+        let url: URL
+        let requestHeaders: [String: String]
+    }
+
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "hls-proxy")
     private var manifests: [String: String] = [:]
+    private var mediaSources: [String: MediaSource] = [:]
     private var alive = false
     private(set) var boundPort: UInt16 = 0
+    // Extraction and FMP4Parser deliberately use this same session so signed
+    // media requests share one cookie-free connection pool end to end.
+    private let mediaSession = YouTubeMediaTransport.session
 
-    func configure(videoURL: URL, videoInfo: FMP4Info, videoCodec: String, videoBandwidth: Int,
-                   audioURL: URL, audioInfo: FMP4Info, audioCodec: String) {
-        let videoPlaylist = Self.makePlaylist(streamURL: videoURL.absoluteString, info: videoInfo)
-        let audioPlaylist = Self.makePlaylist(streamURL: audioURL.absoluteString, info: audioInfo)
+    /// Registers an immutable manifest set and returns a lease that removes it
+    /// when its owning player goes away. Each resolution gets unique paths so
+    /// resolving a Short or another window cannot overwrite an active player.
+    func register(
+        videoURL: URL,
+        videoInfo: FMP4Info,
+        videoCodec: String,
+        videoBandwidth: Int,
+        videoRequestHeaders: [String: String],
+        audioURL: URL,
+        audioInfo: FMP4Info,
+        audioCodec: String,
+        audioRequestHeaders: [String: String]
+    ) -> HLSManifestLease? {
+        let namespace = UUID().uuidString.lowercased()
+        let basePath = "/streams/\(namespace)"
+        let port = queue.sync { boundPort }
+        guard port != 0 else { return nil }
+
+        let localBaseURL = "http://127.0.0.1:\(port)\(basePath)"
+        let videoPath = "\(basePath)/video.mp4"
+        let audioPath = "\(basePath)/audio.m4a"
+        let videoPlaylist = Self.makePlaylist(
+            streamURL: "\(localBaseURL)/video.mp4",
+            info: videoInfo
+        )
+        let audioPlaylist = Self.makePlaylist(
+            streamURL: "\(localBaseURL)/audio.m4a",
+            info: audioInfo
+        )
         let master = """
         #EXTM3U
         #EXT-X-VERSION:7
@@ -33,14 +70,33 @@ final class HLSProxyServer {
         #EXT-X-STREAM-INF:BANDWIDTH=\(videoBandwidth),CODECS="\(videoCodec),\(audioCodec)",AUDIO="aud"
         video.m3u8
         """
-        let new = [
-            "/master.m3u8": master,
-            "/video.m3u8": videoPlaylist,
-            "/audio.m3u8": audioPlaylist,
-        ]
-        // Serialize the write onto the same queue that reads happen on, so a
-        // request mid-reconfigure can't see a torn dict mixing two videos.
-        queue.sync { self.manifests = new }
+        queue.sync {
+            manifests["\(basePath)/master.m3u8"] = master
+            manifests["\(basePath)/video.m3u8"] = videoPlaylist
+            manifests["\(basePath)/audio.m3u8"] = audioPlaylist
+            mediaSources[videoPath] = MediaSource(
+                url: videoURL,
+                requestHeaders: videoRequestHeaders
+            )
+            mediaSources[audioPath] = MediaSource(
+                url: audioURL,
+                requestHeaders: audioRequestHeaders
+            )
+        }
+        guard let url = URL(string: "http://127.0.0.1:\(port)\(basePath)/master.m3u8") else {
+            removeRegistration(at: basePath)
+            return nil
+        }
+        return HLSManifestLease(url: url) { [weak self] in
+            self?.removeRegistration(at: basePath)
+        }
+    }
+
+    private func removeRegistration(at basePath: String) {
+        queue.async { [weak self] in
+            self?.manifests = self?.manifests.filter { !$0.key.hasPrefix(basePath) } ?? [:]
+            self?.mediaSources = self?.mediaSources.filter { !$0.key.hasPrefix(basePath) } ?? [:]
+        }
     }
 
     private static func makePlaylist(streamURL: String, info: FMP4Info) -> String {
@@ -50,12 +106,16 @@ final class HLSProxyServer {
             "#EXT-X-VERSION:7",
             "#EXT-X-PLAYLIST-TYPE:VOD",
             "#EXT-X-TARGETDURATION:\(Int(maxDur.rounded(.up)))",
-            "#EXT-X-MAP:URI=\"\(streamURL)\",BYTERANGE=\"\(info.initSize)@0\"",
+            "#EXT-X-MAP:URI=\"\(streamURL)?start=0&length=\(info.initSize)\"",
         ]
         for seg in info.segments {
-            lines.append("#EXTINF:\(String(format: "%.6f", seg.duration)),")
-            lines.append("#EXT-X-BYTERANGE:\(seg.size)@\(seg.offset)")
-            lines.append(streamURL)
+            let duration = seg.duration.formatted(
+                .number
+                    .locale(Locale(identifier: "en_US_POSIX"))
+                    .precision(.fractionLength(6))
+            )
+            lines.append("#EXTINF:\(duration),")
+            lines.append("\(streamURL)?start=\(seg.offset)&length=\(seg.size)")
         }
         lines.append("#EXT-X-ENDLIST")
         return lines.joined(separator: "\n")
@@ -125,31 +185,109 @@ final class HLSProxyServer {
             let firstLine = request.split(separator: "\r\n").first ?? ""
             let parts = firstLine.split(separator: " ")
             guard parts.count >= 2 else { conn.cancel(); return }
-            self.respond(conn, path: String(parts[1]))
+            self.respond(conn, target: String(parts[1]))
         }
     }
 
-    private func respond(_ conn: NWConnection, path: String) {
-        // Strip query string so cache-busting params don't break lookup.
-        let pathOnly = path.split(separator: "?", maxSplits: 1).first.map(String.init) ?? path
+    private func respond(_ conn: NWConnection, target: String) {
+        let components = URLComponents(string: "http://127.0.0.1\(target)")
+        let pathOnly = components?.path ?? target
         if pathOnly == "/health" {
-            let resp = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-            conn.send(content: Data(resp.utf8), completion: .contentProcessed { _ in conn.cancel() })
+            sendResponse(conn, status: "200 OK", contentType: nil, body: Data())
         } else if let body = manifests[pathOnly] {
-            let bytes = Data(body.utf8)
-            let header = """
-            HTTP/1.1 200 OK\r
-            Content-Type: application/vnd.apple.mpegurl\r
-            Content-Length: \(bytes.count)\r
-            Access-Control-Allow-Origin: *\r
-            Connection: close\r
-            \r\n
-            """
-            var out = Data(header.utf8); out.append(bytes)
-            conn.send(content: out, completion: .contentProcessed { _ in conn.cancel() })
+            sendResponse(
+                conn,
+                status: "200 OK",
+                contentType: "application/vnd.apple.mpegurl",
+                body: Data(body.utf8)
+            )
+        } else if let source = mediaSources[pathOnly],
+                  let range = Self.mediaRange(from: components) {
+            proxyMedia(conn, source: source, range: range)
         } else {
-            let resp = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-            conn.send(content: Data(resp.utf8), completion: .contentProcessed { _ in conn.cancel() })
+            sendResponse(conn, status: "404 Not Found", contentType: nil, body: Data())
         }
+    }
+
+    private static func mediaRange(from components: URLComponents?) -> String? {
+        let queryItems = components?.queryItems ?? []
+        guard let startValue = queryItems.first(where: { $0.name == "start" })?.value,
+              let lengthValue = queryItems.first(where: { $0.name == "length" })?.value,
+              let start = Int64(startValue),
+              let length = Int64(lengthValue),
+              start >= 0,
+              length > 0,
+              start <= Int64.max - length
+        else { return nil }
+        return "bytes=\(start)-\(start + length - 1)"
+    }
+
+    private func proxyMedia(
+        _ conn: NWConnection,
+        source: MediaSource,
+        range: String
+    ) {
+        var request = URLRequest(url: source.url)
+        request.httpShouldHandleCookies = false
+        request.setValue(range, forHTTPHeaderField: "Range")
+        for (header, value) in source.requestHeaders {
+            request.setValue(value, forHTTPHeaderField: header)
+        }
+
+        Task { [weak self] in
+            guard let self else {
+                conn.cancel()
+                return
+            }
+            do {
+                let (data, response) = try await mediaSession.data(for: request)
+                guard let http = response as? HTTPURLResponse,
+                      http.statusCode == 206
+                else {
+                    let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    print("HLS media proxy rejected upstream response: HTTP \(statusCode)")
+                    sendResponse(
+                        conn,
+                        status: "502 Bad Gateway",
+                        contentType: nil,
+                        body: Data()
+                    )
+                    return
+                }
+                sendResponse(
+                    conn,
+                    status: "200 OK",
+                    contentType: http.value(forHTTPHeaderField: "Content-Type") ?? "video/mp4",
+                    body: data
+                )
+            } catch {
+                print("HLS media proxy request failed: \(error.localizedDescription)")
+                sendResponse(
+                    conn,
+                    status: "502 Bad Gateway",
+                    contentType: nil,
+                    body: Data()
+                )
+            }
+        }
+    }
+
+    private func sendResponse(
+        _ conn: NWConnection,
+        status: String,
+        contentType: String?,
+        body: Data
+    ) {
+        var header = "HTTP/1.1 \(status)\r\n"
+        if let contentType {
+            header += "Content-Type: \(contentType)\r\n"
+        }
+        header += "Content-Length: \(body.count)\r\n"
+        header += "Accept-Ranges: bytes\r\n"
+        header += "Access-Control-Allow-Origin: *\r\n"
+        header += "Connection: close\r\n\r\n"
+        var response = Data(header.utf8)
+        response.append(body)
+        conn.send(content: response, completion: .contentProcessed { _ in conn.cancel() })
     }
 }

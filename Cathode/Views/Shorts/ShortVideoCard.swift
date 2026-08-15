@@ -6,18 +6,24 @@ struct ShortVideoCard: View {
     let isActive: Bool
 
     @State private var showDetail = false
-    @State private var streamURL: URL?
+    @State private var playbackSource: PlaybackSource?
     @State private var isResolving = false
+    @State private var resolutionError: String?
     @State private var fetchedChannel: Channel?
 
     var body: some View {
         ZStack {
             Color.black
-            if let streamURL {
-                ShortPlayerView(video: video, url: streamURL, isActive: isActive)
+            if let playbackSource {
+                ShortPlayerView(video: video, url: playbackSource.url, isActive: isActive)
             } else if isResolving {
                 UniversalProgressView()
                     .environment(\.colorScheme, .dark)
+            } else if resolutionError != nil {
+                Button("Retry playback", systemImage: "arrow.clockwise") {
+                    Task { await resolveStreamIfNeeded() }
+                }
+                .buttonStyle(.borderedProminent)
             }
         }
         .aspectRatio(9 / 16, contentMode: .fit)
@@ -94,11 +100,22 @@ struct ShortVideoCard: View {
     /// doesn't re-extract. Uses the same adaptive HLS-proxy path as regular
     /// videos so Shorts play at full quality, not a 360p muxed fallback.
     private func resolveStreamIfNeeded() async {
-        guard streamURL == nil, !isResolving else { return }
+        guard playbackSource == nil, !isResolving else { return }
         isResolving = true
-        let url = await StreamResolver.resolveRemoteHLS(id: video.id)?.url
-        guard !Task.isCancelled else { return }
-        streamURL = url
-        isResolving = false
+        resolutionError = nil
+        do {
+            let source = try await StreamResolver.shared.resolvePlaybackSource(videoID: video.id)
+            guard !Task.isCancelled else { return }
+            playbackSource = source
+            isResolving = false
+        } catch let error as StreamResolutionError {
+            guard !Task.isCancelled else { return }
+            resolutionError = error.errorDescription
+            isResolving = false
+        } catch {
+            guard !Task.isCancelled else { return }
+            resolutionError = error.localizedDescription
+            isResolving = false
+        }
     }
 }

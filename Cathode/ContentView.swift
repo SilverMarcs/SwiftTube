@@ -16,8 +16,6 @@ struct ContentView: View {
 
     @Namespace private var animation
 
-    @State private var isPresented = false
-
     private var isCompactSize: Bool { horizontalSizeClass == .compact }
 
     private var primaryTabs: [TabSelection] {
@@ -86,16 +84,16 @@ struct ContentView: View {
         }
         #elseif os(tvOS)
         .environment(\.requestVideoPresentation) {
-            isPresented = true
+            manager.isExpanded = true
         }
-        .fullScreenCover(isPresented: $isPresented, onDismiss: {
+        .fullScreenCover(isPresented: $manager.isExpanded, onDismiss: {
             manager.player?.pause()
         }) {
             AVPlayerViewTvos()
         }
         #else
         .environment(\.requestVideoPresentation) {
-            isPresented = true
+            manager.isExpanded = true
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory(isEnabled: (selectedTab != .shorts && manager.currentVideo != nil)) {
@@ -105,7 +103,7 @@ struct ContentView: View {
                 }
             }
         }
-        .fullScreenCover(isPresented: $isPresented) {
+        .fullScreenCover(isPresented: $manager.isExpanded) {
             if let video = manager.currentVideo {
                 VideoDetailView(video: video, showVideo: true)
                   // .accentColor(.accent)

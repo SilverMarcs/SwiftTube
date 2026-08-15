@@ -1,12 +1,12 @@
 import Foundation
 
-struct FMP4Segment {
+struct FMP4Segment: Sendable {
     let offset: Int      // absolute byte offset in file
     let size: Int        // bytes
     let duration: Double // seconds
 }
 
-struct FMP4Info {
+struct FMP4Info: Sendable {
     let initSize: Int            // bytes from start that comprise ftyp+moov (HLS EXT-X-MAP range)
     let segments: [FMP4Segment]
     let totalDuration: Double
@@ -22,10 +22,18 @@ enum FMP4ParseError: Error {
 enum FMP4Parser {
 
     /// Fetches a prefix of the file via HTTP Range and parses ftyp/moov/sidx.
-    static func parse(url: URL, prefixBytes: Int = 1_048_576) async throws -> FMP4Info {
+    static func parse(
+        url: URL,
+        requestHeaders: [String: String] = [:],
+        prefixBytes: Int = 1_048_576
+    ) async throws -> FMP4Info {
         var req = URLRequest(url: url)
+        req.httpShouldHandleCookies = false
         req.setValue("bytes=0-\(prefixBytes - 1)", forHTTPHeaderField: "Range")
-        let (data, response) = try await URLSession.shared.data(for: req)
+        for (header, value) in requestHeaders {
+            req.setValue(value, forHTTPHeaderField: header)
+        }
+        let (data, response) = try await YouTubeMediaTransport.session.data(for: req)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             throw FMP4ParseError.rangeNotSupported
         }

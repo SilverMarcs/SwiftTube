@@ -14,11 +14,8 @@ extension InnerTubeAPI {
     // MARK: - Session
     //
     // Dedicated session for account-bound watchtime calls. Cookie auto-handling
-    // is OFF (no shared cookie storage) so the `Cookie` header we set explicitly
-    // from `YTCookieAuth`'s in-memory snapshot is authoritative. This isolates
-    // the history path from `HTTPCookieStorage.shared`, which `StreamResolver`
-    // strips during anonymous extraction — sharing `self.session` here let that
-    // strip starve the tracking-URL fetch, silently killing watch history.
+    // is OFF, so the explicit header from `YTCookieAuth`'s isolated snapshot is
+    // authoritative and anonymous extraction cannot inherit account state.
     private static let watchtimeSession: URLSession = {
         let config = URLSessionConfiguration.default
         config.httpShouldSetCookies = false
@@ -59,10 +56,9 @@ extension InnerTubeAPI {
             request.setValue(InnerTubeClients.Web.version, forHTTPHeaderField: "X-YouTube-Client-Version")
             request.setValue(authHeader, forHTTPHeaderField: "Authorization")
             request.setValue("https://www.youtube.com", forHTTPHeaderField: "X-Origin")
-            // Explicit Cookie header from YTCookieAuth's snapshot — this session
-            // doesn't auto-attach cookies, and the shared store may be stripped
-            // for a concurrent anonymous extraction. Without account cookies here
-            // YouTube returns no `playbackTracking`, so nothing is recorded.
+            // Explicit Cookie header from YTCookieAuth's snapshot. Without
+            // account cookies YouTube returns no `playbackTracking`, so nothing
+            // is recorded.
             if let cookieHeader = await YTCookieAuth.shared.cookieHeader(for: url) {
                 request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
             }

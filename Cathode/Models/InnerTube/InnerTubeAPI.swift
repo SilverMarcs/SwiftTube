@@ -103,6 +103,11 @@ public actor InnerTubeAPI {
         config.timeoutIntervalForRequest = Self.requestTimeoutInterval
         config.timeoutIntervalForResource = 60
         config.waitsForConnectivity = true
+        // Native API calls are either anonymous or carry explicit OAuth/cookie
+        // headers. Never let WebKit sign-in cookies leak into unrelated player
+        // extraction requests through the shared cookie store.
+        config.httpShouldSetCookies = false
+        config.httpCookieStorage = nil
         self.session = URLSession(configuration: config)
         self.authToken = authToken
         // Start observing network path changes so visitorData is cleared on network transitions.

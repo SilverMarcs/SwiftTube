@@ -9,15 +9,6 @@
         "branch" : "main",
         "revision" : "8468cac2ff3cb0c6d1a94d5c0cacf438508886e2"
       }
-    },
-    {
-      "identity" : "youtubekit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SilverMarcs/YouTubeKit",
-      "state" : {
-        "branch" : "main",
-        "revision" : "bbe321215d9fc65193f8ef5099fde6d98303994e"
-      }
     }
   ],
   "version" : 3

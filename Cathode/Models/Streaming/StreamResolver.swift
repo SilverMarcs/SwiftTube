@@ -1,164 +1,186 @@
 import Foundation
-@preconcurrency import YouTubeKit
 
-/// Resolves YouTube video IDs to AVPlayer-friendly URLs.
-///
-/// Extraction runs on-device via YouTubeKit's `.local` method (JavaScriptCore
-/// cipher solving). The hosted `.remote` server was returning only itag 18
-/// (360p muxed) and dropping every adaptive format, which starved the HLS-proxy
-/// path; `.local` surfaces the full AVC1 + AAC adaptive set the proxy needs.
-enum StreamResolver {
-
-    /// A playable URL plus the moment its underlying googlevideo URLs stop
-    /// being servable. googlevideo grants ~6h per extraction; a player item
-    /// built from this is dead after `expiresAt` even though AVPlayer still
-    /// reports it ready, so callers must re-resolve rather than replay it.
-    struct Resolved {
-        let url: URL
-        let expiresAt: Date
+/// Coordinates extraction, pure source selection, adaptive preparation, and
+/// manifest registration. Each dependency owns one concern and reports typed
+/// failures instead of collapsing every outcome into `nil`.
+actor StreamResolver {
+    enum Freshness: Sendable {
+        case standard
+        case revalidate
     }
 
-    /// Itags we play (video-only + audio-only AVC1/AAC) for HLS stitching.
-    private static let playbackItags: Set<Int> = [
-        134, 135, 136, 137, // AVC1 video-only 30fps: 360p, 480p, 720p, 1080p
-        298, 299,           // AVC1 video-only 60fps: 720p60, 1080p60 — 60fps
-                            // videos publish NO 136/137, so without these a
-                            // 60fps clip caps at itag 135 (480p).
-        139, 140,           // AAC audio-only: 48k, 128k
-    ]
+    static let shared = StreamResolver()
 
-    /// Single proxy server instance reused across every playback. Its
-    /// listener socket dies on app suspension (see HLSProxyServer), so every
-    /// resolve health-checks it via `ensureProxy` and restarts it when dead —
-    /// the old started-once flag left a defunct socket serving nothing, and
-    /// every post-suspension playback spun forever until app relaunch.
-    private static let proxy = HLSProxyServer()
-    private static var proxyStart: Task<Bool, Never>?
+    private let extractor: YouTubeStreamExtractor
+    private let manifests: HLSManifestService
 
-    /// Runs `body` with the user's YouTube/Google auth cookies temporarily
-    /// removed from `HTTPCookieStorage.shared`, then restores them.
-    ///
-    /// YouTubeKit extracts via `URLSession.shared`, which reads the shared
-    /// cookie store. On a signed-in device (tvOS injects the iCloud cookie set
-    /// into `HTTPCookieStorage.shared` for SAPISIDHASH auth) those login cookies
-    /// ride along on the extraction requests; YouTube then serves ciphered `web`
-    /// formats whose signature this YouTubeKit build can't decode, failing with
-    /// `regexMatchError`. Anonymous extraction returns the androidVR plain-URL
-    /// adaptive set the proxy needs.
-    /// `internal`, not `private`: `DownloadManager` reuses this to strip login
-    /// cookies before its own muxed-stream extraction.
-    static func withAnonymousCookies<T>(_ body: () async throws -> T) async rethrows -> T {
-        let storage = HTTPCookieStorage.shared
-        let ytCookies = (storage.cookies ?? []).filter {
-            let d = $0.domain.trimmingCharacters(in: .init(charactersIn: "."))
-            return d.hasSuffix("youtube.com") || d.hasSuffix("google.com")
+    init(
+        extractor: YouTubeStreamExtractor = .shared,
+        manifests: HLSManifestService = .shared
+    ) {
+        self.extractor = extractor
+        self.manifests = manifests
+    }
+
+    func resolvePlaybackSource(
+        videoID: String,
+        freshness: Freshness = .standard,
+        deprioritizing failedKind: PlaybackSource.Kind? = nil
+    ) async throws -> PlaybackSource {
+        let maximumAttempts = freshness == .revalidate ? 2 : 1
+        var lastError: StreamResolutionError?
+
+        for attempt in 0..<maximumAttempts {
+            do {
+                try Task.checkCancellation()
+                let extraction = try await extractor.extract(videoID: videoID)
+                return try await prepareSource(
+                    from: extraction,
+                    deprioritizing: failedKind
+                )
+            } catch let error as StreamExtractionError {
+                if case .cancelled = error { throw StreamResolutionError.cancelled }
+                lastError = .extraction(error)
+            } catch let error as StreamResolutionError {
+                if case .cancelled = error { throw error }
+                lastError = error
+            } catch is CancellationError {
+                throw StreamResolutionError.cancelled
+            } catch {
+                lastError = .extraction(.network(String(describing: error)))
+            }
+
+            if attempt + 1 < maximumAttempts {
+                try await Task.sleep(for: .milliseconds(250))
+            }
         }
-        ytCookies.forEach { storage.deleteCookie($0) }
-        defer { ytCookies.forEach { storage.setCookie($0) } }
-        return try await body()
+
+        throw lastError ?? .noPlayableSource
     }
 
-    /// Returns a localhost HLS URL that AVPlayer can stream — up to 1080p AVC1
-    /// via separate video+audio renditions stitched in a sidx-derived
-    /// byte-range HLS manifest.
-    static func resolveRemoteHLS(id: String) async -> Resolved? {
-        do {
-            let yt = YouTube(videoID: id, methods: [.local])
-            yt.itagFilter = { playbackItags.contains($0) }
-            // The user tapped a video from a feed, so it's known playable — skip
-            // the watchHTML availability fetch (~0.7-1s) and rely on the persisted
-            // js/ytcfg cache. On failure the streams getter retries cold with the
-            // availability check, so private/age-restricted errors still surface.
-            yt.skipAvailabilityCheck = true
-            let streams = try await withAnonymousCookies { try await yt.streams }
+    func resolveProgressiveRequest(
+        videoID: String,
+        freshness: Freshness = .revalidate
+    ) async throws -> URLRequest {
+        let maximumAttempts = freshness == .revalidate ? 2 : 1
+        var lastError: StreamResolutionError?
 
-            guard let video = streams
-                .filterVideoOnly()
-                .filter({ $0.videoCodec?.isNativelyPlayable == true })
-                .highestResolutionStream()
-            else {
-                return nil
+        for attempt in 0..<maximumAttempts {
+            do {
+                try Task.checkCancellation()
+                let extraction = try await extractor.extract(videoID: videoID)
+                if let progressive = PlaybackSourceSelector.progressive(from: extraction.streams) {
+                    var request = URLRequest(url: progressive.url)
+                    request.httpShouldHandleCookies = false
+                    for (header, value) in progressive.requestHeaders {
+                        request.setValue(value, forHTTPHeaderField: header)
+                    }
+                    return request
+                }
+                lastError = .noPlayableSource
+            } catch let error as StreamExtractionError {
+                if case .cancelled = error { throw StreamResolutionError.cancelled }
+                lastError = .extraction(error)
+            } catch is CancellationError {
+                throw StreamResolutionError.cancelled
             }
 
-            // Pick the highest-bitrate AAC-LC track (itag 140, 128k) — matches the
-            // "mp4a.40.2" codec declared in the master playlist below.
-            guard let audio = streams
-                .filterAudioOnly()
-                .filter({ $0.audioCodec == .mp4a })
-                .highestAudioBitrateStream()
-            else {
-                return nil
+            if attempt + 1 < maximumAttempts {
+                try await Task.sleep(for: .milliseconds(250))
             }
-
-            async let videoInfo = FMP4Parser.parse(url: video.url)
-            async let audioInfo = FMP4Parser.parse(url: audio.url)
-            let (vInfo, aInfo) = try await (videoInfo, audioInfo)
-
-            guard let proxy = await ensureProxy() else { return nil }
-            proxy.configure(
-                videoURL: video.url,
-                videoInfo: vInfo,
-                videoCodec: codecString(for: video) ?? "avc1.4d4028",
-                videoBandwidth: video.bitrate ?? 2_000_000,
-                audioURL: audio.url,
-                audioInfo: aInfo,
-                audioCodec: "mp4a.40.2"
-            )
-            guard let url = URL(string: "http://127.0.0.1:\(proxy.boundPort)/master.m3u8?id=\(id)") else {
-                return nil
-            }
-            return Resolved(url: url, expiresAt: expiry(of: video.url, audio.url))
-        } catch {
-            print("StreamResolver.resolveRemoteHLS(\(id)) failed: \(error)")
-            return nil
         }
+
+        throw lastError ?? .noPlayableSource
     }
 
-    // MARK: - Private
+    private func prepareSource(
+        from extraction: YouTubeStreamExtraction,
+        deprioritizing failedKind: PlaybackSource.Kind?
+    ) async throws -> PlaybackSource {
+        // Native HLS preserves adaptive quality without exposing signed media
+        // URLs. Android progressive MP4 is the reliable fallback and supports
+        // arbitrary seeks. Synthesized adaptive HLS remains last-resort only:
+        // some CDN URLs enforce sequential range delivery and can fail when a
+        // player prefetches segments concurrently.
+        var candidates: [PlaybackSource.Kind] = [.nativeHLS, .progressive, .adaptiveHLS]
+        if let failedKind,
+           let failedIndex = candidates.firstIndex(of: failedKind) {
+            candidates.append(candidates.remove(at: failedIndex))
+        }
 
-    /// googlevideo URLs carry their server-side TTL as an `expire` query
-    /// parameter (unix seconds, ~6h from extraction). Takes the earliest
-    /// across the given track URLs; if YouTube ever stops sending it, assumes
-    /// a conservative 4h so the expiry-refresh path still fires.
+        var preparationFailure: StreamResolutionError?
+        for candidate in candidates {
+            switch candidate {
+            case .nativeHLS:
+                if let url = extraction.nativeHLSManifestURL {
+                    return .nativeHLS(url: url, expiresAt: Self.expiry(of: url))
+                }
+            case .adaptiveHLS:
+                guard let pair = PlaybackSourceSelector.adaptivePair(from: extraction.streams) else {
+                    continue
+                }
+                do {
+                    async let videoInfo = FMP4Parser.parse(
+                        url: pair.video.url,
+                        requestHeaders: pair.video.requestHeaders
+                    )
+                    async let audioInfo = FMP4Parser.parse(
+                        url: pair.audio.url,
+                        requestHeaders: pair.audio.requestHeaders
+                    )
+                    let (parsedVideo, parsedAudio) = try await (videoInfo, audioInfo)
+                    let lease = try await manifests.register(
+                        videoURL: pair.video.url,
+                        videoInfo: parsedVideo,
+                        videoCodec: pair.video.videoCodec ?? "avc1.4d4028",
+                        videoBandwidth: max(pair.video.bitrate, 2_000_000),
+                        videoRequestHeaders: pair.video.requestHeaders,
+                        audioURL: pair.audio.url,
+                        audioInfo: parsedAudio,
+                        audioCodec: pair.audio.audioCodec ?? "mp4a.40.2",
+                        audioRequestHeaders: pair.audio.requestHeaders
+                    )
+                    return .adaptive(
+                        lease: lease,
+                        expiresAt: Self.expiry(of: pair.video.url, pair.audio.url)
+                    )
+                } catch let error as StreamResolutionError {
+                    preparationFailure = error
+                } catch is CancellationError {
+                    throw StreamResolutionError.cancelled
+                } catch {
+                    preparationFailure = .adaptivePreparation(String(describing: error))
+                }
+            case .progressive:
+                if let progressive = PlaybackSourceSelector.progressive(from: extraction.streams) {
+                    return .progressive(
+                        url: progressive.url,
+                        expiresAt: Self.expiry(of: progressive.url)
+                    )
+                }
+            case .local:
+                continue
+            }
+        }
+
+        throw preparationFailure ?? .noPlayableSource
+    }
+
     private static func expiry(of urls: URL...) -> Date {
-        let stamps = urls
+        let queryTimestamps = urls
             .compactMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems }
             .compactMap { items in items.first(where: { $0.name == "expire" })?.value }
             .compactMap(TimeInterval.init)
-        guard let earliest = stamps.min() else {
+        let pathTimestamps = urls.compactMap { url -> TimeInterval? in
+            let parts = url.pathComponents
+            guard let expireIndex = parts.firstIndex(of: "expire"),
+                  parts.indices.contains(parts.index(after: expireIndex))
+            else { return nil }
+            return TimeInterval(parts[parts.index(after: expireIndex)])
+        }
+        guard let earliest = (queryTimestamps + pathTimestamps).min() else {
             return Date().addingTimeInterval(4 * 3600)
         }
         return Date(timeIntervalSince1970: earliest)
     }
-
-    /// Returns the proxy only after proving its listener accepts connections,
-    /// (re)starting it otherwise. Concurrent resolves share one in-flight
-    /// start via `proxyStart` instead of racing two listeners.
-    private static func ensureProxy() async -> HLSProxyServer? {
-        if await proxy.healthCheck() { return proxy }
-        if proxyStart == nil {
-            proxyStart = Task {
-                do {
-                    try await proxy.start()
-                    return true
-                } catch {
-                    print("StreamResolver: HLSProxyServer (re)start failed: \(error)")
-                    return false
-                }
-            }
-        }
-        guard let task = proxyStart else { return nil }
-        let ok = await task.value
-        proxyStart = nil
-        return ok ? proxy : nil
-    }
-
-    private static func codecString(for stream: YouTubeKit.Stream) -> String? {
-        switch stream.videoCodec {
-        case .avc1(let v): return v.isEmpty ? "avc1.4d4028" : "avc1.\(v)"
-        case .av1(let v): return v.isEmpty ? "av01.0.05M.08" : "av01.\(v)"
-        default: return nil
-        }
-    }
 }
-

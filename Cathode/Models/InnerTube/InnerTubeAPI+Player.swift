@@ -10,9 +10,9 @@ extension InnerTubeAPI {
     /// Fetches video metadata (title, author, description, duration, view count)
     /// from the InnerTube `/player` endpoint via the iOS client.
     ///
-    /// Stream extraction no longer lives here — playback resolves on-device via
-    /// YouTubeKit in `StreamResolver`. This call survives only as a metadata
-    /// source for description backfill and deep-link `Video` construction.
+    /// Stream extraction no longer lives here. This call survives only as a
+    /// metadata source for description backfill and deep-link `Video`
+    /// construction; `YouTubeStreamExtractor` owns media URL retrieval.
     public func fetchPlayerInfo(videoId: String) async throws -> PlayerInfo {
         var body = makeBody(client: iosClientContext)
         body["videoId"] = videoId

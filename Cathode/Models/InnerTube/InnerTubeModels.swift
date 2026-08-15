@@ -43,7 +43,7 @@ public struct PlaybackTrackingURLs: Sendable {
 }
 
 /// Video metadata returned by the InnerTube `/player` endpoint. Stream URLs are
-/// no longer carried here — playback resolves on-device via YouTubeKit.
+/// no longer carried here — playback resolves through `YouTubeStreamExtractor`.
 public struct PlayerInfo: Sendable {
     public let video: Video
 }

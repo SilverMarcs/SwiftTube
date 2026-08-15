@@ -1,38 +1,34 @@
 //
-//  NativeVideoManager.swift
-//  SwiftTube
-//
-//  Created by Zabir Raihan on 15/10/2025.
+//  VideoManager.swift
+//  Cathode
 //
 
 import AVFoundation
 import AVKit
 import Foundation
 
+@MainActor
 @Observable
-class VideoManager {
-    private(set) var currentVideo: Video? = nil
+final class VideoManager {
+    private(set) var currentVideo: Video?
     private(set) var player: AVPlayer?
 
-    var isExpanded: Bool = false
-    var isSetting: Bool = false
-    /// Human-readable error to surface in the player view when stream
-    /// resolution fails outright. Cleared at the start of every `setVideo`.
-    private(set) var playbackError: String?
+    var isExpanded = false
+    var showUpNext = false
 
-    /// Related "up next" videos for the current video, from InnerTube's `/next`
-    /// endpoint. Powers the tvOS content proposal + Related tab and the
-    /// iOS/macOS end-of-video sheet. Empty until the async fetch resolves.
+    private var playbackSession: PlaybackSession?
+
+    var isSetting: Bool {
+        playbackSession?.phase.isLoading ?? false
+    }
+
+    var playbackError: String? {
+        guard case .failed(let failure) = playbackSession?.phase else { return nil }
+        return failure.errorDescription
+    }
+
     private(set) var upNextVideos: [Video] = []
-
-    /// True while the `/next` related-videos fetch is in flight, so the tvOS
-    /// Related tab can show a spinner instead of an empty state during load.
     private(set) var isLoadingUpNext = false
-
-    /// Set true when the current item plays to its end (iOS/macOS only) so the
-    /// up-next sheet presents. tvOS uses the native `AVContentProposal` instead,
-    /// so this stays false there.
-    var showUpNext: Bool = false
 
     let sponsor = SponsorTracker()
 
@@ -40,109 +36,92 @@ class VideoManager {
     private let watchtime = WatchtimeReporter()
 
     @ObservationIgnored
-    private var timeObserverToken: Any?
-
-    /// Tracks the in-flight `loadVideoStream` task so a rapid second
-    /// `setVideo` can cancel the stale one and avoid races where a
-    /// late-arriving resolve replaces the newer video's player item.
-    @ObservationIgnored
     private var loadingTask: Task<Void, Never>?
 
-    /// In-flight `/next` related-videos fetch, cancelled on each `setVideo`.
     @ObservationIgnored
     private var upNextTask: Task<Void, Never>?
 
-    /// When the current player item's googlevideo URLs stop being servable
-    /// (from `StreamResolver.Resolved.expiresAt`). Nil for local downloads,
-    /// which never expire. `refreshExpiredStream()` consults this on scene
-    /// activation.
     @ObservationIgnored
-    private var streamExpiresAt: Date?
+    private var timeObserverToken: Any?
 
-    /// `AVPlayerItemDidPlayToEndTime` observer for the current item, used to
-    /// surface the up-next overlay when a video finishes.
     @ObservationIgnored
     private var endObserver: NSObjectProtocol?
 
-    /// KVO on the current item's `status`, driving the item-health watcher
-    /// (`observeItemHealth`). Replaced whenever a new item installs.
     @ObservationIgnored
     private var statusObservation: NSKeyValueObservation?
 
-    /// `AVPlayerItemFailedToPlayToEndTime` observer for the current item —
-    /// mid-play fatal errors don't always flip `status` to `.failed`, so both
-    /// signals route into `handleItemFailure`.
     @ObservationIgnored
     private var failObserver: NSObjectProtocol?
 
-    /// Armed when the current item first reaches `.readyToPlay`; a later
-    /// failure consumes it for one automatic in-place reload. A failure while
-    /// disarmed (never got ready, or the reload itself died) surfaces the
-    /// error instead, so a dead network can't spin an infinite resolve loop.
     @ObservationIgnored
-    private var autoReloadArmed = false
+    private var timeJumpObserver: NSObjectProtocol?
 
-    /// The item whose failure was already handled. `.failed` KVO and
-    /// FailedToPlayToEndTime can both fire for one death; the second callback
-    /// must not re-enter `handleItemFailure` and clobber the in-flight reload.
-    @ObservationIgnored
-    private var handledFailureItem: AVPlayerItem?
-
-    // MARK: - Sponsor passthroughs (kept for call-site stability)
     var sponsorSegments: [SponsorSegment] { sponsor.segments }
     var currentSponsorSegment: SponsorSegment? { sponsor.currentSegment }
 
-    deinit {
-        if let token = timeObserverToken {
-            player?.removeTimeObserver(token)
+    isolated deinit {
+        if let timeObserverToken {
+            player?.removeTimeObserver(timeObserverToken)
         }
         removeEndObserver()
         removeHealthObservers()
     }
 
+    // MARK: - Player observation
+
     private func attachPeriodicObserver(to player: AVPlayer) {
-        if let token = timeObserverToken {
-            player.removeTimeObserver(token)
-            timeObserverToken = nil
+        if let timeObserverToken {
+            self.player?.removeTimeObserver(timeObserverToken)
+            self.timeObserverToken = nil
         }
+
         let interval = CMTime(seconds: 1, preferredTimescale: 600)
         timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
-            guard let self, let player = self.player else { return }
-            let seconds = player.currentTime().seconds
-            if seconds.isFinite {
-                self.sponsor.refresh(playerSeconds: seconds)
-            }
-            if let videoId = self.currentVideo?.id,
-               seconds.isFinite, seconds > 0, player.timeControlStatus == .playing {
-                self.watchtime.report(videoId: videoId, position: seconds, isFinal: false)
+            Task { @MainActor [weak self] in
+                self?.handlePeriodicPlaybackUpdate()
             }
         }
     }
 
-    // MARK: - Up Next
+    private func handlePeriodicPlaybackUpdate() {
+        guard let player,
+              let item = player.currentItem,
+              item.status == .readyToPlay,
+              var session = playbackSession,
+              session.videoID == currentVideo?.id,
+              case .ready = session.phase
+        else { return }
 
-    /// Kicks off the InnerTube `/next` fetch for the given video's related
-    /// videos. Cancels any in-flight fetch and clears stale state so the
-    /// overlay/proposal never shows the previous video's suggestions.
-    private func fetchUpNext(for video: Video) {
-        upNextTask?.cancel()
-        upNextVideos = []
-        showUpNext = false
-        isLoadingUpNext = true
-        upNextTask = Task { [weak self] in
-            guard let self else { return }
-            let info = try? await InnerTubeAPI.shared.fetchNextInfo(videoId: video.id)
-            await MainActor.run {
-                guard self.currentVideo?.id == video.id else { return }
-                self.upNextVideos = info?.relatedVideos ?? []
-                self.isLoadingUpNext = false
-            }
+        let seconds = player.currentTime().seconds
+        guard seconds.isFinite else { return }
+        session.position.recordStablePosition(seconds)
+        sponsor.refresh(playerSeconds: seconds)
+
+        if player.rate > 0 {
+            // AVPlayer can be waiting with a non-zero requested rate. Preserve
+            // that play intent so a failure during buffering resumes playing.
+            session.intent = .playing
         }
+
+        switch player.timeControlStatus {
+        case .playing:
+            session.intent = .playing
+            session.recovery.recordStablePlayback()
+            if seconds > 0 {
+                watchtime.report(videoId: session.videoID, position: seconds, isFinal: false)
+            }
+        case .paused:
+            session.intent = .paused
+            session.recovery.pauseStabilityClock()
+        case .waitingToPlayAtSpecifiedRate:
+            session.recovery.pauseStabilityClock()
+        @unknown default:
+            session.recovery.pauseStabilityClock()
+        }
+
+        playbackSession = session
     }
 
-    /// Registers a one-shot end-of-playback observer for `item`, replacing any
-    /// previous one. On iOS/macOS this raises the up-next overlay; tvOS relies
-    /// on the native content proposal so it only persists the final position.
     private func observeItemEnd(_ item: AVPlayerItem) {
         removeEndObserver()
         endObserver = NotificationCenter.default.addObserver(
@@ -150,7 +129,9 @@ class VideoManager {
             object: item,
             queue: .main
         ) { [weak self] _ in
-            self?.handlePlaybackEnded()
+            Task { @MainActor [weak self] in
+                self?.handlePlaybackEnded()
+            }
         }
     }
 
@@ -161,36 +142,46 @@ class VideoManager {
         }
     }
 
-    // MARK: - Item health
-
-    /// Watches `item` for the rest of its life and reloads the stream in
-    /// place when it dies. Wall-clock expiry tracking alone missed items that
-    /// die *before* the ~6h googlevideo TTL — media-services reset during a
-    /// long suspension, or googlevideo 403ing early after a network hop (the
-    /// URLs are IP-locked) — leaving a player that ignored play until app
-    /// relaunch (2026-07 "backgrounded a while, current video won't load").
-    /// Also subsumes the old one-shot `awaitPlayerItemReady` error check:
-    /// a failure before first ready surfaces the resolution error.
-    private func observeItemHealth(_ item: AVPlayerItem, for video: Video) {
+    private func observeItemHealth(
+        _ item: AVPlayerItem,
+        for video: Video,
+        token: PlaybackLoadToken
+    ) {
         removeHealthObservers()
-        autoReloadArmed = false
-        handledFailureItem = nil
+        playbackSession?.recovery.prepareForReplacementItem()
+
         statusObservation = item.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 switch item.status {
-                case .readyToPlay: self.autoReloadArmed = true
-                case .failed: self.handleItemFailure(item, for: video)
-                default: break
+                case .readyToPlay:
+                    self.handleItemReady(item, token: token)
+                case .failed:
+                    self.handleItemFailure(item, for: video, token: token)
+                default:
+                    break
                 }
             }
         }
+
         failObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemFailedToPlayToEndTime,
             object: item,
             queue: .main
         ) { [weak self] _ in
-            self?.handleItemFailure(item, for: video)
+            Task { @MainActor [weak self] in
+                self?.handleItemFailure(item, for: video, token: token)
+            }
+        }
+
+        timeJumpObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemTimeJumped,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.handleTimeJump(item, token: token)
+            }
         }
     }
 
@@ -201,37 +192,78 @@ class VideoManager {
             NotificationCenter.default.removeObserver(failObserver)
             self.failObserver = nil
         }
+        if let timeJumpObserver {
+            NotificationCenter.default.removeObserver(timeJumpObserver)
+            self.timeJumpObserver = nil
+        }
     }
 
-    /// One automatic in-place reload when the current item dies after having
-    /// been ready, resuming at the local playhead (a `.failed` item still
-    /// reports its last `currentTime`). Never autoplays — same conservative
-    /// choice as `refreshExpiredStream`.
-    private func handleItemFailure(_ item: AVPlayerItem, for video: Video) {
-        guard item !== handledFailureItem else { return }
-        guard currentVideo?.id == video.id, player?.currentItem === item else { return }
-        handledFailureItem = item
+    private func handleItemReady(_ item: AVPlayerItem, token: PlaybackLoadToken) {
+        guard player?.currentItem === item,
+              var session = playbackSession,
+              session.matches(token)
+        else { return }
 
-        guard autoReloadArmed else {
-            surfaceStreamResolutionError(for: video)
-            return
-        }
-        autoReloadArmed = false
+        session.markItemReady()
+        playbackSession = session
 
-        let seconds = player?.currentTime().seconds
-        let resumeAt = (seconds?.isFinite == true) ? seconds : nil
-
-        loadingTask?.cancel()
-        player?.pause()
-        isSetting = true
-        playbackError = nil
-
-        loadingTask = Task { [weak self] in
-            await self?.loadVideoStream(for: video, autoPlay: false, resumeAt: resumeAt)
-            if self?.currentVideo?.id == video.id {
-                self?.isSetting = false
+        if case .ready = session.phase {
+            if session.intent == .playing {
+                player?.play()
+            } else {
+                player?.pause()
             }
         }
+    }
+
+    private func handleTimeJump(_ item: AVPlayerItem, token: PlaybackLoadToken) async {
+        // Failure handling also invalidates the load token. Waiting briefly
+        // prevents AVPlayer's failed-segment rollback from masquerading as a
+        // user seek while still recording genuine native-control seeks.
+        try? await Task.sleep(for: .milliseconds(100))
+        guard item.status == .readyToPlay,
+              player?.currentItem === item,
+              var session = playbackSession,
+              session.matches(token)
+        else { return }
+
+        session.position.recordStablePosition(item.currentTime().seconds)
+        playbackSession = session
+    }
+
+    private func handleItemFailure(
+        _ item: AVPlayerItem,
+        for video: Video,
+        token: PlaybackLoadToken
+    ) {
+        guard player?.currentItem === item,
+              var session = playbackSession,
+              session.matches(token),
+              session.videoID == video.id
+        else { return }
+
+        session.recovery.pauseStabilityClock()
+        let failedSourceKind = session.source?.kind
+        let failureDetails = Self.playbackFailureDetails(for: item)
+        print("Playback failed for \(video.id) using \(String(describing: failedSourceKind)): \(failureDetails)")
+        guard let attempt = session.recovery.consumeAutomaticRecovery() else {
+            playbackSession = session
+            surfacePlaybackFailure(
+                .player(item.error?.localizedDescription),
+                for: video,
+                sessionID: token.sessionID
+            )
+            return
+        }
+
+        playbackSession = session
+        player?.pause()
+        startLoading(
+            video,
+            reason: .automaticRecovery(attempt: attempt),
+            freshness: .revalidate,
+            deprioritizing: failedSourceKind
+        )
     }
 
     private func handlePlaybackEnded() {
@@ -242,215 +274,352 @@ class VideoManager {
         #endif
     }
 
+    // MARK: - Selection and recovery
+
     func setVideo(_ video: Video, autoPlay: Bool = true) {
         isExpanded = autoPlay
         persistCurrentTime()
-
         guard video.id != currentVideo?.id else { return }
 
-        // Cancel any pending load from a previous tap and pause the outgoing
-        // player immediately so there's no audio overlap while the new stream
-        // resolves.
         loadingTask?.cancel()
         player?.pause()
         watchtime.finalize(playerPosition: player?.currentTime().seconds)
-        isSetting = true
 
         currentVideo = video
+        playbackSession = PlaybackSession(videoID: video.id, autoPlay: autoPlay)
         sponsor.reset()
-        playbackError = nil
-        streamExpiresAt = nil
         fetchUpNext(for: video)
-
         watchtime.begin(for: video)
 
-        loadingTask = Task { [weak self] in
-            await self?.loadVideoStream(for: video, autoPlay: autoPlay)
-            if self?.currentVideo?.id == video.id {
-                self?.isSetting = false
-            }
-        }
+        startLoading(video, reason: .initial, freshness: .standard)
     }
 
-
-
-    /// Re-attempts stream resolution for the current video after a playback
-    /// error. Re-uses the `setVideo` pipeline but skips its same-id guard so
-    /// the user can recover from transient resolve failures without leaving
-    /// the player.
     func retryPlayback() {
-        guard let video = currentVideo else { return }
-        loadingTask?.cancel()
+        guard let video = currentVideo,
+              var session = playbackSession
+        else { return }
+
+        recordCurrentPositionIfHealthy(in: &session)
+        session.intent = .playing
+        session.recovery.reset()
+        playbackSession = session
+
         player?.pause()
         watchtime.finalize(playerPosition: player?.currentTime().seconds)
-        isSetting = true
-        playbackError = nil
         sponsor.reset()
         showUpNext = false
-
         watchtime.begin(for: video)
 
-        loadingTask = Task { [weak self] in
-            await self?.loadVideoStream(for: video, autoPlay: true)
-            if self?.currentVideo?.id == video.id {
-                self?.isSetting = false
-            }
-        }
+        startLoading(video, reason: .manualRetry, freshness: .revalidate)
     }
 
-    /// Re-resolves the current video's stream in place when its googlevideo
-    /// URLs have expired (~6h TTL). Without this, a video left paused across a
-    /// long suspension keeps an AVPlayer item that looks ready but 403s on
-    /// every byte-range request — play does nothing and the user had to switch
-    /// to another video and back to force a refetch. Called on scene
-    /// activation; keeps the local playhead and never autoplays. Cheap no-op
-    /// while the stream is still fresh.
     func refreshExpiredStream() {
         guard let video = currentVideo,
-              player != nil,
-              let expiresAt = streamExpiresAt,
-              // 5-minute margin so we don't hand back a stream that dies
-              // moments after the user presses play.
+              let player,
+              var session = playbackSession,
+              case .ready = session.phase,
+              player.timeControlStatus == .paused,
+              player.rate == 0,
+              let expiresAt = session.source?.expiresAt,
               Date().addingTimeInterval(5 * 60) >= expiresAt
         else { return }
 
-        let seconds = player?.currentTime().seconds
-        let resumeAt = (seconds?.isFinite == true) ? seconds : nil
+        recordCurrentPositionIfHealthy(in: &session)
+        session.intent = .paused
+        session.recovery.reset()
+        playbackSession = session
+        player.pause()
 
+        startLoading(video, reason: .expirationRefresh, freshness: .revalidate)
+    }
+
+    private func startLoading(
+        _ video: Video,
+        reason: PlaybackSession.LoadReason,
+        freshness: StreamResolver.Freshness,
+        deprioritizing failedSourceKind: PlaybackSource.Kind? = nil
+    ) {
         loadingTask?.cancel()
-        player?.pause()
-        isSetting = true
-        playbackError = nil
+        guard var session = playbackSession,
+              session.videoID == video.id
+        else { return }
+
+        let token = session.beginLoad(reason: reason)
+        playbackSession = session
 
         loadingTask = Task { [weak self] in
-            await self?.loadVideoStream(for: video, autoPlay: false, resumeAt: resumeAt)
-            if self?.currentVideo?.id == video.id {
-                self?.isSetting = false
+            guard let self else { return }
+            await self.loadVideoStream(
+                for: video,
+                token: token,
+                reason: reason,
+                freshness: freshness,
+                deprioritizing: failedSourceKind
+            )
+            guard self.playbackSession?.matches(token) == true else { return }
+            self.loadingTask = nil
+        }
+    }
+
+    private func loadVideoStream(
+        for video: Video,
+        token: PlaybackLoadToken,
+        reason: PlaybackSession.LoadReason,
+        freshness: StreamResolver.Freshness,
+        deprioritizing failedSourceKind: PlaybackSource.Kind?
+    ) async {
+        guard isCurrent(token), !Task.isCancelled else { return }
+        let plannedResumeAt = resumePosition(for: video)
+
+        let source: PlaybackSource
+        #if os(iOS)
+        if failedSourceKind != .local,
+           let localURL = DownloadManager.shared.localURL(for: video.id) {
+            source = .local(url: localURL)
+        } else {
+            do {
+                source = try await StreamResolver.shared.resolvePlaybackSource(
+                    videoID: video.id,
+                    freshness: freshness,
+                    deprioritizing: failedSourceKind
+                )
+            } catch let error as StreamResolutionError {
+                guard !Task.isCancelled, isCurrent(token), !Self.isCancellation(error) else { return }
+                surfacePlaybackFailure(.stream(error), for: video, sessionID: token.sessionID)
+                return
+            } catch {
+                guard !Task.isCancelled, isCurrent(token) else { return }
+                surfacePlaybackFailure(
+                    .stream(.extraction(.network(String(describing: error)))),
+                    for: video,
+                    sessionID: token.sessionID
+                )
+                return
             }
         }
-    }
-
-    /// Called when stream resolution returns nothing. Leaves `currentVideo`
-    /// set (so the mini-player still shows the title/thumb) but clears the
-    /// AVPlayer and publishes a user-facing error string the player views
-    /// render in place of the missing video surface.
-    private func surfaceStreamResolutionError(for video: Video) {
-        guard currentVideo?.id == video.id else { return }
-        if let token = timeObserverToken {
-            player?.removeTimeObserver(token)
-            timeObserverToken = nil
-        }
-        removeEndObserver()
-        removeHealthObservers()
-        player?.pause()
-        player = nil
-        playbackError = "This video can't be played right now. YouTube didn't return a playable stream."
-        isSetting = false
-    }
-
-    func togglePlayPause() {
-        guard let player else { return }
-        if player.timeControlStatus == .playing {
-            player.pause()
-        } else {
-            player.play()
-        }
-    }
-
-    /// Whether playback is currently active, for UI affordances like the
-    /// mini-player play/pause icon.
-    var isPlaying: Bool {
-        player?.timeControlStatus == .playing
-    }
-
-    // MARK: - Private Methods
-    private func resolveStream(id: String) async -> StreamResolver.Resolved? {
-        if Task.isCancelled { return nil }
-        return await StreamResolver.resolveRemoteHLS(id: id)
-    }
-
-    private func loadVideoStream(for video: Video, autoPlay: Bool, resumeAt: Double? = nil) async {
-        // If the requested video is no longer the current one, abort this task.
-        guard currentVideo?.id == video.id, !Task.isCancelled else { return }
-
-        let url: URL
-        var expiresAt: Date?
-        #if os(iOS)
-        if let local = DownloadManager.shared.localURL(for: video.id) {
-            url = local
-        } else if let streamed = await resolveStream(id: video.id) {
-            url = streamed.url
-            expiresAt = streamed.expiresAt
-        } else {
-            await MainActor.run { self.surfaceStreamResolutionError(for: video) }
-            return
-        }
         #else
-        if let streamed = await resolveStream(id: video.id) {
-            url = streamed.url
-            expiresAt = streamed.expiresAt
-        } else {
-            await MainActor.run { self.surfaceStreamResolutionError(for: video) }
+        do {
+            source = try await StreamResolver.shared.resolvePlaybackSource(
+                videoID: video.id,
+                freshness: freshness,
+                deprioritizing: failedSourceKind
+            )
+        } catch let error as StreamResolutionError {
+            guard !Task.isCancelled, isCurrent(token), !Self.isCancellation(error) else { return }
+            surfacePlaybackFailure(.stream(error), for: video, sessionID: token.sessionID)
+            return
+        } catch {
+            guard !Task.isCancelled, isCurrent(token) else { return }
+            surfacePlaybackFailure(
+                .stream(.extraction(.network(String(describing: error)))),
+                for: video,
+                sessionID: token.sessionID
+            )
             return
         }
         #endif
-        if Task.isCancelled { return }
-        streamExpiresAt = expiresAt
 
-        let playerItem = AVPlayerItem(url: url)
+        guard !Task.isCancelled,
+              var session = playbackSession,
+              session.matches(token)
+        else { return }
+
+        session.phase = .installing(reason)
+        session.source = source
+        playbackSession = session
+
+        let playerItem = AVPlayerItem(url: source.url)
         playerItem.preferredForwardBufferDuration = 30
         observeItemEnd(playerItem)
-        observeItemHealth(playerItem, for: video)
+        observeItemHealth(playerItem, for: video, token: token)
 
-        // Ensure we're still targeting the same video before mutating the player
-        guard currentVideo?.id == video.id, !Task.isCancelled else { return }
+        guard !Task.isCancelled, isCurrent(token) else { return }
         if let existingPlayer = player {
             existingPlayer.pause()
             existingPlayer.replaceCurrentItem(with: playerItem)
         } else {
-            let newPlayer = AVPlayer()
+            let newPlayer = AVPlayer(playerItem: playerItem)
             newPlayer.pause()
-            newPlayer.replaceCurrentItem(with: playerItem)
             newPlayer.automaticallyWaitsToMinimizeStalling = true
             player = newPlayer
             attachPeriodicObserver(to: newPlayer)
         }
 
         #if !os(macOS)
-        // Set externalMetadata AFTER replaceCurrentItem so AVPlayerViewController
-        // observes it as a change on the currentItem (same timing as chapters).
-        let externalMeta = await PlayerMetadataBuilder.externalMetadata(for: video)
-        guard currentVideo?.id == video.id, !Task.isCancelled else { return }
-        playerItem.externalMetadata = externalMeta
+        let externalMetadata = await PlayerMetadataBuilder.externalMetadata(for: video)
+        guard !Task.isCancelled,
+              isCurrent(token),
+              player?.currentItem === playerItem
+        else { return }
+        playerItem.externalMetadata = externalMetadata
         #endif
 
-        let savedProgress: Double
-        if let resumeAt {
-            savedProgress = resumeAt
-        } else {
-            savedProgress = await MainActor.run { LibraryStore.shared.resumeSeconds(for: video) ?? 0 }
-        }
-        if savedProgress > 5 {
-            let time = CMTime(seconds: savedProgress, preferredTimescale: 1)
-            guard currentVideo?.id == video.id else { return }
-            await player?.seek(to: time)
+        if let resumeAt = plannedResumeAt,
+           source.supportsArbitrarySeeking {
+            let time = CMTime(seconds: resumeAt, preferredTimescale: 600)
+            guard !Task.isCancelled,
+                  isCurrent(token),
+                  player?.currentItem === playerItem
+            else { return }
+            await player?.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
+            guard !Task.isCancelled,
+                  isCurrent(token),
+                  player?.currentItem === playerItem
+            else { return }
+            playbackSession?.position.recordStablePosition(resumeAt)
         }
 
-        if autoPlay {
+        guard let intent = playbackSession?.intent,
+              isCurrent(token),
+              player?.currentItem === playerItem
+        else { return }
+        if intent == .playing {
             player?.play()
+        } else {
+            player?.pause()
         }
 
-        await applyNavigationMarkers(for: video, on: playerItem)
+        guard var installedSession = playbackSession,
+              installedSession.matches(token)
+        else { return }
+        installedSession.markInstallationCompleted()
+        playbackSession = installedSession
+
+        await applyNavigationMarkers(for: video, on: playerItem, token: token)
     }
 
-    // MARK: - Navigation Markers (chapters + sponsor segments)
-    private func applyNavigationMarkers(for video: Video, on playerItem: AVPlayerItem) async {
+    private func resumePosition(for video: Video) -> Double? {
+        if let trackedPosition = playbackSession?.position.seconds,
+           trackedPosition > 0.25 {
+            // Session recovery should preserve even an early playhead. The
+            // five-second threshold only applies to persisted history resume.
+            return trackedPosition
+        }
+        let savedPosition = LibraryStore.shared.resumeSeconds(for: video) ?? 0
+        return savedPosition > 5 ? savedPosition : nil
+    }
+
+    private func surfacePlaybackFailure(
+        _ failure: PlaybackFailure,
+        for video: Video,
+        sessionID: UUID
+    ) {
+        guard currentVideo?.id == video.id,
+              var session = playbackSession,
+              session.id == sessionID
+        else { return }
+
+        if let timeObserverToken {
+            player?.removeTimeObserver(timeObserverToken)
+            self.timeObserverToken = nil
+        }
+        removeEndObserver()
+        removeHealthObservers()
+        player?.pause()
+        watchtime.finalize(playerPosition: session.position.seconds)
+        player = nil
+        session.source = nil
+        session.phase = .failed(failure)
+        playbackSession = session
+    }
+
+    private static func isCancellation(_ error: StreamResolutionError) -> Bool {
+        if case .cancelled = error { return true }
+        return false
+    }
+
+    private static func playbackFailureDetails(for item: AVPlayerItem) -> String {
+        var details: [String] = []
+        if let error = item.error as NSError? {
+            details.append("error=\(error.domain)/\(error.code) \(error.localizedDescription)")
+            if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+                details.append(
+                    "underlying=\(underlying.domain)/\(underlying.code) \(underlying.localizedDescription)"
+                )
+            }
+        }
+        if let events = item.errorLog()?.events, !events.isEmpty {
+            let eventDetails = events.suffix(3).map { event in
+                "status=\(event.errorStatusCode) domain=\(event.errorDomain) "
+                    + "comment=\(event.errorComment ?? "none") uri=\(event.uri ?? "none")"
+            }
+            details.append(contentsOf: eventDetails)
+        }
+        return details.isEmpty ? "no AVFoundation error details" : details.joined(separator: " | ")
+    }
+
+    private func isCurrent(_ token: PlaybackLoadToken) -> Bool {
+        playbackSession?.matches(token) == true && currentVideo?.id == token.videoID
+    }
+
+    private func recordCurrentPositionIfHealthy(in session: inout PlaybackSession) {
+        guard let item = player?.currentItem,
+              item.status == .readyToPlay,
+              let seconds = player?.currentTime().seconds
+        else { return }
+        session.position.recordStablePosition(seconds)
+    }
+
+    // MARK: - Playback controls
+
+    func togglePlayPause() {
+        guard let player,
+              var session = playbackSession
+        else { return }
+
+        if player.timeControlStatus == .playing {
+            session.intent = .paused
+            session.recovery.pauseStabilityClock()
+            player.pause()
+        } else {
+            session.intent = .playing
+            player.play()
+        }
+        playbackSession = session
+    }
+
+    var isPlaying: Bool {
+        player?.timeControlStatus == .playing
+    }
+
+    func skipCurrentSponsorSegment() {
+        guard let player,
+              let endSeconds = sponsor.consumeActiveSegmentEnd()
+        else { return }
+        player.seek(to: CMTime(seconds: endSeconds, preferredTimescale: 600))
+    }
+
+    // MARK: - Up next and metadata
+
+    private func fetchUpNext(for video: Video) {
+        upNextTask?.cancel()
+        upNextVideos = []
+        showUpNext = false
+        isLoadingUpNext = true
+        upNextTask = Task { [weak self] in
+            guard let self else { return }
+            let info = try? await InnerTubeAPI.shared.fetchNextInfo(videoId: video.id)
+            guard self.currentVideo?.id == video.id else { return }
+            self.upNextVideos = info?.relatedVideos ?? []
+            self.isLoadingUpNext = false
+        }
+    }
+
+    private func applyNavigationMarkers(
+        for video: Video,
+        on playerItem: AVPlayerItem,
+        token: PlaybackLoadToken
+    ) async {
         async let descriptionChapters = DescriptionChapterParser.parse(video.description ?? "")
         async let sponsors = SponsorBlockService.fetchSponsorSegments(for: video.id)
         let chapters = await descriptionChapters
         let segments = await sponsors
 
-        guard self.currentVideo?.id == video.id else { return }
+        guard !Task.isCancelled,
+              isCurrent(token),
+              player?.currentItem === playerItem
+        else { return }
+
         sponsor.update(segments: segments)
         if let seconds = player?.currentTime().seconds, seconds.isFinite {
             sponsor.refresh(playerSeconds: seconds)
@@ -468,24 +637,19 @@ class VideoManager {
         #endif
     }
 
-    func skipCurrentSponsorSegment() {
-        guard let player, let endSeconds = sponsor.consumeActiveSegmentEnd() else { return }
-        player.seek(to: CMTime(seconds: endSeconds, preferredTimescale: 600))
-    }
-
     // MARK: - Persistence
 
-    /// Flushes a final YouTube watchtime segment on state transitions
-    /// (play/pause/end) and view lifecycle. YouTube is the source of truth for
-    /// resume position — feed/history rows return `Video.watchProgress` which
-    /// `LibraryStore.resumeSeconds(for:)` consumes.
     func persistCurrentTime() {
-        if isSetting { return }
-        guard let videoId = currentVideo?.id, let player else { return }
+        guard !isSetting,
+              let videoID = currentVideo?.id,
+              let player,
+              let item = player.currentItem,
+              item.status == .readyToPlay
+        else { return }
+
         let seconds = player.currentTime().seconds
         guard seconds.isFinite, seconds > 0 else { return }
-        // Bypass the 5s throttle so the last bit watched before pause/end
-        // isn't lost.
-        watchtime.report(videoId: videoId, position: seconds, isFinal: true)
+        playbackSession?.position.recordStablePosition(seconds)
+        watchtime.report(videoId: videoID, position: seconds, isFinal: true)
     }
 }

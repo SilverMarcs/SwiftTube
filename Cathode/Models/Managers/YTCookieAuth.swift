@@ -10,9 +10,8 @@
 //  live in `WKWebsiteDataStore.default()`.
 //
 //  tvOS: no WebKit, so no interactive sign-in. Instead, the cookie set is
-//  pulled from iCloud Keychain (written by an iOS device that did sign in)
-//  and injected into `HTTPCookieStorage.shared` so URLSession-based InnerTube
-//  calls and the SAPISIDHASH header can act on behalf of the account.
+//  pulled from iCloud KVS (written by an iOS device that did sign in) and kept
+//  in this actor-isolated snapshot. Native requests attach it explicitly.
 //
 //  For native AVPlayer playback, we extract the `SAPISID` cookie, compute the
 //  SAPISIDHASH header YouTube's web client uses, and attach it to authenticated
@@ -48,12 +47,9 @@ public final class YTCookieAuth {
     /// Refreshed every time `refreshSignInState()` runs.
     private(set) var sapisid: String?
 
-    /// In-memory snapshot of the user's YouTube/Google auth cookies, refreshed
-    /// on every `refreshSignInState()`. The watchtime/history path reads this
-    /// instead of `HTTPCookieStorage.shared` because `StreamResolver`
-    /// transiently strips that shared store to force anonymous extraction
-    /// (ciphered `web` formats fail when login cookies ride along). Reading a
-    /// private snapshot keeps account-bound tracking alive across that strip.
+    /// In-memory snapshot of the user's YouTube/Google auth cookies. Native
+    /// URL sessions never use the shared cookie store; authenticated requests
+    /// build an explicit Cookie header from this snapshot.
     private(set) var authCookies: [HTTPCookie] = []
 
 #if canImport(WebKit)
@@ -86,6 +82,7 @@ public final class YTCookieAuth {
             object: NSUbiquitousKeyValueStore.default
         )
         NSUbiquitousKeyValueStore.default.synchronize()
+        Self.clearLegacySharedCookies()
         Task { await self.bootstrapSignInState() }
     }
 
@@ -127,39 +124,38 @@ public final class YTCookieAuth {
             if force { hydratedFromICloud = false }
             return
         }
+        let storedCookies = stored.compactMap(\.httpCookie)
 #if canImport(WebKit)
         let existing = await dataStore.httpCookieStore.allCookies()
         let alreadyHaveSession = existing.contains { $0.name == "SAPISID" && Self.isYouTubeCookie($0) }
 #else
-        let existing = HTTPCookieStorage.shared.cookies ?? []
-        let alreadyHaveSession = existing.contains { $0.name == "SAPISID" && Self.isYouTubeCookie($0) }
+        let alreadyHaveSession = authCookies.contains { $0.name == "SAPISID" && Self.isYouTubeCookie($0) }
 #endif
         if alreadyHaveSession && !force { return }
 
-        for cookie in stored.compactMap({ $0.httpCookie }) {
-            HTTPCookieStorage.shared.setCookie(cookie)
 #if canImport(WebKit)
+        for cookie in storedCookies {
             await dataStore.httpCookieStore.setCookie(cookie)
-#endif
         }
+#else
+        authCookies = storedCookies
+#endif
         iCloudSyncedAt = Date()
         hydratedFromICloud = true
     }
 
     // MARK: - Sign-in state
 
-    /// Reads cookies from the platform-appropriate cookie source, updates
-    /// published state, and (on platforms with WebKit) mirrors the WebKit
-    /// store into `HTTPCookieStorage.shared`.
+    /// Reads cookies from the platform-appropriate isolated source and updates
+    /// the explicit native-auth snapshot.
     public func refreshSignInState() async {
 #if canImport(WebKit)
         let cookies = await dataStore.httpCookieStore.allCookies()
         let ytCookies = cookies.filter { Self.isYouTubeCookie($0) }
-        for cookie in ytCookies {
-            HTTPCookieStorage.shared.setCookie(cookie)
-        }
 #else
-        let ytCookies = (HTTPCookieStorage.shared.cookies ?? []).filter { Self.isYouTubeCookie($0) }
+        let ytCookies = authCookies.isEmpty
+            ? Self.loadStoredCookies().compactMap(\.httpCookie)
+            : authCookies
 #endif
         if let sapis = ytCookies.first(where: { $0.name == "SAPISID" })?.value {
             sapisid = sapis
@@ -174,8 +170,10 @@ public final class YTCookieAuth {
 #endif
         } else {
             sapisid = nil
+            authCookies = []
             isSignedIn = false
         }
+        Self.clearLegacySharedCookies()
     }
 
     public func signOut() async {
@@ -186,11 +184,7 @@ public final class YTCookieAuth {
             await ckStore.deleteCookie(cookie)
         }
 #endif
-        if let shared = HTTPCookieStorage.shared.cookies {
-            for cookie in shared where Self.isYouTubeCookie(cookie) {
-                HTTPCookieStorage.shared.deleteCookie(cookie)
-            }
-        }
+        Self.clearLegacySharedCookies()
         sapisid = nil
         authCookies = []
         isSignedIn = false
@@ -212,10 +206,8 @@ public final class YTCookieAuth {
         return "SAPISIDHASH \(ts)_\(hex)"
     }
 
-    /// Returns the `Cookie:` header value to attach to URLSession requests for
-    /// the account. Built from the in-memory `authCookies` snapshot — NOT the
-    /// live cookie stores — so it survives the window in which `StreamResolver`
-    /// strips `HTTPCookieStorage.shared` for anonymous extraction.
+    /// Returns the `Cookie:` header value to attach to an authenticated native
+    /// request. Anonymous and OAuth-only sessions never receive this header.
     public func cookieHeader(for url: URL) -> String? {
         guard let host = url.host else { return nil }
         let matching = authCookies.filter { cookie in
@@ -231,6 +223,14 @@ public final class YTCookieAuth {
     static func isYouTubeCookie(_ cookie: HTTPCookie) -> Bool {
         let d = cookie.domain.trimmingCharacters(in: .init(charactersIn: "."))
         return d.hasSuffix("youtube.com") || d.hasSuffix("google.com")
+    }
+
+    /// Removes cookies left by older Cathode builds that mirrored WebKit auth
+    /// into Foundation's global store. Current code never writes auth there.
+    private static func clearLegacySharedCookies() {
+        for cookie in HTTPCookieStorage.shared.cookies ?? [] where isYouTubeCookie(cookie) {
+            HTTPCookieStorage.shared.deleteCookie(cookie)
+        }
     }
 }
 
