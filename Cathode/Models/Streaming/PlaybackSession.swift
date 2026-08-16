@@ -17,6 +17,7 @@ struct PlaybackSession {
         case automaticRecovery(attempt: Int)
         case manualRetry
         case expirationRefresh
+        case manifestRecovery
     }
 
     enum Phase {

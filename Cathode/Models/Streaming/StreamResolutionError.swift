@@ -1,6 +1,6 @@
 import Foundation
 
-enum StreamResolutionError: Error, LocalizedError, Sendable {
+nonisolated enum StreamResolutionError: Error, LocalizedError, Sendable {
     case cancelled
     case extraction(StreamExtractionError)
     case noPlayableSource

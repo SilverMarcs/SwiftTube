@@ -1,12 +1,13 @@
 import Foundation
 
-enum StreamExtractionError: Error, LocalizedError, Sendable {
+nonisolated enum StreamExtractionError: Error, LocalizedError, Sendable {
     case cancelled
     case invalidResponse
     case network(String)
     case unavailable(String)
     case noStreams
     case cipheredFormatsOnly
+    case urlSigning(String)
 
     var errorDescription: String? {
         switch self {
@@ -22,6 +23,8 @@ enum StreamExtractionError: Error, LocalizedError, Sendable {
             "YouTube did not return any media streams."
         case .cipheredFormatsOnly:
             "YouTube returned only encrypted stream URLs."
+        case .urlSigning:
+            "YouTube's media URLs could not be authorized."
         }
     }
 }

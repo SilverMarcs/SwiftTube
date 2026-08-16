@@ -5,7 +5,11 @@ import Foundation
 // Single source of truth for YouTube InnerTube client identifiers and versions.
 // Used by InnerTubeAPI (request bodies + headers) and YTTVAuthManager (TV context body).
 
-enum InnerTubeClients {
+nonisolated enum InnerTubeClients {
+
+    /// Public InnerTube key shipped in YouTube's own web client. This is an
+    /// application identifier, not a developer secret.
+    static let apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8" // gitleaks:allow
 
     enum Web {
         static let name      = "WEB"
@@ -46,14 +50,15 @@ enum InnerTubeClients {
         static let userAgent       = "com.google.android.youtube/\(version) (Linux; U; Android 11) gzip"
     }
 
-    /// Android VR client (Oculus Quest identity) — used as an unauthenticated fallback
-    /// for audio-only mode. Per yt-dlp research (May 2026), this client does not require
-    /// a Proof-of-Origin (PO) token for adaptive streams. Monitor for future enforcement.
+    /// Android VR client (Oculus Quest identity) used only as an adaptive
+    /// fallback. Since July 2026 its direct URLs have intermittent/selective
+    /// GVS PO-token enforcement, so the resolver probes beyond the one-MB
+    /// prefix before accepting them.
     enum AndroidVR {
         static let name    = "ANDROID_VR"
         static let nameID  = "28"
         static let version = "1.65.10"
-        static let userAgent = "com.google.android.apps.youtube.vr.oculus/\(version) (Linux; U; Android 12; Build/SQ3A.220705.001.B1) gzip"
+        static let userAgent = "com.google.android.apps.youtube.vr.oculus/\(version) (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip"
     }
 
     enum TV {
@@ -61,6 +66,32 @@ enum InnerTubeClients {
         static let nameID    = "7"
         static let version   = "7.20260311.12.00"
         static let userAgent = "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version"
+    }
+
+    /// Older authenticated TV player identity retained as a compatibility
+    /// candidate. Returned media URLs are always preflighted before playback.
+    enum TVDowngraded {
+        static let name = "TVHTML5"
+        static let nameID = "7"
+        static let version = "5.20260707"
+        static let userAgent = "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version"
+    }
+
+    /// Current cookie-capable TV player identity. Kept separate from `TV`
+    /// because browse/device-auth traffic and media extraction have different
+    /// compatibility requirements.
+    enum TVPlayback {
+        static let name = "TVHTML5"
+        static let nameID = "7"
+        static let version = "7.20260707.07.00"
+        static let userAgent = "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/25.lts.30.1034943-gold (unlike Gecko), Unknown_TV_Unknown_0/Unknown (Unknown, Unknown)"
+    }
+
+    enum WebSafari {
+        static let name = "WEB"
+        static let nameID = "1"
+        static let version = "2.20260114.08.00"
+        static let userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15,gzip(gfe)"
     }
 
     /// Maximum number of videos fetched per shelf/related-videos request.

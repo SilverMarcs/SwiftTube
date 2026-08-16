@@ -246,7 +246,19 @@ final class VideoManager {
         let failedSourceKind = session.source?.kind
         let failureDetails = Self.playbackFailureDetails(for: item)
         print("Playback failed for \(video.id) using \(String(describing: failedSourceKind)): \(failureDetails)")
-        guard let attempt = session.recovery.consumeAutomaticRecovery() else {
+
+        // A fatal player notification is not evidence that a fresh signed URL
+        // expired. Replacing a healthy item here caused mid-video reloads and
+        // quality changes after one transient transport failure. Automatically
+        // re-resolve only when the URL is actually at its expiry boundary;
+        // otherwise leave the item stopped and let Retry perform an explicit
+        // fresh resolution without creating a reload loop.
+        let sourceNeedsRefresh = session.source?.expiresAt.map {
+            Date().addingTimeInterval(5 * 60) >= $0
+        } ?? false
+        guard sourceNeedsRefresh,
+              let attempt = session.recovery.consumeAutomaticRecovery()
+        else {
             playbackSession = session
             surfacePlaybackFailure(
                 .player(item.error?.localizedDescription),
@@ -262,7 +274,8 @@ final class VideoManager {
             video,
             reason: .automaticRecovery(attempt: attempt),
             freshness: .revalidate,
-            deprioritizing: failedSourceKind
+            bypassLocalFile: failedSourceKind == .local,
+            requiredRemoteKind: failedSourceKind == .adaptiveHLS ? .adaptiveHLS : nil
         )
     }
 
@@ -314,30 +327,63 @@ final class VideoManager {
     }
 
     func refreshExpiredStream() {
+        Task { @MainActor [weak self] in
+            await self?.refreshExpiredStreamIfNeeded()
+        }
+    }
+
+    private func refreshExpiredStreamIfNeeded() async {
         guard let video = currentVideo,
               let player,
-              var session = playbackSession,
+              let session = playbackSession,
               case .ready = session.phase,
-              player.timeControlStatus == .paused,
-              player.rate == 0,
-              let expiresAt = session.source?.expiresAt,
-              Date().addingTimeInterval(5 * 60) >= expiresAt
+              let source = session.source
         else { return }
 
-        recordCurrentPositionIfHealthy(in: &session)
-        session.intent = .paused
-        session.recovery.reset()
-        playbackSession = session
+        let sessionID = session.id
+        let sourceIsExpiring = source.expiresAt.map {
+            Date().addingTimeInterval(5 * 60) >= $0
+        } ?? false
+        let isPaused = player.timeControlStatus == .paused && player.rate == 0
+        let manifestIsUnavailable: Bool
+        if source.dependsOnManifestServer {
+            manifestIsUnavailable = !(await HLSManifestService.shared.isAvailable(at: source.url))
+        } else {
+            manifestIsUnavailable = false
+        }
+
+        guard currentVideo?.id == video.id,
+              self.player === player,
+              var currentSession = playbackSession,
+              currentSession.id == sessionID,
+              case .ready = currentSession.phase,
+              manifestIsUnavailable || (sourceIsExpiring && isPaused)
+        else { return }
+
+        recordCurrentPositionIfHealthy(in: &currentSession)
+        let requiredRemoteKind: PlaybackSource.Kind? = switch source.kind {
+        case .adaptiveHLS: .adaptiveHLS
+        case .nativeHLS where source.dependsOnManifestServer: .nativeHLS
+        default: nil
+        }
+        currentSession.recovery.reset()
+        playbackSession = currentSession
         player.pause()
 
-        startLoading(video, reason: .expirationRefresh, freshness: .revalidate)
+        startLoading(
+            video,
+            reason: manifestIsUnavailable ? .manifestRecovery : .expirationRefresh,
+            freshness: .revalidate,
+            requiredRemoteKind: requiredRemoteKind
+        )
     }
 
     private func startLoading(
         _ video: Video,
         reason: PlaybackSession.LoadReason,
         freshness: StreamResolver.Freshness,
-        deprioritizing failedSourceKind: PlaybackSource.Kind? = nil
+        bypassLocalFile: Bool = false,
+        requiredRemoteKind: PlaybackSource.Kind? = nil
     ) {
         loadingTask?.cancel()
         guard var session = playbackSession,
@@ -354,7 +400,8 @@ final class VideoManager {
                 token: token,
                 reason: reason,
                 freshness: freshness,
-                deprioritizing: failedSourceKind
+                bypassLocalFile: bypassLocalFile,
+                requiredRemoteKind: requiredRemoteKind
             )
             guard self.playbackSession?.matches(token) == true else { return }
             self.loadingTask = nil
@@ -366,14 +413,15 @@ final class VideoManager {
         token: PlaybackLoadToken,
         reason: PlaybackSession.LoadReason,
         freshness: StreamResolver.Freshness,
-        deprioritizing failedSourceKind: PlaybackSource.Kind?
+        bypassLocalFile: Bool,
+        requiredRemoteKind: PlaybackSource.Kind?
     ) async {
         guard isCurrent(token), !Task.isCancelled else { return }
         let plannedResumeAt = resumePosition(for: video)
 
         let source: PlaybackSource
         #if os(iOS)
-        if failedSourceKind != .local,
+        if !bypassLocalFile,
            let localURL = DownloadManager.shared.localURL(for: video.id) {
             source = .local(url: localURL)
         } else {
@@ -381,7 +429,7 @@ final class VideoManager {
                 source = try await StreamResolver.shared.resolvePlaybackSource(
                     videoID: video.id,
                     freshness: freshness,
-                    deprioritizing: failedSourceKind
+                    requiring: requiredRemoteKind
                 )
             } catch let error as StreamResolutionError {
                 guard !Task.isCancelled, isCurrent(token), !Self.isCancellation(error) else { return }
@@ -402,7 +450,7 @@ final class VideoManager {
             source = try await StreamResolver.shared.resolvePlaybackSource(
                 videoID: video.id,
                 freshness: freshness,
-                deprioritizing: failedSourceKind
+                requiring: requiredRemoteKind
             )
         } catch let error as StreamResolutionError {
             guard !Task.isCancelled, isCurrent(token), !Self.isCancellation(error) else { return }
@@ -428,7 +476,16 @@ final class VideoManager {
         session.source = source
         playbackSession = session
 
-        let playerItem = AVPlayerItem(url: source.url)
+        let playerItem: AVPlayerItem
+        if let httpUserAgent = source.httpUserAgent {
+            let asset = AVURLAsset(
+                url: source.url,
+                options: [AVURLAssetHTTPUserAgentKey: httpUserAgent]
+            )
+            playerItem = AVPlayerItem(asset: asset)
+        } else {
+            playerItem = AVPlayerItem(url: source.url)
+        }
         playerItem.preferredForwardBufferDuration = 30
         observeItemEnd(playerItem)
         observeItemHealth(playerItem, for: video, token: token)
@@ -454,8 +511,13 @@ final class VideoManager {
         playerItem.externalMetadata = externalMetadata
         #endif
 
-        if let resumeAt = plannedResumeAt,
-           source.supportsArbitrarySeeking {
+        await applyPreferredAudioSelection(
+            to: playerItem,
+            source: source,
+            token: token
+        )
+
+        if let resumeAt = plannedResumeAt {
             let time = CMTime(seconds: resumeAt, preferredTimescale: 600)
             guard !Task.isCancelled,
                   isCurrent(token),
@@ -486,6 +548,47 @@ final class VideoManager {
         playbackSession = installedSession
 
         await applyNavigationMarkers(for: video, on: playerItem, token: token)
+    }
+
+    private func applyPreferredAudioSelection(
+        to item: AVPlayerItem,
+        source: PlaybackSource,
+        token: PlaybackLoadToken
+    ) async {
+        guard source.kind == .nativeHLS else { return }
+        let group = try? await item.asset.loadMediaSelectionGroup(for: .audible)
+
+        guard let group, group.options.count > 1 else { return }
+
+        guard let preferredOption = group.options.max(by: {
+                  Self.audioPreference(for: $0) < Self.audioPreference(for: $1)
+              }),
+              !Task.isCancelled,
+              isCurrent(token),
+              player?.currentItem === item
+        else { return }
+
+        player?.appliesMediaSelectionCriteriaAutomatically = false
+        item.select(preferredOption, in: group)
+    }
+
+    private static func audioPreference(for option: AVMediaSelectionOption) -> Int {
+        let name = option.displayName
+        let isOriginal = option.hasMediaCharacteristic(.isOriginalContent)
+            || name.localizedStandardContains("original")
+        if isOriginal { return 4 }
+
+        let languageTag = (option.extendedLanguageTag ?? option.locale?.identifier ?? "")
+            .lowercased()
+        let isEnglish = languageTag == "en"
+            || languageTag.hasPrefix("en-")
+            || languageTag.hasPrefix("en_")
+        let isDubbed = option.hasMediaCharacteristic(.dubbedTranslation)
+            || option.hasMediaCharacteristic(.voiceOverTranslation)
+            || name.localizedStandardContains("dubbed")
+        if isEnglish && !isDubbed { return 3 }
+        if isEnglish { return 2 }
+        return isDubbed ? 0 : 1
     }
 
     private func resumePosition(for video: Video) -> Double? {

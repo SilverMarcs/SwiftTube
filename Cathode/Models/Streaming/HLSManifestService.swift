@@ -37,6 +37,26 @@ actor HLSManifestService {
         return lease
     }
 
+    func registerNativeMaster(
+        _ manifest: String,
+        requestHeaders: [String: String]
+    ) async throws -> HLSManifestLease {
+        try await ensureRunning()
+        guard let lease = server.registerNativeMaster(
+            manifest,
+            requestHeaders: requestHeaders
+        ) else {
+            throw StreamResolutionError.manifestServer(
+                "Unable to create a localhost native HLS manifest URL."
+            )
+        }
+        return lease
+    }
+
+    func isAvailable(at localURL: URL) async -> Bool {
+        await server.healthCheck(matching: localURL)
+    }
+
     private func ensureRunning() async throws {
         if await server.healthCheck() { return }
 

@@ -1,25 +1,38 @@
 import Foundation
 
-struct FMP4Segment: Sendable {
+nonisolated struct FMP4Segment: Sendable {
     let offset: Int      // absolute byte offset in file
     let size: Int        // bytes
     let duration: Double // seconds
 }
 
-struct FMP4Info: Sendable {
+nonisolated struct FMP4Info: Sendable {
     let initSize: Int            // bytes from start that comprise ftyp+moov (HLS EXT-X-MAP range)
     let segments: [FMP4Segment]
     let totalDuration: Double
 }
 
-enum FMP4ParseError: Error {
-    case rangeNotSupported
+nonisolated enum FMP4ParseError: Error, CustomStringConvertible {
+    case rangeNotSupported(statusCode: Int?)
     case truncated
     case missingSidx
     case unsupportedSidxVersion
+
+    var description: String {
+        switch self {
+        case .rangeNotSupported(let statusCode):
+            "rangeNotSupported(statusCode: \(statusCode.map(String.init) ?? "none"))"
+        case .truncated:
+            "truncated"
+        case .missingSidx:
+            "missingSidx"
+        case .unsupportedSidxVersion:
+            "unsupportedSidxVersion"
+        }
+    }
 }
 
-enum FMP4Parser {
+nonisolated enum FMP4Parser {
 
     /// Fetches a prefix of the file via HTTP Range and parses ftyp/moov/sidx.
     static func parse(
@@ -35,9 +48,61 @@ enum FMP4Parser {
         }
         let (data, response) = try await YouTubeMediaTransport.session.data(for: req)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw FMP4ParseError.rangeNotSupported
+            throw FMP4ParseError.rangeNotSupported(
+                statusCode: (response as? HTTPURLResponse)?.statusCode
+            )
         }
         return try parseBoxes(data: data)
+    }
+
+    /// Checks byte offsets beyond the one-megabyte metadata prefix. YouTube's
+    /// selective GVS proof-token enforcement can allow that prefix and then
+    /// return 403 for the first media range that crosses it, causing playback
+    /// to die roughly a minute later despite a successful initial preflight.
+    static func preflightMediaAccess(
+        url: URL,
+        requestHeaders: [String: String],
+        info: FMP4Info
+    ) async throws {
+        guard let finalSegment = info.segments.last,
+              finalSegment.offset <= Int.max - finalSegment.size
+        else { return }
+        let finalByteOffset = finalSegment.offset + finalSegment.size - 1
+        guard finalByteOffset >= 1_048_576 else { return }
+
+        let offsets = Set([
+            1_048_576,
+            finalByteOffset / 4 * 3,
+        ]).sorted()
+        let session = YouTubeMediaTransport.makePlaybackSession()
+        defer { session.invalidateAndCancel() }
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for offset in offsets where offset <= finalByteOffset {
+                group.addTask {
+                    var request = URLRequest(url: url)
+                    request.httpShouldHandleCookies = false
+                    request.setValue(
+                        "bytes=\(offset)-\(offset)",
+                        forHTTPHeaderField: "Range"
+                    )
+                    request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+                    for (header, value) in requestHeaders {
+                        request.setValue(value, forHTTPHeaderField: header)
+                    }
+                    let (data, response) = try await session.data(for: request)
+                    guard let http = response as? HTTPURLResponse,
+                          http.statusCode == 206,
+                          !data.isEmpty
+                    else {
+                        throw FMP4ParseError.rangeNotSupported(
+                            statusCode: (response as? HTTPURLResponse)?.statusCode
+                        )
+                    }
+                }
+            }
+            try await group.waitForAll()
+        }
     }
 
     private static func parseBoxes(data: Data) throws -> FMP4Info {
@@ -156,7 +221,7 @@ enum FMP4Parser {
     }
 }
 
-private extension Data {
+nonisolated private extension Data {
     func readUInt16BE(at offset: Int) -> UInt16 {
         (UInt16(self[offset]) << 8) | UInt16(self[offset + 1])
     }

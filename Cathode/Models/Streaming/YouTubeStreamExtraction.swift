@@ -1,6 +1,12 @@
 import Foundation
 
-struct YouTubeStreamExtraction: Sendable {
+nonisolated struct YouTubeStreamExtraction: Sendable {
+    struct NativeHLS: Sendable {
+        let url: URL
+        let clientKind: YouTubeStream.ClientKind
+        let requestHeaders: [String: String]
+    }
+
     let streams: [YouTubeStream]
-    let nativeHLSManifestURL: URL?
+    let nativeHLS: NativeHLS?
 }
