@@ -40,6 +40,8 @@ public struct PlaybackTrackingURLs: Sendable {
     public let playbackURL: URL
     /// Fire periodically during playback (~every 5s) and on stop.
     public let watchtimeURL: URL
+    /// Transport mode selected by the current YouTube player response.
+    public let usesPOST: Bool
 }
 
 /// Video metadata returned by the InnerTube `/player` endpoint. Stream URLs are

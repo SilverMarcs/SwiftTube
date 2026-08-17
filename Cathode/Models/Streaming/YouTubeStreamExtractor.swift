@@ -37,7 +37,7 @@ actor YouTubeStreamExtractor {
         let authenticationMode: AuthenticationMode
     }
 
-    private struct WatchBootstrap: Sendable {
+    struct WatchBootstrap: Sendable {
         let visitorData: String
         let signatureTimestamp: Int
         let playerJavaScriptURL: URL
@@ -259,6 +259,14 @@ actor YouTubeStreamExtractor {
     ) {
         self.session = session
         self.urlSigner = urlSigner ?? YouTubePlayerURLSigner(session: session)
+    }
+
+    /// Returns the current web-player context used by authenticated tracking
+    /// requests as well as stream extraction. Keeping both paths on the same
+    /// STS and visitor context avoids successful `/player` responses that omit
+    /// `playbackTracking` entirely.
+    func watchBootstrap(for videoID: String) async throws -> WatchBootstrap {
+        try await Self.fetchWatchBootstrap(videoID: videoID, session: session)
     }
 
     func extract(videoID: String) async throws -> YouTubeStreamExtraction {

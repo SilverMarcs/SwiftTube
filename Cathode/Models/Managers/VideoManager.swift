@@ -54,6 +54,9 @@ final class VideoManager {
     private var manifestBackedItemNeedsRecovery = false
 
     @ObservationIgnored
+    private var watchtimeNeedsRestartAfterBackground = false
+
+    @ObservationIgnored
     private var upNextTask: Task<Void, Never>?
 
     @ObservationIgnored
@@ -327,6 +330,7 @@ final class VideoManager {
 
         loadWasInterruptedByBackground = false
         manifestBackedItemNeedsRecovery = false
+        watchtimeNeedsRestartAfterBackground = false
         loadingTask?.cancel()
         player?.pause()
         watchtime.finalize(playerPosition: player?.currentTime().seconds)
@@ -363,6 +367,11 @@ final class VideoManager {
 
     func restorePlaybackAfterActivation() {
         isAppInBackground = false
+        if watchtimeNeedsRestartAfterBackground,
+           let video = currentVideo {
+            watchtimeNeedsRestartAfterBackground = false
+            watchtime.begin(for: video)
+        }
         if let session = playbackSession,
            session.source?.dependsOnManifestServer == true {
             // Claim this session synchronously. AVFoundation can deliver a
@@ -482,6 +491,7 @@ final class VideoManager {
     func prepareForBackground() {
         isAppInBackground = true
         persistCurrentTime()
+        watchtimeNeedsRestartAfterBackground = currentVideo != nil
         guard playbackSession?.phase.isLoading == true else { return }
         loadWasInterruptedByBackground = true
         loadingTask?.cancel()
@@ -938,7 +948,6 @@ final class VideoManager {
 
     func persistCurrentTime() {
         guard !isSetting,
-              let videoID = currentVideo?.id,
               let player,
               let item = player.currentItem,
               item.status == .readyToPlay
@@ -947,6 +956,6 @@ final class VideoManager {
         let seconds = player.currentTime().seconds
         guard seconds.isFinite, seconds > 0 else { return }
         playbackSession?.position.recordStablePosition(seconds)
-        watchtime.report(videoId: videoID, position: seconds, isFinal: true)
+        watchtime.finalize(playerPosition: seconds)
     }
 }
