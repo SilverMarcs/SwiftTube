@@ -18,6 +18,8 @@ struct PlaybackSession {
         case manualRetry
         case expirationRefresh
         case manifestRecovery
+        case foregroundRecovery
+        case installationRecovery
     }
 
     enum Phase {

@@ -9,9 +9,9 @@ import Network
 /// guidance: don't keep listeners across suspension; a dead NWListener can't
 /// be restarted, only replaced). That killed every post-resume playback until
 /// app relaunch (2026-07 "new videos stop loading after a while" bug), so
-/// `start()` is re-callable — it builds a fresh listener on a fresh port each
-/// time — and `healthCheck()` proves the socket actually accepts connections
-/// before a playback URL is handed to AVPlayer.
+/// `start(on:)` is re-callable — it builds a fresh listener, preferentially on
+/// the previous port so installed AVPlayer items remain valid — and
+/// `healthCheck()` proves the socket actually accepts connections.
 ///
 /// Direct media URLs can reject AVFoundation's requests even when the same
 /// range succeeds through Cathode's isolated media transport. Relaying ranges
@@ -210,15 +210,24 @@ nonisolated final class HLSProxyServer: @unchecked Sendable {
     }
 
     /// (Re)creates the listener. Any previous listener is cancelled and
-    /// replaced; configured manifests survive the swap.
-    func start() async throws {
-        let fresh = try NWListener(using: .tcp, on: .any)
+    /// replaced; configured manifests survive the swap. Rebinding the previous
+    /// port preserves every URL already installed in an AVPlayer item.
+    func start(on preferredPort: UInt16? = nil) async throws {
+        let requestedPort: NWEndpoint.Port
+        if let preferredPort,
+           let exactPort = NWEndpoint.Port(rawValue: preferredPort) {
+            requestedPort = exactPort
+        } else {
+            requestedPort = .any
+        }
+
+        let fresh = try NWListener(using: .tcp, on: requestedPort)
         fresh.newConnectionHandler = { [weak self] conn in self?.handle(conn) }
-        let old: NWListener? = queue.sync {
+        let (old, previousPort): (NWListener?, UInt16) = queue.sync {
             let previous = listener
             listener = fresh
             alive = false
-            return previous
+            return (previous, boundPort)
         }
         old?.cancel()
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
@@ -233,10 +242,19 @@ nonisolated final class HLSProxyServer: @unchecked Sendable {
                     self.alive = true
                     if !startState.didResumeContinuation, let port = fresh.port?.rawValue {
                         self.boundPort = port
+                        if previousPort != 0, previousPort == port {
+                            self.refreshRegistrationTransports()
+                        }
                         startState.didResumeContinuation = true
                         cont.resume()
                     }
                 case .failed(let err):
+                    self.alive = false
+                    if !startState.didResumeContinuation {
+                        startState.didResumeContinuation = true
+                        cont.resume(throwing: err)
+                    }
+                case .waiting(let err):
                     self.alive = false
                     if !startState.didResumeContinuation {
                         startState.didResumeContinuation = true
@@ -252,6 +270,41 @@ nonisolated final class HLSProxyServer: @unchecked Sendable {
                 }
             }
             fresh.start(queue: queue)
+        }
+    }
+
+    /// URLSession connection pools may be stale after suspension even when the
+    /// signed upstream URLs remain fresh. Replace them without changing any
+    /// registered path or manifest URL.
+    private func refreshRegistrationTransports() {
+        let basePaths = Array(registrationSessions.keys)
+        for basePath in basePaths {
+            let previousSession = registrationSessions[basePath]
+            let freshSession = YouTubeMediaTransport.makePlaybackSession()
+            registrationSessions[basePath] = freshSession
+
+            let mediaPaths = mediaSources.keys.filter { $0.hasPrefix(basePath) }
+            for path in mediaPaths {
+                guard let source = mediaSources[path] else { continue }
+                mediaSources[path] = MediaSource(
+                    url: source.url,
+                    requestHeaders: source.requestHeaders,
+                    session: freshSession
+                )
+            }
+            let nativePaths = nativeResources.compactMap { path, source in
+                source.basePath == basePath ? path : nil
+            }
+            for path in nativePaths {
+                guard let source = nativeResources[path] else { continue }
+                nativeResources[path] = NativeResource(
+                    url: source.url,
+                    requestHeaders: source.requestHeaders,
+                    basePath: source.basePath,
+                    session: freshSession
+                )
+            }
+            previousSession?.invalidateAndCancel()
         }
     }
 

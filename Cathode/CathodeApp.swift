@@ -84,7 +84,7 @@ struct CathodeApp: App {
                 .onReceive(NotificationCenter.default.publisher(
                     for: NSApplication.didBecomeActiveNotification
                 )) { _ in
-                    videoManager.refreshExpiredStream()
+                    videoManager.restorePlaybackAfterActivation()
                 }
         }
         .commands {
@@ -119,10 +119,12 @@ struct CathodeApp: App {
                 .environment(DownloadManager.shared)
                 .task { await coldLaunchLoad() }
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .background || phase == .inactive {
+                    if phase == .background {
+                        videoManager.prepareForBackground()
+                    } else if phase == .inactive {
                         videoManager.persistCurrentTime()
                     } else if phase == .active {
-                        videoManager.refreshExpiredStream()
+                        videoManager.restorePlaybackAfterActivation()
                     }
                 }
         }
@@ -144,8 +146,10 @@ struct CathodeApp: App {
                 ))
                 .task { await coldLaunchLoad() }
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active {
-                        videoManager.refreshExpiredStream()
+                    if phase == .background {
+                        videoManager.prepareForBackground()
+                    } else if phase == .active {
+                        videoManager.restorePlaybackAfterActivation()
                     }
                 }
                 .onOpenURL { url in

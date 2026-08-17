@@ -39,6 +39,21 @@ final class VideoManager {
     private var loadingTask: Task<Void, Never>?
 
     @ObservationIgnored
+    private var installationWatchdogTask: Task<Void, Never>?
+
+    @ObservationIgnored
+    private var loadWasInterruptedByBackground = false
+
+    @ObservationIgnored
+    private var isAppInBackground = false
+
+    @ObservationIgnored
+    private var manifestServerRecoverySessionID: UUID?
+
+    @ObservationIgnored
+    private var manifestBackedItemNeedsRecovery = false
+
+    @ObservationIgnored
     private var upNextTask: Task<Void, Never>?
 
     @ObservationIgnored
@@ -60,6 +75,9 @@ final class VideoManager {
     var currentSponsorSegment: SponsorSegment? { sponsor.currentSegment }
 
     isolated deinit {
+        loadingTask?.cancel()
+        installationWatchdogTask?.cancel()
+        upNextTask?.cancel()
         if let timeObserverToken {
             player?.removeTimeObserver(timeObserverToken)
         }
@@ -206,6 +224,7 @@ final class VideoManager {
 
         session.markItemReady()
         playbackSession = session
+        stopInstallationWatchdogIfReady(session)
 
         if case .ready = session.phase {
             if session.intent == .playing {
@@ -243,20 +262,31 @@ final class VideoManager {
         else { return }
 
         session.recovery.pauseStabilityClock()
-        let failedSourceKind = session.source?.kind
+        let source = session.source
+        let failedSourceKind = source?.kind
         let failureDetails = Self.playbackFailureDetails(for: item)
         print("Playback failed for \(video.id) using \(String(describing: failedSourceKind)): \(failureDetails)")
+
+        // The proxy listener is expected to disappear while suspended. Keep
+        // the current item and source intact until activation has a chance to
+        // restore the same localhost port. A failed item will be replaced only
+        // after that transparent restoration attempt finishes.
+        if source?.dependsOnManifestServer == true,
+           isAppInBackground || manifestServerRecoverySessionID == session.id {
+            manifestBackedItemNeedsRecovery = true
+            playbackSession = session
+            return
+        }
 
         // A fatal player notification is not evidence that a fresh signed URL
         // expired. Replacing a healthy item here caused mid-video reloads and
         // quality changes after one transient transport failure. Automatically
-        // re-resolve only when the URL is actually at its expiry boundary;
-        // otherwise leave the item stopped and let Retry perform an explicit
-        // fresh resolution without creating a reload loop.
+        // re-resolve only when the URL is actually at its expiry boundary or
+        // when the item depends on Cathode's proxy transport.
         let sourceNeedsRefresh = session.source?.expiresAt.map {
             Date().addingTimeInterval(5 * 60) >= $0
         } ?? false
-        guard sourceNeedsRefresh,
+        guard sourceNeedsRefresh || source?.dependsOnManifestServer == true,
               let attempt = session.recovery.consumeAutomaticRecovery()
         else {
             playbackSession = session
@@ -269,13 +299,14 @@ final class VideoManager {
         }
 
         playbackSession = session
+        manifestBackedItemNeedsRecovery = false
         player?.pause()
         startLoading(
             video,
             reason: .automaticRecovery(attempt: attempt),
             freshness: .revalidate,
             bypassLocalFile: failedSourceKind == .local,
-            requiredRemoteKind: failedSourceKind == .adaptiveHLS ? .adaptiveHLS : nil
+            requiredRemoteKind: requiredRemoteKind(for: source)
         )
     }
 
@@ -294,6 +325,8 @@ final class VideoManager {
         persistCurrentTime()
         guard video.id != currentVideo?.id else { return }
 
+        loadWasInterruptedByBackground = false
+        manifestBackedItemNeedsRecovery = false
         loadingTask?.cancel()
         player?.pause()
         watchtime.finalize(playerPosition: player?.currentTime().seconds)
@@ -313,6 +346,8 @@ final class VideoManager {
         else { return }
 
         recordCurrentPositionIfHealthy(in: &session)
+        loadWasInterruptedByBackground = false
+        manifestBackedItemNeedsRecovery = false
         session.intent = .playing
         session.recovery.reset()
         playbackSession = session
@@ -326,56 +361,132 @@ final class VideoManager {
         startLoading(video, reason: .manualRetry, freshness: .revalidate)
     }
 
-    func refreshExpiredStream() {
+    func restorePlaybackAfterActivation() {
+        isAppInBackground = false
+        if let session = playbackSession,
+           session.source?.dependsOnManifestServer == true {
+            // Claim this session synchronously. AVFoundation can deliver a
+            // failure before the asynchronous listener check starts.
+            guard manifestServerRecoverySessionID != session.id else { return }
+            manifestServerRecoverySessionID = session.id
+        }
         Task { @MainActor [weak self] in
-            await self?.refreshExpiredStreamIfNeeded()
+            await self?.restorePlaybackAfterActivationIfNeeded()
         }
     }
 
-    private func refreshExpiredStreamIfNeeded() async {
+    private func restorePlaybackAfterActivationIfNeeded() async {
         guard let video = currentVideo,
-              let player,
-              let session = playbackSession,
+              let session = playbackSession
+        else { return }
+
+        if session.phase.isLoading, loadWasInterruptedByBackground {
+            clearManifestServerRecovery(for: session.id)
+            loadWasInterruptedByBackground = false
+            startLoading(
+                video,
+                reason: .foregroundRecovery,
+                freshness: .revalidate,
+                requiredRemoteKind: requiredRemoteKind(for: session.source)
+            )
+            return
+        }
+        loadWasInterruptedByBackground = false
+
+        guard let player,
               case .ready = session.phase,
               let source = session.source
-        else { return }
+        else {
+            clearManifestServerRecovery(for: session.id)
+            return
+        }
 
         let sessionID = session.id
         let sourceIsExpiring = source.expiresAt.map {
             Date().addingTimeInterval(5 * 60) >= $0
         } ?? false
         let isPaused = player.timeControlStatus == .paused && player.rate == 0
-        let manifestIsUnavailable: Bool
+        let manifestIsAvailable: Bool
         if source.dependsOnManifestServer {
-            manifestIsUnavailable = !(await HLSManifestService.shared.isAvailable(at: source.url))
+            manifestServerRecoverySessionID = sessionID
+            manifestIsAvailable = await HLSManifestService.shared.restoreIfNeeded(at: source.url)
+            clearManifestServerRecovery(for: sessionID)
         } else {
-            manifestIsUnavailable = false
+            manifestIsAvailable = true
         }
 
-        guard currentVideo?.id == video.id,
+        guard !isAppInBackground,
+              currentVideo?.id == video.id,
               self.player === player,
               var currentSession = playbackSession,
               currentSession.id == sessionID,
-              case .ready = currentSession.phase,
-              manifestIsUnavailable || (sourceIsExpiring && isPaused)
+              case .ready = currentSession.phase
         else { return }
 
-        recordCurrentPositionIfHealthy(in: &currentSession)
-        let requiredRemoteKind: PlaybackSource.Kind? = switch source.kind {
-        case .adaptiveHLS: .adaptiveHLS
-        case .nativeHLS where source.dependsOnManifestServer: .nativeHLS
-        default: nil
+        let itemNeedsRecovery = manifestBackedItemNeedsRecovery
+            || player.currentItem?.status == .failed
+        manifestBackedItemNeedsRecovery = false
+
+        // Same-port restoration keeps a healthy installed item alive. Only a
+        // failed item or an unavailable original port needs the expensive
+        // extraction and AVPlayerItem replacement path.
+        if source.dependsOnManifestServer,
+           manifestIsAvailable,
+           !itemNeedsRecovery {
+            if sourceIsExpiring && isPaused {
+                recordCurrentPositionIfHealthy(in: &currentSession)
+                currentSession.recovery.reset()
+                playbackSession = currentSession
+                player.pause()
+                startLoading(
+                    video,
+                    reason: .expirationRefresh,
+                    freshness: .revalidate,
+                    requiredRemoteKind: requiredRemoteKind(for: source)
+                )
+                return
+            }
+            if currentSession.intent == .playing {
+                player.play()
+            }
+            return
         }
+
+        guard !manifestIsAvailable || itemNeedsRecovery || (sourceIsExpiring && isPaused) else {
+            return
+        }
+
+        recordCurrentPositionIfHealthy(in: &currentSession)
         currentSession.recovery.reset()
         playbackSession = currentSession
         player.pause()
 
         startLoading(
             video,
-            reason: manifestIsUnavailable ? .manifestRecovery : .expirationRefresh,
+            reason: !manifestIsAvailable || itemNeedsRecovery
+                ? .manifestRecovery
+                : .expirationRefresh,
             freshness: .revalidate,
-            requiredRemoteKind: requiredRemoteKind
+            requiredRemoteKind: requiredRemoteKind(for: source)
         )
+    }
+
+    private func clearManifestServerRecovery(for sessionID: UUID) {
+        guard manifestServerRecoverySessionID == sessionID else { return }
+        manifestServerRecoverySessionID = nil
+    }
+
+    /// Suspended network and AVFoundation operations aren't safe to continue as
+    /// if no time passed. Cancel only an in-flight load; a healthy ready item is
+    /// left untouched and checked cheaply when the scene becomes active again.
+    func prepareForBackground() {
+        isAppInBackground = true
+        persistCurrentTime()
+        guard playbackSession?.phase.isLoading == true else { return }
+        loadWasInterruptedByBackground = true
+        loadingTask?.cancel()
+        installationWatchdogTask?.cancel()
+        installationWatchdogTask = nil
     }
 
     private func startLoading(
@@ -386,6 +497,10 @@ final class VideoManager {
         requiredRemoteKind: PlaybackSource.Kind? = nil
     ) {
         loadingTask?.cancel()
+        installationWatchdogTask?.cancel()
+        installationWatchdogTask = nil
+        manifestServerRecoverySessionID = nil
+        manifestBackedItemNeedsRecovery = false
         guard var session = playbackSession,
               session.videoID == video.id
         else { return }
@@ -501,6 +616,12 @@ final class VideoManager {
             player = newPlayer
             attachPeriodicObserver(to: newPlayer)
         }
+        startInstallationWatchdog(
+            for: playerItem,
+            video: video,
+            token: token,
+            reason: reason
+        )
 
         #if !os(macOS)
         let externalMetadata = await PlayerMetadataBuilder.externalMetadata(for: video)
@@ -546,8 +667,78 @@ final class VideoManager {
         else { return }
         installedSession.markInstallationCompleted()
         playbackSession = installedSession
+        stopInstallationWatchdogIfReady(installedSession)
 
         await applyNavigationMarkers(for: video, on: playerItem, token: token)
+    }
+
+    private func startInstallationWatchdog(
+        for item: AVPlayerItem,
+        video: Video,
+        token: PlaybackLoadToken,
+        reason: PlaybackSession.LoadReason
+    ) {
+        installationWatchdogTask?.cancel()
+        installationWatchdogTask = Task { @MainActor [weak self, weak item] in
+            do {
+                try await Task.sleep(for: .seconds(30))
+            } catch {
+                return
+            }
+            guard let self, let item else { return }
+            self.handleInstallationTimeout(
+                for: item,
+                video: video,
+                token: token,
+                reason: reason
+            )
+        }
+    }
+
+    private func stopInstallationWatchdogIfReady(_ session: PlaybackSession) {
+        guard case .ready = session.phase else { return }
+        installationWatchdogTask?.cancel()
+        installationWatchdogTask = nil
+    }
+
+    private func handleInstallationTimeout(
+        for item: AVPlayerItem,
+        video: Video,
+        token: PlaybackLoadToken,
+        reason: PlaybackSession.LoadReason
+    ) {
+        guard player?.currentItem === item,
+              let session = playbackSession,
+              session.matches(token),
+              case .installing = session.phase
+        else { return }
+
+        if case .installationRecovery = reason {
+            loadingTask?.cancel()
+            surfacePlaybackFailure(
+                .player("The video took too long to become ready."),
+                for: video,
+                sessionID: token.sessionID
+            )
+            return
+        }
+
+        startLoading(
+            video,
+            reason: .installationRecovery,
+            freshness: .revalidate,
+            bypassLocalFile: session.source?.kind == .local,
+            requiredRemoteKind: requiredRemoteKind(for: session.source)
+        )
+    }
+
+    private func requiredRemoteKind(for source: PlaybackSource?) -> PlaybackSource.Kind? {
+        guard let source else { return nil }
+        return switch source.kind {
+        case .adaptiveHLS: .adaptiveHLS
+        case .nativeHLS where source.dependsOnManifestServer: .nativeHLS
+        default: nil
+        }
     }
 
     private func applyPreferredAudioSelection(
@@ -618,6 +809,9 @@ final class VideoManager {
         }
         removeEndObserver()
         removeHealthObservers()
+        installationWatchdogTask?.cancel()
+        installationWatchdogTask = nil
+        manifestBackedItemNeedsRecovery = false
         player?.pause()
         watchtime.finalize(playerPosition: session.position.seconds)
         player = nil
