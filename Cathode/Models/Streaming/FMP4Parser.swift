@@ -46,13 +46,23 @@ nonisolated enum FMP4Parser {
         for (header, value) in requestHeaders {
             req.setValue(value, forHTTPHeaderField: header)
         }
-        let (data, response) = try await YouTubeMediaTransport.session.data(for: req)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw FMP4ParseError.rangeNotSupported(
-                statusCode: (response as? HTTPURLResponse)?.statusCode
-            )
+        // Fresh googlevideo URLs can 403 exactly once while the edge warms
+        // authorization; the identical request succeeds ~2s later. Retry the
+        // request itself — failing here makes the resolver re-extract, which
+        // mints another cold URL and loops forever on first-request 403s.
+        var lastStatusCode: Int?
+        for attempt in 0..<3 {
+            if attempt > 0 { try await Task.sleep(for: .seconds(2)) }
+            let (data, response) = try await YouTubeMediaTransport.session.data(for: req)
+            guard let http = response as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode)
+            else {
+                lastStatusCode = (response as? HTTPURLResponse)?.statusCode
+                continue
+            }
+            return try parseBoxes(data: data)
         }
-        return try parseBoxes(data: data)
+        throw FMP4ParseError.rangeNotSupported(statusCode: lastStatusCode)
     }
 
     /// Checks byte offsets beyond the one-megabyte metadata prefix. YouTube's

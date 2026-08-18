@@ -60,6 +60,11 @@ struct CathodeApp: App {
         async let shorts: Void = videoLoader.loadShorts()
         _ = await (subs, recs, shorts)
 
+        if let debugVideoID = ProcessInfo.processInfo.environment["CATHODE_DEBUG_VIDEO_ID"],
+           let info = try? await InnerTubeAPI.shared.fetchPlayerInfo(videoId: debugVideoID) {
+            videoManager.setVideo(info.video, autoPlay: true)
+            return
+        }
         if videoManager.currentVideo == nil,
            let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {
             videoManager.setVideo(mostRecentVideo, autoPlay: false)

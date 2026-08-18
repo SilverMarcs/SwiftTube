@@ -319,6 +319,7 @@ actor YouTubeStreamExtractor {
                                 response: response
                             ))
                         } catch {
+                            Self.logger.error("Player client=\(client.name, privacy: .public) v=\(client.version, privacy: .public) fetch failed: \(String(describing: error), privacy: .public)")
                             return .failure(error)
                         }
                     }
@@ -506,16 +507,19 @@ actor YouTubeStreamExtractor {
         request.setValue(client.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(client.nameID, forHTTPHeaderField: "X-YouTube-Client-Name")
         request.setValue(client.version, forHTTPHeaderField: "X-YouTube-Client-Version")
-        request.setValue("https://www.youtube.com", forHTTPHeaderField: "Origin")
-        request.setValue("https://www.youtube.com", forHTTPHeaderField: "X-Origin")
         switch authentication {
         case .oauthBearer(let oauthBearerToken):
+            // youtubei.googleapis.com rejects a www.youtube.com Origin with
+            // HTTP 400 "Origin doesn't match Host for XD3" — send no Origin.
             request.setValue("Bearer \(oauthBearerToken)", forHTTPHeaderField: "Authorization")
         case .cookie(let cookieAuthentication):
+            request.setValue("https://www.youtube.com", forHTTPHeaderField: "Origin")
+            request.setValue("https://www.youtube.com", forHTTPHeaderField: "X-Origin")
             request.setValue(cookieAuthentication.authorization, forHTTPHeaderField: "Authorization")
             request.setValue(cookieAuthentication.cookies, forHTTPHeaderField: "Cookie")
         case .none:
-            break
+            request.setValue("https://www.youtube.com", forHTTPHeaderField: "Origin")
+            request.setValue("https://www.youtube.com", forHTTPHeaderField: "X-Origin")
         }
         if let visitorData = bootstrap?.visitorData {
             request.setValue(visitorData, forHTTPHeaderField: "X-Goog-Visitor-Id")
@@ -526,6 +530,9 @@ actor YouTubeStreamExtractor {
         guard let httpResponse = response as? HTTPURLResponse,
               (200..<300).contains(httpResponse.statusCode)
         else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+            let body = String(data: data.prefix(300), encoding: .utf8) ?? ""
+            logger.error("Player client=\(client.name, privacy: .public) v=\(client.version, privacy: .public) HTTP \(statusCode, privacy: .public): \(body, privacy: .public)")
             throw StreamExtractionError.invalidResponse
         }
         return try JSONDecoder().decode(PlayerResponse.self, from: data)
