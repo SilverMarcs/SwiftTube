@@ -156,9 +156,27 @@ actor YouTubeStreamExtractor {
     ]
 
     private static let clients: [Client] = [
-        // OAuth-authenticated TV is the first HD candidate because its GVS
-        // URLs do not require a PO token. Cookie auth remains a fallback for
-        // users whose TV OAuth session is unavailable.
+        // The current visionOS identity is the first HD candidate. Its direct
+        // fMP4 URLs support the deep range access required by our synthesized
+        // HLS presentation without a GVS PO token.
+        Client(
+            kind: .visionOS,
+            name: InnerTubeClients.VisionOS.name,
+            nameID: InnerTubeClients.VisionOS.nameID,
+            version: InnerTubeClients.VisionOS.version,
+            userAgent: InnerTubeClients.VisionOS.userAgent,
+            androidSDKVersion: nil,
+            deviceMake: InnerTubeClients.VisionOS.deviceMake,
+            deviceModel: InnerTubeClients.VisionOS.deviceModel,
+            osName: InnerTubeClients.VisionOS.osName,
+            osVersion: InnerTubeClients.VisionOS.osVersion,
+            prefersNativeHLS: false,
+            allowsAdaptiveDirectURLs: true,
+            requiresWatchBootstrap: true,
+            authenticationMode: .none
+        ),
+        // OAuth-authenticated TV remains the first authenticated HD fallback.
+        // Cookie auth is used when a TV OAuth session is unavailable.
         Client(
             kind: .authenticatedTV,
             name: InnerTubeClients.TVPlayback.name,
@@ -227,22 +245,6 @@ actor YouTubeStreamExtractor {
             prefersNativeHLS: false,
             allowsAdaptiveDirectURLs: false,
             requiresWatchBootstrap: false,
-            authenticationMode: .none
-        ),
-        Client(
-            kind: .androidVR,
-            name: InnerTubeClients.AndroidVR.name,
-            nameID: InnerTubeClients.AndroidVR.nameID,
-            version: InnerTubeClients.AndroidVR.version,
-            userAgent: InnerTubeClients.AndroidVR.userAgent,
-            androidSDKVersion: 32,
-            deviceMake: "Oculus",
-            deviceModel: "Quest 3",
-            osName: "Android",
-            osVersion: "12L",
-            prefersNativeHLS: true,
-            allowsAdaptiveDirectURLs: true,
-            requiresWatchBootstrap: true,
             authenticationMode: .none
         ),
     ]

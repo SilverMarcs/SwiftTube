@@ -118,29 +118,13 @@ actor StreamResolver {
         }
 
         var preparationFailure: StreamResolutionError?
-        let authenticatedTVPairs = adaptivePairs.filter {
-            $0.video.clientKind == .authenticatedTV
-        }
-        let remainingPairs = adaptivePairs.filter {
-            $0.video.clientKind != .authenticatedTV
-        }
-        do {
-            return try await prepareFirstAdaptive(in: authenticatedTVPairs)
-        } catch let error as StreamResolutionError {
-            if case .cancelled = error { throw error }
-            preparationFailure = error
-        }
-
         if requiredKind == .adaptiveHLS {
-            do {
-                return try await prepareFirstAdaptive(in: remainingPairs)
-            } catch let error as StreamResolutionError {
-                if case .cancelled = error { throw error }
-                throw preparationFailure ?? error
-            }
+            return try await prepareFirstAdaptive(in: adaptivePairs)
         }
         do {
-            return try await prepareFirstAdaptive(in: remainingPairs)
+            // `adaptivePairs` is ordered by client policy: visionOS first,
+            // authenticated TV second, followed by the remaining fallbacks.
+            return try await prepareFirstAdaptive(in: adaptivePairs)
         } catch let error as StreamResolutionError {
             if case .cancelled = error { throw error }
             preparationFailure = error

@@ -50,15 +50,18 @@ nonisolated enum InnerTubeClients {
         static let userAgent       = "com.google.android.youtube/\(version) (Linux; U; Android 11) gzip"
     }
 
-    /// Android VR client (Oculus Quest identity) used only as an adaptive
-    /// fallback. Since July 2026 its direct URLs have intermittent/selective
-    /// GVS PO-token enforcement, so the resolver probes beyond the one-MB
-    /// prefix before accepting them.
-    enum AndroidVR {
-        static let name    = "ANDROID_VR"
-        static let nameID  = "28"
-        static let version = "1.65.10"
-        static let userAgent = "com.google.android.apps.youtube.vr.oculus/\(version) (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip"
+    /// visionOS is the primary adaptive playback identity. Unlike the retired
+    /// Android VR client, its current direct video and audio URLs permit range
+    /// access throughout the media without a GVS PO token.
+    enum VisionOS {
+        static let name = "VISIONOS"
+        static let nameID = "101"
+        static let version = "1.02"
+        static let deviceMake = "Apple"
+        static let deviceModel = "RealityDevice17,1"
+        static let osName = "visionOS"
+        static let osVersion = "26.5.23O471"
+        static let userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
     }
 
     enum TV {
