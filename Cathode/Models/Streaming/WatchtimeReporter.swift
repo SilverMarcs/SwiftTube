@@ -24,7 +24,9 @@ final class WatchtimeReporter {
     private var segmentStart: TimeInterval = 0
     private var lastPing: Date = .distantPast
     private var playbackStarted: Bool = false
-    private var fetchTask: Task<Void, Never>?
+    private var fetchTask: Task<PlaybackTrackingURLs?, Never>?
+    private var sessionID: UUID?
+    private var lastFinalizedPosition: TimeInterval?
     private var sessionStartedAt: Date = .distantPast
     /// Playhead at the most recent observer tick — used to detect seeks by
     /// comparing playhead delta to wall-clock delta between ticks.
@@ -34,8 +36,12 @@ final class WatchtimeReporter {
     var activeVideoId: String? { videoId }
 
     func begin(for video: Video) {
-        fetchTask?.cancel()
+        // Do not cancel the previous fetch here. A final watchtime snapshot may
+        // still be awaiting its tracking URLs after the app is foregrounded.
+        // Session IDs prevent that old result from mutating this new session.
         fetchTask = nil
+        let newSessionID = UUID()
+        sessionID = newSessionID
         cpn = nil
         trackingURLs = nil
         videoId = nil
@@ -45,6 +51,7 @@ final class WatchtimeReporter {
         sessionStartedAt = .distantPast
         lastTickPosition = 0
         lastTickTime = .distantPast
+        lastFinalizedPosition = nil
 
         let newCpn = InnerTubeAPI.generateCPN()
         let id = video.id
@@ -52,16 +59,20 @@ final class WatchtimeReporter {
         videoId = id
         sessionStartedAt = Date()
 
-        fetchTask = Task { [weak self] in
+        let task = Task {
             // Cookie bootstrap is asynchronous at launch. Refresh here instead
             // of permanently disabling reporting when playback wins that race.
             await YTCookieAuth.shared.refreshSignInState()
-            let urls = await Self.fetchTrackingURLs(videoId: id)
-            await MainActor.run {
-                guard let self else { return }
-                guard self.videoId == id else { return }
-                self.trackingURLs = urls
-            }
+            return await Self.fetchTrackingURLs(videoId: id)
+        }
+        fetchTask = task
+        Task { @MainActor [weak self] in
+            let urls = await task.value
+            guard let self,
+                  self.sessionID == newSessionID,
+                  self.videoId == id
+            else { return }
+            self.trackingURLs = urls
         }
     }
 
@@ -231,15 +242,63 @@ final class WatchtimeReporter {
     /// Fires a final watchtime ping for the current session. Call on app
     /// background, video switch, and view dismissal.
     func finalize(playerPosition: TimeInterval?) {
-        guard let id = videoId else { return }
+        guard let id = videoId, let cpn else { return }
         guard let seconds = playerPosition, seconds.isFinite, seconds > 0 else {
             fetchTask?.cancel()
             return
         }
+        if let lastFinalizedPosition,
+           abs(lastFinalizedPosition - seconds) < 0.05 {
+            return
+        }
+        lastFinalizedPosition = seconds
+
+        let resolvedURLs = trackingURLs
         let pendingFetch = fetchTask
-        Task { @MainActor [weak self] in
-            await pendingFetch?.value
-            self?.report(videoId: id, position: seconds, isFinal: true)
+        let didStartPlayback = playbackStarted
+        let finalSegmentStart = segmentStart
+        let runtime = max(0, Date().timeIntervalSince(sessionStartedAt))
+
+        // Advance local segment state synchronously so a later finalization or
+        // resumed periodic tick cannot report this same interval twice.
+        if playbackStarted {
+            segmentStart = max(segmentStart, seconds)
+            lastPing = Date()
+        }
+
+        Task {
+            let urls: PlaybackTrackingURLs?
+            if let resolvedURLs {
+                urls = resolvedURLs
+            } else {
+                urls = await pendingFetch?.value
+            }
+            guard let urls else {
+                return
+            }
+            if !didStartPlayback {
+                await Self.reportPlaybackStarted(
+                    videoId: id,
+                    cpn: cpn,
+                    trackingURLs: urls,
+                    runtime: runtime
+                )
+            }
+
+            // If tracking configuration arrived only after playback stopped,
+            // report a tiny landing segment at the real playhead. This advances
+            // resume progress without claiming the unobserved lead-in.
+            let segmentStart = didStartPlayback && seconds > finalSegmentStart
+                ? finalSegmentStart
+                : seconds
+            await Self.reportWatchtime(
+                videoId: id,
+                cpn: cpn,
+                trackingURLs: urls,
+                segmentStart: segmentStart,
+                segmentEnd: max(seconds, segmentStart + 0.001),
+                runtime: runtime
+            )
         }
     }
 }

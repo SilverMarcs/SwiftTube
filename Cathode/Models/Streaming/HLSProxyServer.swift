@@ -21,6 +21,7 @@ nonisolated final class HLSProxyServer: @unchecked Sendable {
     /// used so the sendable state callback never captures mutable stack state.
     private final class ListenerStartState: @unchecked Sendable {
         var didResumeContinuation = false
+        var timeoutTask: Task<Void, Never>?
     }
 
     private struct MediaSource: Sendable {
@@ -42,6 +43,7 @@ nonisolated final class HLSProxyServer: @unchecked Sendable {
     }
 
     private static let maximumMediaAttempts = 3
+    private static let listenerStartTimeout: Duration = .seconds(5)
 
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "hls-proxy")
@@ -232,6 +234,30 @@ nonisolated final class HLSProxyServer: @unchecked Sendable {
         old?.cancel()
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             let startState = ListenerStartState()
+            // Network normally reports ready/waiting/failed promptly, but a
+            // listener restarted around suspension can remain in setup with no
+            // terminal callback. Without a deadline, HLSManifestService keeps
+            // that start task forever and every later video waits behind it
+            // until process relaunch. Timing out lets the existing bounded
+            // same-port retries and fresh-port fallback continue.
+            startState.timeoutTask = Task { [weak self, weak fresh] in
+                do {
+                    try await Task.sleep(for: Self.listenerStartTimeout)
+                } catch {
+                    return
+                }
+                guard let self, let fresh else { return }
+                self.queue.async {
+                    guard self.listener === fresh,
+                          !startState.didResumeContinuation
+                    else { return }
+                    startState.didResumeContinuation = true
+                    startState.timeoutTask = nil
+                    self.alive = false
+                    fresh.cancel()
+                    cont.resume(throwing: URLError(.timedOut))
+                }
+            }
             fresh.stateUpdateHandler = { [weak self] state in
                 // Ignore callbacks from a listener that start() has already
                 // replaced — a late .cancelled from the old one must not
@@ -241,6 +267,8 @@ nonisolated final class HLSProxyServer: @unchecked Sendable {
                 case .ready:
                     self.alive = true
                     if !startState.didResumeContinuation, let port = fresh.port?.rawValue {
+                        startState.timeoutTask?.cancel()
+                        startState.timeoutTask = nil
                         self.boundPort = port
                         if previousPort != 0, previousPort == port {
                             self.refreshRegistrationTransports()
@@ -251,18 +279,24 @@ nonisolated final class HLSProxyServer: @unchecked Sendable {
                 case .failed(let err):
                     self.alive = false
                     if !startState.didResumeContinuation {
+                        startState.timeoutTask?.cancel()
+                        startState.timeoutTask = nil
                         startState.didResumeContinuation = true
                         cont.resume(throwing: err)
                     }
                 case .waiting(let err):
                     self.alive = false
                     if !startState.didResumeContinuation {
+                        startState.timeoutTask?.cancel()
+                        startState.timeoutTask = nil
                         startState.didResumeContinuation = true
                         cont.resume(throwing: err)
                     }
                 case .cancelled:
                     self.alive = false
                     if !startState.didResumeContinuation {
+                        startState.timeoutTask?.cancel()
+                        startState.timeoutTask = nil
                         startState.didResumeContinuation = true
                         cont.resume(throwing: CancellationError())
                     }
