@@ -69,7 +69,7 @@ struct ChannelVideoList: View {
         }
         .help(subscribed ? "Unsubscribe" : "Subscribe")
         #if os(tvOS)
-        .tint(.primary)
+        .foregroundStyle(.primary)
         #endif
     }
 

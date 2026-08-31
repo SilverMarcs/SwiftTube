@@ -14,7 +14,7 @@ struct RefreshButton: View {
                 .labelStyle(.iconOnly)
         }
         #if os(tvOS)
-        .tint(.primary)
+        .foregroundStyle(.primary)
         #endif
         #if os(macOS)
         .keyboardShortcut("r")

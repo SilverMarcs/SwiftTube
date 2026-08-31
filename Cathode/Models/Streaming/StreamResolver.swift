@@ -41,12 +41,25 @@ actor StreamResolver {
         // discovering the cutoff after a minute of playback.
         let maximumAttempts = 3
         var lastError: StreamResolutionError?
+        var lowQualityFallback: PlaybackSource?
 
         for attempt in 0..<maximumAttempts {
             do {
                 try Task.checkCancellation()
                 let extraction = try await extractor.extract(videoID: videoID)
-                return try await prepareSource(from: extraction, requiring: requiredKind)
+                if requiredKind != .local,
+                   let progressive = PlaybackSourceSelector.progressive(from: extraction.streams),
+                   (progressive.height ?? 0) < 720 {
+                    lowQualityFallback = .progressive(
+                        url: progressive.url,
+                        expiresAt: Self.expiry(of: progressive.url)
+                    )
+                }
+                return try await prepareSource(
+                    from: extraction,
+                    requiring: requiredKind,
+                    allowingLowQualityFallback: attempt + 1 == maximumAttempts
+                )
             } catch let error as StreamExtractionError {
                 if case .cancelled = error { throw StreamResolutionError.cancelled }
                 lastError = .extraction(error)
@@ -64,6 +77,11 @@ actor StreamResolver {
             }
         }
 
+        // Keep an earlier 360p candidate usable even if the final re-extraction
+        // fails before it can return the same fallback again.
+        if let lowQualityFallback {
+            return lowQualityFallback
+        }
         throw lastError ?? .noPlayableSource
     }
 
@@ -104,11 +122,12 @@ actor StreamResolver {
 
     private func prepareSource(
         from extraction: YouTubeStreamExtraction,
-        requiring requiredKind: PlaybackSource.Kind?
+        requiring requiredKind: PlaybackSource.Kind?,
+        allowingLowQualityFallback: Bool
     ) async throws -> PlaybackSource {
         let adaptivePairs = PlaybackSourceSelector.adaptivePairs(from: extraction.streams)
-        if requiredKind == .nativeHLS {
-            return try await nativeHLSSource(from: extraction)
+        if requiredKind == .nativeHLS, !allowingLowQualityFallback {
+            return try await nativeHLSSource(from: extraction, minimumHeight: 720)
         }
         if requiredKind == .progressive {
             return try progressiveSource(from: extraction)
@@ -118,7 +137,7 @@ actor StreamResolver {
         }
 
         var preparationFailure: StreamResolutionError?
-        if requiredKind == .adaptiveHLS {
+        if requiredKind == .adaptiveHLS, !allowingLowQualityFallback {
             return try await prepareFirstAdaptive(in: adaptivePairs)
         }
         do {
@@ -129,14 +148,15 @@ actor StreamResolver {
             if case .cancelled = error { throw error }
             preparationFailure = error
         }
-        // A rejected HD path may use native HLS only when its language-filtered
-        // rendition is itself HD. Never turn an available 1080p video into a
-        // 144p/360p fallback merely because a direct URL was rejected.
+        // Native HLS must resolve to an HD language rendition until the final
+        // extraction attempt. Only then may a lower-quality rendition replace
+        // the adaptive paths that have repeatedly failed.
         if extraction.nativeHLS != nil {
             do {
+                let minimumNativeHLSHeight: Int? = allowingLowQualityFallback ? nil : 720
                 return try await nativeHLSSource(
                     from: extraction,
-                    minimumHeight: adaptivePairs.isEmpty ? nil : 720
+                    minimumHeight: minimumNativeHLSHeight
                 )
             } catch is CancellationError {
                 throw StreamResolutionError.cancelled
@@ -145,8 +165,15 @@ actor StreamResolver {
                 preparationFailure = .adaptivePreparation(String(describing: error))
             }
         }
-        if adaptivePairs.isEmpty {
-            return try progressiveSource(from: extraction)
+        // A progressive HD source is still useful immediately. Sub-720p
+        // progressive playback remains the absolute last resort and is
+        // withheld until every resolver retry has been used.
+        if let progressive = PlaybackSourceSelector.progressive(from: extraction.streams),
+           allowingLowQualityFallback || (progressive.height ?? 0) >= 720 {
+            return .progressive(
+                url: progressive.url,
+                expiresAt: Self.expiry(of: progressive.url)
+            )
         }
         throw preparationFailure ?? .noPlayableSource
     }
