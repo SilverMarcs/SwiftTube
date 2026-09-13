@@ -155,6 +155,9 @@ actor YouTubeStreamExtractor {
         298, 299,
     ]
 
+    // Extraction requests every enabled entry in parallel. Keep only visionOS
+    // enabled for now; uncomment other entries to include them in that batch.
+    // Stream selection and resolver retries still apply to the returned sources.
     private static let clients: [Client] = [
         // The current visionOS identity is the first HD candidate. Its direct
         // fMP4 URLs support the deep range access required by our synthesized
@@ -175,6 +178,7 @@ actor YouTubeStreamExtractor {
             requiresWatchBootstrap: true,
             authenticationMode: .none
         ),
+        /*
         // OAuth-authenticated TV remains the first authenticated HD fallback.
         // Cookie auth is used when a TV OAuth session is unavailable.
         Client(
@@ -247,6 +251,7 @@ actor YouTubeStreamExtractor {
             requiresWatchBootstrap: false,
             authenticationMode: .none
         ),
+        */
     ]
 
     private static let bootstrapUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15,gzip(gfe)"
