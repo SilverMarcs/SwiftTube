@@ -38,6 +38,7 @@ struct PlaybackSession {
 
     let id = UUID()
     let videoID: String
+    var usesBroker: Bool
     private(set) var loadID = UUID()
     var phase: Phase
     var intent: Intent
@@ -47,8 +48,9 @@ struct PlaybackSession {
     private var itemReachedReady = false
     private var installationCompleted = false
 
-    init(videoID: String, autoPlay: Bool) {
+    init(videoID: String, autoPlay: Bool, usesBroker: Bool = false) {
         self.videoID = videoID
+        self.usesBroker = usesBroker
         phase = .resolving(.initial)
         intent = autoPlay ? .playing : .paused
     }

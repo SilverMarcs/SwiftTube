@@ -96,10 +96,13 @@ struct ShortVideoCard: View {
         }
     }
 
-    /// Resolves the stream once, then caches it so scrolling back to a card
-    /// doesn't re-extract. Uses the same adaptive HLS-proxy path as regular
-    /// videos so Shorts play at full quality, not a 360p muxed fallback.
+    /// Reuses the source while the selected backend is unchanged. Shorts use
+    /// the same playback routing as regular videos, including token-assisted mode.
     private func resolveStreamIfNeeded() async {
+        if let playbackSource,
+           playbackSource.isBroker != ExperimentalPlaybackSettings.shared.usesBroker {
+            self.playbackSource = nil
+        }
         guard playbackSource == nil, !isResolving else { return }
         isResolving = true
         resolutionError = nil

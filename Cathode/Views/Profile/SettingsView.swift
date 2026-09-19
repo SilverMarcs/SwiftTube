@@ -10,6 +10,7 @@ import SwiftMediaViewer
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var playbackSettings = ExperimentalPlaybackSettings.shared
 
     var body: some View {
         SettingsSplitView {
@@ -45,6 +46,11 @@ struct SettingsView: View {
             Section("Cache") {
                 CacheManagerView()
             }
+
+            ExperimentalPlaybackSection(settings: playbackSettings)
+        }
+        .safeAreaInset(edge: .bottom) {
+            ExperimentalSettingsUnlockButton(settings: playbackSettings)
         }
         .tint(.accent)
         .formStyle(.grouped)

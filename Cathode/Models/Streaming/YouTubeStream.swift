@@ -2,6 +2,7 @@ import Foundation
 
 nonisolated struct YouTubeStream: Sendable {
     enum ClientKind: Hashable, Sendable {
+        case mwebPO
         case visionOS
         case authenticatedTV
         case authenticatedWebSafari

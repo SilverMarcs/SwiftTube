@@ -28,6 +28,7 @@ struct DownloadMenuButton: View {
             } label: {
                 Label("Download", systemImage: "arrow.down")
             }
+            .disabled(ExperimentalPlaybackSettings.shared.usesBroker)
         }
     }
 }

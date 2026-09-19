@@ -6,6 +6,7 @@ nonisolated struct PlaybackSource: Sendable {
         case nativeHLS
         case progressive
         case adaptiveHLS
+        case tokenAssistedHLS
     }
 
     let url: URL
@@ -17,8 +18,15 @@ nonisolated struct PlaybackSource: Sendable {
     /// belongs to an installed player item.
     private let manifestLease: HLSManifestLease?
 
+    var isBroker: Bool { kind == .tokenAssistedHLS }
+
     var dependsOnManifestServer: Bool {
         manifestLease != nil
+    }
+
+    func limitingExpiry(to deadline: Date) -> PlaybackSource {
+        PlaybackSource(url: url, expiresAt: min(expiresAt ?? deadline, deadline), kind: kind,
+                       httpUserAgent: httpUserAgent, manifestLease: manifestLease)
     }
 
     static func local(url: URL) -> PlaybackSource {
@@ -29,6 +37,11 @@ nonisolated struct PlaybackSource: Sendable {
             httpUserAgent: nil,
             manifestLease: nil
         )
+    }
+
+    static func tokenAssisted(lease: HLSManifestLease, expiresAt: Date) -> PlaybackSource {
+        PlaybackSource(url: lease.url, expiresAt: expiresAt, kind: .tokenAssistedHLS,
+                       httpUserAgent: nil, manifestLease: lease)
     }
 
     static func progressive(url: URL, expiresAt: Date) -> PlaybackSource {

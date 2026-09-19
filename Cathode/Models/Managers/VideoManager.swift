@@ -326,7 +326,8 @@ final class VideoManager {
     func setVideo(_ video: Video, autoPlay: Bool = true) {
         isExpanded = autoPlay
         persistCurrentTime()
-        guard video.id != currentVideo?.id else { return }
+        let usesBroker = ExperimentalPlaybackSettings.shared.usesBroker
+        guard video.id != currentVideo?.id || playbackSession?.usesBroker != usesBroker else { return }
 
         loadWasInterruptedByBackground = false
         manifestBackedItemNeedsRecovery = false
@@ -336,7 +337,7 @@ final class VideoManager {
         watchtime.finalize(playerPosition: player?.currentTime().seconds)
 
         currentVideo = video
-        playbackSession = PlaybackSession(videoID: video.id, autoPlay: autoPlay)
+        playbackSession = PlaybackSession(videoID: video.id, autoPlay: autoPlay, usesBroker: usesBroker)
         sponsor.reset()
         fetchUpNext(for: video)
         watchtime.begin(for: video)
@@ -515,6 +516,7 @@ final class VideoManager {
               session.videoID == video.id
         else { return }
 
+        session.usesBroker = ExperimentalPlaybackSettings.shared.usesBroker
         let token = session.beginLoad(reason: reason)
         playbackSession = session
 
@@ -543,10 +545,12 @@ final class VideoManager {
     ) async {
         guard isCurrent(token), !Task.isCancelled else { return }
         let plannedResumeAt = resumePosition(for: video)
+        let usesBroker = playbackSession?.usesBroker ?? false
 
         let source: PlaybackSource
         #if os(iOS)
-        if !bypassLocalFile,
+        if !usesBroker,
+           !bypassLocalFile,
            let localURL = DownloadManager.shared.localURL(for: video.id) {
             source = .local(url: localURL)
         } else {
@@ -554,7 +558,8 @@ final class VideoManager {
                 source = try await StreamResolver.shared.resolvePlaybackSource(
                     videoID: video.id,
                     freshness: freshness,
-                    requiring: requiredRemoteKind
+                    requiring: requiredRemoteKind,
+                    usingBroker: usesBroker
                 )
             } catch let error as StreamResolutionError {
                 guard !Task.isCancelled, isCurrent(token), !Self.isCancellation(error) else { return }
@@ -575,7 +580,8 @@ final class VideoManager {
             source = try await StreamResolver.shared.resolvePlaybackSource(
                 videoID: video.id,
                 freshness: freshness,
-                requiring: requiredRemoteKind
+                requiring: requiredRemoteKind,
+                usingBroker: usesBroker
             )
         } catch let error as StreamResolutionError {
             guard !Task.isCancelled, isCurrent(token), !Self.isCancellation(error) else { return }

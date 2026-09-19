@@ -11,6 +11,7 @@ actor YouTubeStreamExtractor {
     private enum AuthenticationMode: Sendable {
         case none
         case cookie
+        case cookieOrAnonymous
         case tvOAuthOrCookie
     }
 
@@ -74,6 +75,8 @@ actor YouTubeStreamExtractor {
         }
 
         struct PlaybackContext: Encodable {
+            struct AdPlaybackContext: Encodable { let pyv = true }
+            let adPlaybackContext: AdPlaybackContext?
             let contentPlaybackContext: ContentPlaybackContext
 
             struct ContentPlaybackContext: Encodable {
@@ -84,6 +87,7 @@ actor YouTubeStreamExtractor {
     }
 
     private struct PlayerResponse: Decodable, Sendable {
+        var availableAt: Date?
         let playabilityStatus: PlayabilityStatus?
         let streamingData: StreamingData?
         let videoDetails: VideoDetails?
@@ -254,6 +258,14 @@ actor YouTubeStreamExtractor {
         */
     ]
 
+    private static let tokenClient = Client(
+        kind: .mwebPO, name: "MWEB", nameID: "2", version: "2.20260708.05.00",
+        userAgent: "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)",
+        androidSDKVersion: nil, deviceMake: nil, deviceModel: nil, osName: nil, osVersion: nil,
+        prefersNativeHLS: false, allowsAdaptiveDirectURLs: true, requiresWatchBootstrap: true,
+        authenticationMode: .cookieOrAnonymous
+    )
+
     private static let bootstrapUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15,gzip(gfe)"
     private static let logger = Logger(subsystem: "com.SilverMarcs.SwiftTube", category: "StreamExtraction")
 
@@ -276,9 +288,13 @@ actor YouTubeStreamExtractor {
         try await Self.fetchWatchBootstrap(videoID: videoID, session: session)
     }
 
-    func extract(videoID: String) async throws -> YouTubeStreamExtraction {
+    func extract(videoID: String, poToken: PlaybackPOToken? = nil) async throws -> YouTubeStreamExtraction {
         do {
             try Task.checkCancellation()
+            if let poToken, poToken.videoID != videoID || poToken.expiresAt <= Date() {
+                throw StreamExtractionError.invalidResponse
+            }
+            let clients = poToken == nil ? Self.clients : [Self.tokenClient]
             var responses: [ClientResponse] = []
             var errors: [Error] = []
             let cookieAuthentication = await Self.cookieAuthentication()
@@ -292,7 +308,8 @@ actor YouTubeStreamExtractor {
             do {
                 bootstrap = try await Self.fetchWatchBootstrap(
                     videoID: videoID,
-                    session: session
+                    session: session,
+                    cookies: poToken == nil ? nil : cookieAuthentication?.cookies
                 )
                 bootstrapError = nil
             } catch let error as StreamExtractionError {
@@ -304,7 +321,7 @@ actor YouTubeStreamExtractor {
             }
 
             await withTaskGroup(of: Result<ClientResponse, Error>.self) { group in
-                for (priority, client) in Self.clients.enumerated()
+                for (priority, client) in clients.enumerated()
                 where !client.requiresWatchBootstrap || bootstrap != nil {
                     guard let authentication = Self.authentication(
                         for: client,
@@ -422,7 +439,7 @@ actor YouTubeStreamExtractor {
             for (candidate, resolvedURL) in zip(formatCandidates, resolvedFormatURLs) {
                 guard let stream = Self.makeStream(
                     from: candidate.format,
-                    resolvedURL: resolvedURL,
+                    resolvedURL: try poToken?.applying(to: resolvedURL) ?? resolvedURL,
                     client: candidate.client
                 ) else { continue }
                 guard candidate.client.allowsAdaptiveDirectURLs
@@ -435,6 +452,11 @@ actor YouTubeStreamExtractor {
                     isDRC: stream.isDRC
                 )
                 streamsByIdentity[identity] = streamsByIdentity[identity] ?? stream
+            }
+            if poToken != nil, let availableAt = matchingResponses.compactMap({ $0.response.availableAt }).max() {
+                let delay = availableAt.timeIntervalSinceNow
+                guard delay <= 120 else { throw StreamExtractionError.invalidResponse }
+                if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
             }
             let streams = Array(streamsByIdentity.values)
             let hasAdaptiveVideo = streams.contains { $0.includesVideo && !$0.includesAudio }
@@ -504,7 +526,8 @@ actor YouTubeStreamExtractor {
             context: .init(client: context),
             videoId: videoID,
             playbackContext: bootstrap.map {
-                .init(contentPlaybackContext: .init(signatureTimestamp: $0.signatureTimestamp))
+                .init(adPlaybackContext: client.kind == .mwebPO ? .init() : nil,
+                      contentPlaybackContext: .init(signatureTimestamp: $0.signatureTimestamp))
             }
         )
         var request = URLRequest(url: url)
@@ -542,7 +565,11 @@ actor YouTubeStreamExtractor {
             logger.error("Player client=\(client.name, privacy: .public) v=\(client.version, privacy: .public) HTTP \(statusCode, privacy: .public): \(body, privacy: .public)")
             throw StreamExtractionError.invalidResponse
         }
-        return try JSONDecoder().decode(PlayerResponse.self, from: data)
+        var playerResponse = try JSONDecoder().decode(PlayerResponse.self, from: data)
+        if client.kind == .mwebPO {
+            playerResponse.availableAt = Date(timeIntervalSince1970: ceil(Date().timeIntervalSince1970) + YouTubePlaybackDelay.seconds(in: data))
+        }
+        return playerResponse
     }
 
     private static func authentication(
@@ -555,6 +582,8 @@ actor YouTubeStreamExtractor {
             return PlayerAuthentication.none
         case .cookie:
             return cookieAuthentication.map(PlayerAuthentication.cookie)
+        case .cookieOrAnonymous:
+            return cookieAuthentication.map(PlayerAuthentication.cookie) ?? PlayerAuthentication.none
         case .tvOAuthOrCookie:
             if let oauthBearerToken {
                 return .oauthBearer(oauthBearerToken)
@@ -575,7 +604,8 @@ actor YouTubeStreamExtractor {
 
     private static func fetchWatchBootstrap(
         videoID: String,
-        session: URLSession
+        session: URLSession,
+        cookies: String? = nil
     ) async throws -> WatchBootstrap {
         guard var components = URLComponents(string: "https://www.youtube.com/watch") else {
             throw StreamExtractionError.invalidResponse
@@ -591,6 +621,7 @@ actor YouTubeStreamExtractor {
         var request = URLRequest(url: url)
         request.httpShouldHandleCookies = false
         request.setValue(bootstrapUserAgent, forHTTPHeaderField: "User-Agent")
+        if let cookies { request.setValue(cookies, forHTTPHeaderField: "Cookie") }
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               (200..<300).contains(httpResponse.statusCode),

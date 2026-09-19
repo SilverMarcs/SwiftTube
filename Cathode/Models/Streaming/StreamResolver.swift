@@ -34,8 +34,34 @@ actor StreamResolver {
     func resolvePlaybackSource(
         videoID: String,
         freshness: Freshness = .standard,
-        requiring requiredKind: PlaybackSource.Kind? = nil
+        requiring requiredKind: PlaybackSource.Kind? = nil,
+        usingBroker selectedBroker: Bool? = nil
     ) async throws -> PlaybackSource {
+        // A full-player load pins its selected backend before starting work.
+        // Shorts select the current setting when their resolution starts.
+        let useBroker: Bool
+        if let selectedBroker {
+            useBroker = selectedBroker
+        } else {
+            useBroker = await ExperimentalPlaybackSettings.shared.usesBroker
+        }
+        try Task.checkCancellation()
+        if useBroker {
+            do {
+                let token = try await PlaybackBrokerClient.shared.token(videoID: videoID, refresh: freshness == .revalidate)
+                let extraction = try await extractor.extract(videoID: videoID, poToken: token)
+                let source = try await prepareSource(from: extraction, requiring: nil, allowingLowQualityFallback: false)
+                return source.limitingExpiry(to: token.expiresAt)
+            } catch is CancellationError {
+                throw StreamResolutionError.cancelled
+            } catch let error as StreamExtractionError {
+                if case .cancelled = error { throw StreamResolutionError.cancelled }
+                throw StreamResolutionError.extraction(error)
+            } catch let error as PlaybackBrokerError {
+                throw StreamResolutionError.broker(error)
+            }
+        }
+
         // Selective GVS enforcement is assigned per returned URL. Reject and
         // re-extract bad candidates before AVPlayer sees them instead of
         // discovering the cutoff after a minute of playback.
@@ -89,6 +115,9 @@ actor StreamResolver {
         videoID: String,
         freshness: Freshness = .revalidate
     ) async throws -> URLRequest {
+        guard await !ExperimentalPlaybackSettings.shared.usesBroker else {
+            throw StreamResolutionError.broker(.downloadsUnsupported)
+        }
         let maximumAttempts = freshness == .revalidate ? 2 : 1
         var lastError: StreamResolutionError?
 
@@ -242,10 +271,10 @@ actor StreamResolver {
             audioCodec: pair.audio.audioCodec ?? "mp4a.40.2",
             audioRequestHeaders: pair.audio.requestHeaders
         )
-        return .adaptive(
-            lease: lease,
-            expiresAt: Self.expiry(of: pair.video.url, pair.audio.url)
-        )
+        if pair.video.clientKind == .mwebPO {
+            return .tokenAssisted(lease: lease, expiresAt: Self.expiry(of: pair.video.url, pair.audio.url))
+        }
+        return .adaptive(lease: lease, expiresAt: Self.expiry(of: pair.video.url, pair.audio.url))
     }
 
     private func nativeHLSSource(
