@@ -1,0 +1,30 @@
+version = 1
+name = "Cathode"
+
+[setup]
+script = ""
+
+[[actions]]
+name = "Run MacOS"
+icon = "run"
+command = "./run.sh macos"
+
+[[actions]]
+name = "Run iOS"
+icon = "run"
+command = "./run.sh ios --device"
+
+[[actions]]
+name = "Run iPadOS"
+icon = "run"
+command = "./run.sh ipados --device"
+
+[[actions]]
+name = "Build MacOS"
+icon = "run"
+command = "./run.sh macos --build"
+
+[[actions]]
+name = "Run tvOS"
+icon = "run"
+command = "./run.sh tvos --device"

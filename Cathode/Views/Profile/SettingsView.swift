@@ -49,9 +49,11 @@ struct SettingsView: View {
 
             ExperimentalPlaybackSection(settings: playbackSettings)
         }
+        #if !os(tvOS)
         .safeAreaInset(edge: .bottom) {
             ExperimentalSettingsUnlockButton(settings: playbackSettings)
         }
+        #endif
         .tint(.accent)
         .formStyle(.grouped)
         #if os(iOS)
