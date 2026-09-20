@@ -3,8 +3,7 @@ import Foundation
 // MARK: - InnerTubeAPIProtocol
 //
 // The dependency interface for all four feed ViewModels (Home, Browse, Search,
-// Playlist).  Decouples ViewModels from the concrete InnerTubeAPI actor so
-// they can be injected with a mock in unit tests.
+// Playlist). Keeps their API requirements independent of the concrete actor.
 //
 // All methods are declared `async` (matching how ViewModels call them).
 // A synchronous actor method satisfies an `async` protocol requirement in

@@ -4,13 +4,6 @@ import Foundation
 
 extension InnerTubeAPI {
 
-    // MARK: - Testing hook
-
-    /// Internal accessor so unit tests can exercise the playlist parser without a live network.
-    func parsePlaylistsForTesting(_ json: [String: Any]) throws -> [PlaylistInfo] {
-        try parsePlaylists(from: json)
-    }
-
     // MARK: - Public endpoints
 
     public func fetchUserPlaylists() async throws -> [PlaylistInfo] {

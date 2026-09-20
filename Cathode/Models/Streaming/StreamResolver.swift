@@ -49,7 +49,11 @@ actor StreamResolver {
         if useBroker {
             do {
                 let token = try await PlaybackBrokerClient.shared.token(videoID: videoID, refresh: freshness == .revalidate)
-                let extraction = try await extractor.extract(videoID: videoID, poToken: token)
+                // A recovery must not reuse connection pools from before suspension.
+                let freshSession = freshness == .revalidate ? YouTubeMediaTransport.makeExtractionSession() : nil
+                defer { freshSession?.invalidateAndCancel() }
+                let tokenExtractor = freshSession.map { YouTubeStreamExtractor(session: $0) } ?? extractor
+                let extraction = try await tokenExtractor.extract(videoID: videoID, poToken: token)
                 let source = try await prepareSource(from: extraction, requiring: nil, allowingLowQualityFallback: false)
                 return source.limitingExpiry(to: token.expiresAt)
             } catch is CancellationError {
@@ -232,14 +236,6 @@ actor StreamResolver {
         _ pair: PlaybackSourceSelector.AdaptivePair
     ) async throws -> PlaybackSource {
         Self.logger.info("Preparing adaptive client=\(String(describing: pair.video.clientKind), privacy: .public) height=\(pair.video.height ?? 0, privacy: .public)")
-        if ProcessInfo.processInfo.environment["CATHODE_DEBUG_VIDEO_ID"] != nil {
-            print("DEBUG adaptive video url [\(pair.video.clientKind)] \(pair.video.url.absoluteString)")
-            print("DEBUG adaptive audio url [\(pair.audio.clientKind)] \(pair.audio.url.absoluteString)")
-            print("DEBUG video headers: \(pair.video.requestHeaders)")
-            if ProcessInfo.processInfo.environment["CATHODE_DEBUG_NO_FETCH"] != nil {
-                throw StreamResolutionError.adaptivePreparation("debug: fetch suppressed")
-            }
-        }
         async let videoInfo = FMP4Parser.parse(
             url: pair.video.url,
             requestHeaders: pair.video.requestHeaders

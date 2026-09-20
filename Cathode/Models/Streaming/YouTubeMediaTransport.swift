@@ -3,7 +3,11 @@ import Foundation
 /// Cookie-free transports for YouTube player resolution and signed media.
 enum YouTubeMediaTransport {
     /// Player metadata and short-lived extraction requests may share a pool.
-    nonisolated static let session = makeSession(resourceTimeout: 45)
+    nonisolated static let session = makeExtractionSession()
+
+    nonisolated static func makeExtractionSession() -> URLSession {
+        makeSession(resourceTimeout: 45)
+    }
 
     /// Media gets a playback-scoped pool. Reusing one process-wide pool here
     /// allowed a stale googlevideo connection to poison later range requests

@@ -32,19 +32,6 @@ actor PlaybackBrokerClient {
 
     private var cachedTokens: [String: PlaybackPOToken] = [:]
 
-    private let session: URLSession
-
-    private init() {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.httpShouldSetCookies = false
-        configuration.httpCookieStorage = nil
-        configuration.urlCredentialStorage = nil
-        configuration.urlCache = nil
-        configuration.timeoutIntervalForRequest = 60
-        configuration.timeoutIntervalForResource = 60
-        session = URLSession(configuration: configuration)
-    }
-
     func token(videoID: String, refresh: Bool) async throws -> PlaybackPOToken {
         try Task.checkCancellation()
         let configured = await MainActor.run {
@@ -83,6 +70,16 @@ actor PlaybackBrokerClient {
         request.timeoutInterval = 60
         request.httpBody = try JSONEncoder().encode(RequestBody(videoID: videoID, refresh: refresh))
 
+        // Each token request gets a fresh pool; cached tokens need no connection.
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieStorage = nil
+        configuration.urlCredentialStorage = nil
+        configuration.urlCache = nil
+        configuration.timeoutIntervalForRequest = 60
+        configuration.timeoutIntervalForResource = 60
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
         let data: Data
         let response: URLResponse
         do {

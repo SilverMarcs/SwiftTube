@@ -50,10 +50,12 @@ nonisolated enum FMP4Parser {
         // authorization; the identical request succeeds ~2s later. Retry the
         // request itself — failing here makes the resolver re-extract, which
         // mints another cold URL and loops forever on first-request 403s.
+        let session = YouTubeMediaTransport.makeExtractionSession()
+        defer { session.invalidateAndCancel() }
         var lastStatusCode: Int?
         for attempt in 0..<3 {
             if attempt > 0 { try await Task.sleep(for: .seconds(2)) }
-            let (data, response) = try await YouTubeMediaTransport.session.data(for: req)
+            let (data, response) = try await session.data(for: req)
             guard let http = response as? HTTPURLResponse,
                   (200...299).contains(http.statusCode)
             else {

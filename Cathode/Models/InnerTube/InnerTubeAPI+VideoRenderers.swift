@@ -4,18 +4,6 @@ import Foundation
 
 extension InnerTubeAPI {
 
-    // MARK: - Testing hooks
-
-    /// Internal accessor so unit tests can exercise the JSON parser without a live network.
-    func parseVideoGroupForTesting(_ json: [String: Any], title: String?) throws -> VideoGroup {
-        try parseVideoGroup(from: json, title: title)
-    }
-
-    /// Internal accessor so unit tests can exercise the multi-shelf home row parser without a live network.
-    func parseVideoGroupRowsForTesting(_ json: [String: Any]) -> [VideoGroup] {
-        parseVideoGroupRows(from: json)
-    }
-
     // MARK: - Multi-shelf home row parser
 
     /// Walks the JSON looking for `richShelfRenderer` sections (YouTube home feed).
