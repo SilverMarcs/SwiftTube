@@ -8,6 +8,7 @@ import OSLog
 ///
 /// No-op when cookie authentication cannot be refreshed. The fetch task is
 /// fire-and-forget; pings only start once account-bound tracking URLs land.
+@MainActor
 final class WatchtimeReporter {
     private static let segmentInterval: TimeInterval = 5
     private static let maximumNetworkAttempts = 3
@@ -25,6 +26,9 @@ final class WatchtimeReporter {
     private var lastPing: Date = .distantPast
     private var playbackStarted: Bool = false
     private var fetchTask: Task<PlaybackTrackingURLs?, Never>?
+    private var nextTrackingFetchAt: Date = .distantPast
+    private var pendingReport: Task<Void, Never>?
+    private var reportingState = WatchtimeReportingState()
     private var sessionID: UUID?
     private var lastFinalizedPosition: TimeInterval?
     private var sessionStartedAt: Date = .distantPast
@@ -40,6 +44,7 @@ final class WatchtimeReporter {
         // still be awaiting its tracking URLs after the app is foregrounded.
         // Session IDs prevent that old result from mutating this new session.
         fetchTask = nil
+        nextTrackingFetchAt = .distantPast
         let newSessionID = UUID()
         sessionID = newSessionID
         cpn = nil
@@ -59,26 +64,58 @@ final class WatchtimeReporter {
         videoId = id
         sessionStartedAt = Date()
 
-        let task = Task {
-            // Cookie bootstrap is asynchronous at launch. Refresh here instead
-            // of permanently disabling reporting when playback wins that race.
-            await YTCookieAuth.shared.refreshSignInState()
-            return await Self.fetchTrackingURLs(videoId: id)
-        }
+        fetchTrackingURLsIfNeeded()
+    }
+
+    private func fetchTrackingURLsIfNeeded() {
+        guard trackingURLs == nil, fetchTask == nil,
+              Date() >= nextTrackingFetchAt,
+              let id = videoId, let currentSessionID = sessionID else { return }
+        reportingState = WatchtimeReportingState()
+        let task = Task { await Self.fetchTrackingURLs(videoId: id) }
         fetchTask = task
-        Task { @MainActor [weak self] in
+        Task { [weak self] in
             let urls = await task.value
-            guard let self,
-                  self.sessionID == newSessionID,
-                  self.videoId == id
-            else { return }
+            guard let self, self.sessionID == currentSessionID else { return }
             self.trackingURLs = urls
+            self.fetchTask = nil
+            // A failed initial setup must not disable the entire video. Retry
+            // while playback continues, without hammering the watch page.
+            self.nextTrackingFetchAt = Date().addingTimeInterval(30)
+        }
+    }
+
+    /// Preserve ordering across seeks, finalization, and session switches.
+    /// Otherwise a delayed old ping can overwrite a newer resume position.
+    private func enqueueReport(_ operation: @escaping @MainActor () async -> Bool) {
+        let previous = pendingReport
+        let reportingSessionID = sessionID
+        let state = reportingState
+        pendingReport = Task { [weak self] in
+            await previous?.value
+            guard !state.failed else { return }
+            let succeeded = await operation()
+            guard !succeeded else { return }
+            state.failed = true
+            guard let self, self.sessionID == reportingSessionID,
+                  self.reportingState === state else { return }
+            self.trackingURLs = nil
+            self.playbackStarted = false
+            self.lastFinalizedPosition = nil
+            self.nextTrackingFetchAt = Date().addingTimeInterval(30)
+            if YTCookieAuth.shared.historySyncStatus != .needsSignIn {
+                YTCookieAuth.shared.setHistorySyncStatus(.unavailable)
+            }
         }
     }
 
     func report(videoId reportId: String, position: TimeInterval, isFinal: Bool) {
         guard let cpn, videoId == reportId else { return }
-        guard let urls = trackingURLs else { return }
+        guard position.isFinite, position >= 0 else { return }
+        guard let urls = trackingURLs else {
+            fetchTrackingURLsIfNeeded()
+            return
+        }
 
         let now = Date()
 
@@ -91,7 +128,7 @@ final class WatchtimeReporter {
             lastTickPosition = position
             lastTickTime = now
             let runtime = max(0, now.timeIntervalSince(sessionStartedAt))
-            Task {
+            enqueueReport {
                 await Self.reportPlaybackStarted(
                     videoId: reportId,
                     cpn: cpn,
@@ -116,7 +153,7 @@ final class WatchtimeReporter {
             let closeEnd = lastTickPosition
             if closeEnd > closeStart {
                 let runtime = max(0, now.timeIntervalSince(sessionStartedAt))
-                Task {
+                enqueueReport {
                     await Self.reportWatchtime(
                         videoId: reportId,
                         cpn: cpn,
@@ -135,7 +172,7 @@ final class WatchtimeReporter {
             let landingStart = position
             let landingEnd = position + 0.001
             let runtime = max(0, now.timeIntervalSince(sessionStartedAt))
-            Task {
+            enqueueReport {
                 await Self.reportWatchtime(
                     videoId: reportId,
                     cpn: cpn,
@@ -163,7 +200,7 @@ final class WatchtimeReporter {
         segmentStart = segEnd
         lastPing = now
         let runtime = max(0, now.timeIntervalSince(sessionStartedAt))
-        Task {
+        enqueueReport {
             await Self.reportWatchtime(
                 videoId: reportId,
                 cpn: cpn,
@@ -178,6 +215,9 @@ final class WatchtimeReporter {
     private static func fetchTrackingURLs(videoId: String) async -> PlaybackTrackingURLs? {
         for attempt in 0..<maximumNetworkAttempts {
             if Task.isCancelled { return nil }
+            // Re-read cookie state on every attempt: iCloud/WebKit bootstrap can
+            // finish after the first request, especially on a cold launch.
+            await YTCookieAuth.shared.refreshSignInState()
             if let urls = await InnerTubeAPI.shared.fetchAuthenticatedTrackingURLs(videoId: videoId) {
                 return urls
             }
@@ -194,7 +234,7 @@ final class WatchtimeReporter {
         cpn: String,
         trackingURLs: PlaybackTrackingURLs,
         runtime: TimeInterval
-    ) async {
+    ) async -> Bool {
         for attempt in 0..<maximumNetworkAttempts {
             if await InnerTubeAPI.shared.reportPlaybackStarted(
                 videoId: videoId,
@@ -202,7 +242,7 @@ final class WatchtimeReporter {
                 trackingURLs: trackingURLs,
                 runtime: runtime
             ) {
-                return
+                return true
             }
             if attempt + 1 < maximumNetworkAttempts {
                 await YTCookieAuth.shared.refreshSignInState()
@@ -210,6 +250,7 @@ final class WatchtimeReporter {
             }
         }
         logger.error("Playback-start reporting failed after retries")
+        return false
     }
 
     private static func reportWatchtime(
@@ -219,7 +260,7 @@ final class WatchtimeReporter {
         segmentStart: TimeInterval,
         segmentEnd: TimeInterval,
         runtime: TimeInterval
-    ) async {
+    ) async -> Bool {
         for attempt in 0..<maximumNetworkAttempts {
             if await InnerTubeAPI.shared.reportWatchtime(
                 videoId: videoId,
@@ -229,7 +270,7 @@ final class WatchtimeReporter {
                 segmentEnd: segmentEnd,
                 runtime: runtime
             ) {
-                return
+                return true
             }
             if attempt + 1 < maximumNetworkAttempts {
                 await YTCookieAuth.shared.refreshSignInState()
@@ -237,16 +278,16 @@ final class WatchtimeReporter {
             }
         }
         logger.error("Watchtime reporting failed after retries")
+        return false
     }
 
     /// Fires a final watchtime ping for the current session. Call on app
     /// background, video switch, and view dismissal.
     func finalize(playerPosition: TimeInterval?) {
         guard let id = videoId, let cpn else { return }
-        guard let seconds = playerPosition, seconds.isFinite, seconds > 0 else {
-            fetchTask?.cancel()
-            return
-        }
+        // Inactive/loading transitions can finalize at zero before playback
+        // starts. Keep setup alive so subsequent playback can still report.
+        guard let seconds = playerPosition, seconds.isFinite, seconds > 0 else { return }
         if let lastFinalizedPosition,
            abs(lastFinalizedPosition - seconds) < 0.05 {
             return
@@ -266,23 +307,21 @@ final class WatchtimeReporter {
             lastPing = Date()
         }
 
-        Task {
+        enqueueReport {
             let urls: PlaybackTrackingURLs?
             if let resolvedURLs {
                 urls = resolvedURLs
             } else {
                 urls = await pendingFetch?.value
             }
-            guard let urls else {
-                return
-            }
+            guard let urls else { return false }
             if !didStartPlayback {
-                await Self.reportPlaybackStarted(
+                guard await Self.reportPlaybackStarted(
                     videoId: id,
                     cpn: cpn,
                     trackingURLs: urls,
                     runtime: runtime
-                )
+                ) else { return false }
             }
 
             // If tracking configuration arrived only after playback stopped,
@@ -291,7 +330,7 @@ final class WatchtimeReporter {
             let segmentStart = didStartPlayback && seconds > finalSegmentStart
                 ? finalSegmentStart
                 : seconds
-            await Self.reportWatchtime(
+            let succeeded = await Self.reportWatchtime(
                 videoId: id,
                 cpn: cpn,
                 trackingURLs: urls,
@@ -299,6 +338,8 @@ final class WatchtimeReporter {
                 segmentEnd: max(seconds, segmentStart + 0.001),
                 runtime: runtime
             )
+            if succeeded { LibraryStore.shared.scheduleHistoryRefresh() }
+            return succeeded
         }
     }
 }

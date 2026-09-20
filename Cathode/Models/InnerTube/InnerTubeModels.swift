@@ -33,17 +33,6 @@ public struct Comment: Sendable, Identifiable {
 
 // MARK: - PlayerInfo
 
-/// Account-bound watchtime tracking URLs returned by an authenticated /player
-/// request. Pinging them records the view in YouTube's official watch history.
-public struct PlaybackTrackingURLs: Sendable {
-    /// Fire once when playback begins.
-    public let playbackURL: URL
-    /// Fire periodically during playback (~every 5s) and on stop.
-    public let watchtimeURL: URL
-    /// Transport mode selected by the current YouTube player response.
-    public let usesPOST: Bool
-}
-
 /// Video metadata returned by the InnerTube `/player` endpoint. Stream URLs are
 /// no longer carried here — playback resolves through `YouTubeStreamExtractor`.
 public struct PlayerInfo: Sendable {

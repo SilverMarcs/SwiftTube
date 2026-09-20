@@ -41,6 +41,8 @@ final class LibraryStore {
     private var isLoadingMoreHistory = false
 
     private var refreshTask: Task<Void, Never>?
+    private var historyRefreshTask: Task<Void, Never>?
+    private var scheduledHistoryRefresh: Task<Void, Never>?
 
     private init() {}
 
@@ -48,7 +50,6 @@ final class LibraryStore {
 
     /// Pulls subscribed channels, Watch Later, and history from YouTube.
     /// Coalesces concurrent calls. No-op when not signed in (TV OAuth).
-    /// History additionally requires cookie auth — silently skipped otherwise.
     func refresh() async {
         guard YTTVAuthManager.shared.isSignedIn else {
             return
@@ -79,13 +80,37 @@ final class LibraryStore {
         } catch {
         }
 
-        do {
-            let group = try await InnerTubeAPI.shared.fetchHistory(continuationToken: nil)
-            self.history = group.videos
-            self.historyNextPageToken = group.nextPageToken
-        } catch {
-        }
+        await refreshHistory()
+    }
 
+    /// Refresh only history when opening it or after the final progress report.
+    func refreshHistory() async {
+        guard YTTVAuthManager.shared.isSignedIn else { return }
+        if let existing = historyRefreshTask {
+            await existing.value
+            return
+        }
+        let task = Task {
+            do {
+                let group = try await InnerTubeAPI.shared.fetchHistory(continuationToken: nil)
+                self.history = group.videos
+                self.historyNextPageToken = group.nextPageToken
+            } catch {
+                // Retain the last loaded history when the network is unavailable.
+            }
+        }
+        historyRefreshTask = task
+        await task.value
+        historyRefreshTask = nil
+    }
+
+    func scheduleHistoryRefresh() {
+        scheduledHistoryRefresh?.cancel()
+        scheduledHistoryRefresh = Task {
+            do { try await Task.sleep(for: .seconds(2)) }
+            catch { return }
+            await refreshHistory()
+        }
     }
 
     // MARK: - Channel cache

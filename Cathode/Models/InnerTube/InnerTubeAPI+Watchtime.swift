@@ -3,8 +3,8 @@
 //  Cathode
 //
 //  Watch-history reporting for the native AVPlayer path. Uses YouTube's web
-//  client authenticated via SAPISIDHASH (cookie-derived), since the TV-client
-//  /player endpoint is consistently UNPLAYABLE from non-TV IPs.
+//  watch page authenticated with the isolated cookie snapshot. Tracking is
+//  independent of the client or PO token used to obtain the media stream.
 //
 
 import Foundation
@@ -40,86 +40,48 @@ extension InnerTubeAPI {
     // MARK: - Account-bound tracking URLs
 
     public func fetchAuthenticatedTrackingURLs(videoId: String) async -> PlaybackTrackingURLs? {
-        guard let authHeader = await YTCookieAuth.shared.sapisidHashAuthorization() else {
-            Self.watchtimeLogger.error("Tracking URL request has no cookie authorization")
+        guard var components = URLComponents(string: "https://www.youtube.com/watch") else { return nil }
+        components.queryItems = [
+            URLQueryItem(name: "v", value: videoId),
+            URLQueryItem(name: "hl", value: "en"),
+        ]
+        guard let url = components.url,
+              let cookies = await YTCookieAuth.shared.cookieHeader(for: url) else {
+            await YTCookieAuth.shared.setHistorySyncStatus(.needsSignIn)
             return nil
         }
         do {
-            let bootstrap = try await YouTubeStreamExtractor.shared.watchBootstrap(for: videoId)
-            var authenticatedWebContext = webClientContext
-            var authenticatedWebClient = authenticatedWebContext["client"] as? [String: Any] ?? [:]
-            authenticatedWebClient["visitorData"] = bootstrap.visitorData
-            authenticatedWebContext["client"] = authenticatedWebClient
-
-            var body = makeBody(client: authenticatedWebContext)
-            body["videoId"] = videoId
-            body["racyCheckOk"] = true
-            body["contentCheckOk"] = true
-            body["playbackContext"] = [
-                "contentPlaybackContext": [
-                    "html5Preference": "HTML5_PREF_WANTS",
-                    "signatureTimestamp": bootstrap.signatureTimestamp,
-                ]
-            ]
-
-            guard let url = URL(string: "https://www.youtube.com/youtubei/v1/player?key=\(apiKey)") else {
-                return nil
-            }
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("https://www.youtube.com", forHTTPHeaderField: "Origin")
+            // Fetch account-bound tracking independently of media extraction.
+            // Both normal and PO-token streams use this same reporting path.
+            // A separate WEB /player POST can return loggedOut=true despite
+            // valid cookies, whereas the authenticated watch page retains them.
+            var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+            request.httpShouldHandleCookies = false
+            request.setValue(cookies, forHTTPHeaderField: "Cookie")
+            request.setValue(InnerTubeClients.WebSafari.userAgent, forHTTPHeaderField: "User-Agent")
             request.setValue("https://www.youtube.com", forHTTPHeaderField: "Referer")
-            request.setValue(InnerTubeClients.Web.nameID, forHTTPHeaderField: "X-YouTube-Client-Name")
-            request.setValue(InnerTubeClients.Web.version, forHTTPHeaderField: "X-YouTube-Client-Version")
-            request.setValue(bootstrap.visitorData, forHTTPHeaderField: "X-Goog-Visitor-Id")
-            request.setValue(authHeader, forHTTPHeaderField: "Authorization")
-            request.setValue("https://www.youtube.com", forHTTPHeaderField: "X-Origin")
-            // Explicit Cookie header from YTCookieAuth's snapshot. Without
-            // account cookies YouTube returns no `playbackTracking`, so nothing
-            // is recorded.
-            if let cookieHeader = await YTCookieAuth.shared.cookieHeader(for: url) {
-                request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-            }
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
             let (data, response) = try await Self.watchtimeSession.data(for: request)
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-            guard (200..<300).contains(statusCode) else {
-                Self.watchtimeLogger.error("Tracking URL request returned HTTP \(statusCode)")
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard (200..<300).contains(status), let html = String(data: data, encoding: .utf8) else {
+                Self.watchtimeLogger.error("Authenticated watch page returned HTTP \(status)")
+                await YTCookieAuth.shared.setHistorySyncStatus(.unavailable)
                 return nil
             }
-            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                Self.watchtimeLogger.error("Tracking URL response was not a JSON object")
-                return nil
-            }
-            guard let tracking = json["playbackTracking"] as? [String: Any] else {
-                Self.watchtimeLogger.error("Player response contained no playbackTracking object")
-                return nil
-            }
-            guard
-                let pbStr = (tracking["videostatsPlaybackUrl"] as? [String: Any])?["baseUrl"] as? String,
-                let wtStr = (tracking["videostatsWatchtimeUrl"] as? [String: Any])?["baseUrl"] as? String,
-                let pbURL = URL(string: pbStr),
-                let wtURL = URL(string: wtStr)
-            else {
-                Self.watchtimeLogger.error("Player response contained incomplete tracking URLs")
-                return nil
-            }
-            let playerConfig = json["playerConfig"] as? [String: Any]
-            let vssClientConfig = playerConfig?["vssClientConfig"] as? [String: Any]
-            let usesPOST = vssClientConfig?["vssUsePostRequest"] as? Bool ?? false
-            let transportName = usesPOST ? "POST" : "GET"
-            Self.watchtimeLogger.info(
-                "Received watchtime configuration using \(transportName, privacy: .public)"
-            )
-            return PlaybackTrackingURLs(
-                playbackURL: pbURL,
-                watchtimeURL: wtURL,
-                usesPOST: usesPOST
-            )
+            let tracking = try WatchPageTrackingParser.parse(html, videoID: videoId)
+            await YTCookieAuth.shared.setHistorySyncStatus(.authenticated)
+            Self.watchtimeLogger.info("Received authenticated watch-page tracking configuration")
+            return tracking
+        } catch is CancellationError {
+            return nil
+        } catch WatchPageTrackingParser.Failure.unauthenticated {
+            await YTCookieAuth.shared.setHistorySyncStatus(.needsSignIn)
+            Self.watchtimeLogger.error("Watch page is signed out; refusing anonymous tracking URLs")
+            return nil
         } catch {
-            Self.watchtimeLogger.error("Tracking URL request failed: \(String(describing: error), privacy: .public)")
+            if Task.isCancelled { return nil }
+            await YTCookieAuth.shared.setHistorySyncStatus(.unavailable)
+            // Do not log response bodies or signed tracking URLs.
+            Self.watchtimeLogger.error("Could not read authenticated watch-page tracking configuration")
             return nil
         }
     }
@@ -208,15 +170,19 @@ extension InnerTubeAPI {
         guard let url = comps?.url else { return -1 }
 
         // Fresh SAPISIDHASH per ping — the timestamp must be recent.
-        let authHeader = await YTCookieAuth.shared.sapisidHashAuthorization()
-        let cookieHeader = await YTCookieAuth.shared.cookieHeader(for: url)
+        guard let authHeader = await YTCookieAuth.shared.sapisidHashAuthorization(),
+              let cookieHeader = await YTCookieAuth.shared.cookieHeader(for: url) else {
+            await YTCookieAuth.shared.setHistorySyncStatus(.needsSignIn)
+            return -1
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = usesPOST ? "POST" : "GET"
         request.setValue("https://www.youtube.com", forHTTPHeaderField: "Origin")
         request.setValue("https://www.youtube.com", forHTTPHeaderField: "Referer")
-        if let authHeader { request.setValue(authHeader, forHTTPHeaderField: "Authorization") }
-        if let cookieHeader { request.setValue(cookieHeader, forHTTPHeaderField: "Cookie") }
+        request.setValue(authHeader, forHTTPHeaderField: "Authorization")
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        request.setValue(InnerTubeClients.WebSafari.userAgent, forHTTPHeaderField: "User-Agent")
 
         do {
             let (_, response) = try await Self.watchtimeSession.data(for: request)

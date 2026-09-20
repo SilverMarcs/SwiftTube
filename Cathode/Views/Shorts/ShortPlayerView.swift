@@ -52,10 +52,12 @@ struct ShortPlayerView: View {
         let id = video.id
         let reporter = watchtime
         timeObserver = queue.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak queue] _ in
-            guard let queue else { return }
-            let seconds = queue.currentTime().seconds
-            guard seconds.isFinite, seconds > 0, queue.timeControlStatus == .playing else { return }
-            reporter.report(videoId: id, position: seconds, isFinal: false)
+            Task { @MainActor [weak queue] in
+                guard let queue else { return }
+                let seconds = queue.currentTime().seconds
+                guard seconds.isFinite, seconds > 0, queue.timeControlStatus == .playing else { return }
+                reporter.report(videoId: id, position: seconds, isFinal: false)
+            }
         }
         player = queue
     }

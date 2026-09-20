@@ -20,12 +20,7 @@ struct YTCookieAuthRow: View {
                     confirmSignOut = true
                 } label: {
                     HStack {
-                        Label {
-                            Text("YouTube history sync")
-                        } icon: {
-                            Image(systemName: "checkmark.seal.fill")
-                                .foregroundStyle(.green)
-                        }
+                        WatchHistorySyncLabel(status: auth.historySyncStatus)
                         Spacer()
                         Image(systemName: "rectangle.portrait.and.arrow.right")
                             .foregroundStyle(.red)
@@ -33,12 +28,7 @@ struct YTCookieAuthRow: View {
                 }
                 #else
                 HStack {
-                    Label {
-                        Text("YouTube history sync")
-                    } icon: {
-                        Image(systemName: "checkmark.seal.fill")
-                            .foregroundStyle(.green)
-                    }
+                    WatchHistorySyncLabel(status: auth.historySyncStatus)
                     Spacer()
                     Button(role: .destructive) {
                         confirmSignOut = true

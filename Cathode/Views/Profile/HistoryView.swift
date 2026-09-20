@@ -27,6 +27,7 @@ struct HistoryView: View {
         } header: {
             Text("History")
         }
+        .task { await library.refreshHistory() }
     }
 }
 
@@ -43,19 +44,14 @@ struct HistoryFullView: View {
                 Task { await LibraryStore.shared.loadMoreHistory() }
             },
             onRefresh: {
-                await LibraryStore.shared.refresh()
+                await library.refreshHistory()
             }
         )
         .platformTopBar("History") {
-            RefreshButton { await LibraryStore.shared.refresh() }
+            RefreshButton { await library.refreshHistory() }
         }
         .contentMargins(.top, 5)
-        // History is already refreshed at app launch. Only fetch on appear if it
-        // hasn't loaded yet — re-fetching replaces the array and flashes the list.
-        // Pull-to-refresh and the toolbar button still force a full refresh.
-        .task {
-            if library.history.isEmpty { await LibraryStore.shared.refresh() }
-        }
+        .task { await library.refreshHistory() }
         // A shorts-heavy first page can leave the vertical list empty. Keep paging
         // until non-Shorts surface (or the stream ends) so the grid fills too.
         .task(id: library.history.count) {

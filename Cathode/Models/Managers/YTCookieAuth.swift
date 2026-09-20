@@ -31,6 +31,7 @@ public final class YTCookieAuth {
     public static let shared = YTCookieAuth()
 
     public private(set) var isSignedIn: Bool = false
+    private(set) var historySyncStatus: WatchHistorySyncStatus = .unverified
     public private(set) var lastSyncedAt: Date?
 
     /// Timestamp of the most recent successful read from / write to the iCloud
@@ -158,6 +159,7 @@ public final class YTCookieAuth {
             : authCookies
 #endif
         if let sapis = ytCookies.first(where: { $0.name == "SAPISID" })?.value {
+            if sapisid != sapis { historySyncStatus = .unverified }
             sapisid = sapis
             authCookies = ytCookies
             isSignedIn = true
@@ -169,6 +171,7 @@ public final class YTCookieAuth {
             }
 #endif
         } else {
+            historySyncStatus = .unverified
             sapisid = nil
             authCookies = []
             isSignedIn = false
@@ -188,12 +191,17 @@ public final class YTCookieAuth {
         sapisid = nil
         authCookies = []
         isSignedIn = false
+        historySyncStatus = .unverified
         hydratedFromICloud = false
         iCloudSyncedAt = nil
         Self.deleteStoredCookies()
     }
 
     // MARK: - SAPISIDHASH
+
+    func setHistorySyncStatus(_ status: WatchHistorySyncStatus) {
+        historySyncStatus = status
+    }
 
     /// Builds the `Authorization: SAPISIDHASH …` header value YouTube's web
     /// client uses. Returns `nil` when not signed in.
