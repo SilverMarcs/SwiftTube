@@ -379,6 +379,10 @@ final class VideoManager {
     }
 
     func restorePlaybackAfterActivation() {
+        #if !os(macOS)
+        // Becoming active after a temporary interruption isn't a suspension.
+        guard isAppInBackground else { return }
+        #endif
         isAppInBackground = false
         if watchtimeNeedsRestartAfterBackground,
            let video = currentVideo {
@@ -502,23 +506,27 @@ final class VideoManager {
         )
     }
 
-    /// Buffering on resume triggers recovery immediately. A player reporting
-    /// playback gets a progress check in case its clock is actually stuck.
+    /// Only recover a resumed player that makes no progress. Ordinary buffering
+    /// after playback has already resumed must not trigger a fresh extraction.
     private func startResumeWatchdog(for video: Video, player: AVPlayer, token: PlaybackLoadToken) {
         resumeWatchdogTask?.cancel()
         let position = player.currentTime().seconds
-        let isBuffering = player.timeControlStatus == .waitingToPlayAtSpecifiedRate
+        let checks = player.timeControlStatus == .waitingToPlayAtSpecifiedRate ? 8 : 40
         resumeWatchdogTask = Task { @MainActor [weak self, weak player] in
-            if !isBuffering {
-                do { try await Task.sleep(for: .seconds(10)) } catch { return }
+            for _ in 0..<checks {
+                do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                guard let self, let player, self.player === player,
+                      !Task.isCancelled, !self.isAppInBackground, self.isCurrent(token),
+                      self.playbackSession?.intent == .playing,
+                      player.timeControlStatus != .paused else { return }
+                let currentTime = player.currentTime().seconds
+                // A seek also invalidates this check's original playhead.
+                guard position.isFinite, currentTime.isFinite,
+                      abs(currentTime - position) <= 0.25 else { return }
+                if let duration = player.currentItem?.duration.seconds,
+                   duration.isFinite, currentTime >= duration - 0.5 { return }
             }
-            guard let self, let player, self.player === player,
-                  !Task.isCancelled, !self.isAppInBackground, self.isCurrent(token),
-                  self.playbackSession?.intent == .playing else { return }
-            let currentTime = player.currentTime().seconds
-            if let duration = player.currentItem?.duration.seconds,
-               duration.isFinite, currentTime >= duration - 0.5 { return }
-            guard player.timeControlStatus != .playing || currentTime <= position + 0.25 else { return }
+            guard let self else { return }
             self.playbackSession?.recovery.reset()
             self.startLoading(video, reason: .foregroundRecovery, freshness: .revalidate)
         }
@@ -566,10 +574,8 @@ final class VideoManager {
 
         session.usesBroker = ExperimentalPlaybackSettings.shared.usesBroker
         let token = session.beginLoad(reason: reason)
-        if session.usesBroker, freshness == .revalidate {
-            discardPlayer()
-            session.source = nil
-        }
+        // Retain the player and its manifest lease until the replacement is
+        // ready. Fullscreen AVKit presentations are attached to this player.
         playbackSession = session
         if session.usesBroker { startResolutionWatchdog(for: video, token: token) }
 
@@ -671,6 +677,9 @@ final class VideoManager {
             playerItem = AVPlayerItem(url: source.url)
         }
         playerItem.preferredForwardBufferDuration = 30
+        if player?.status == .failed {
+            discardPlayer()
+        }
         observeItemEnd(playerItem)
         observeItemHealth(playerItem, for: video, token: token)
 
