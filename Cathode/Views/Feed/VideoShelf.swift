@@ -21,7 +21,7 @@ struct VideoShelf<Destination: View>: View {
     var body: some View {
         SectionContainer(isVisible: !group.videos.isEmpty) {
             HorizontalShelf(spacing: spacing) {
-                ForEach(Array(group.videos.enumerated()), id: \.element.id) { index, video in
+                ForEach(group.videos.enumerated(), id: \.element.id) { index, video in
                     VideoCard(video: video)
                         .frame(width: cardWidth)
                         .task {
@@ -41,6 +41,8 @@ struct VideoShelf<Destination: View>: View {
                 .buttonStyle(.card)
                 #endif
             }
+            // A refresh replaces the cards, while the section header stays in place.
+            .id(group.id)
         } header: {
             #if os(tvOS)
             Text(group.title ?? "")

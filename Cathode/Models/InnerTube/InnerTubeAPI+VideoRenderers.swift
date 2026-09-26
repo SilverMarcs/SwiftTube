@@ -30,6 +30,8 @@ extension InnerTubeAPI {
                     // TVHTML5 home shelves: horizontalListRenderer.items[].tileRenderer.
                     // parseTileRenderer drops ads/playlists (non-video contentTypes).
                     if let v = parseTileRenderer(tr) { videos.append(v) }
+                } else if let lockup = dict["lockupViewModel"] as? [String: Any] {
+                    if let v = parseLockupViewModel(lockup) { videos.append(v) }
                 } else if let vr = dict["videoRenderer"] as? [String: Any], let v = parseVideoRenderer(vr) {
                     videos.append(v)
                 } else if let ri = dict["richItemRenderer"] as? [String: Any],
@@ -362,6 +364,7 @@ extension InnerTubeAPI {
         let channelId: String? = {
             if let id = watchEndpoint?["channelId"] as? String { return id }
             if let id = (onSelectCommand?["browseEndpoint"] as? [String: Any])?["browseId"] as? String { return id }
+            if let id = channelBrowseID(in: tile["onLongPressCommand"]) { return id }
             guard let showMenu = (tile["onLongPressCommand"] as? [String: Any])?["showMenuCommand"] as? [String: Any],
                   let subtitleText = (showMenu["subtitle"] as? [String: Any])?["simpleText"] as? String,
                   let atIndex = subtitleText.firstIndex(of: "@")
@@ -478,7 +481,7 @@ extension InnerTubeAPI {
         )
     }
 
-    // MARK: – WEB lockupViewModel parser (Android LockupItem methodology)
+    // MARK: – WEB / TV lockupViewModel parser (Android LockupItem methodology)
     // Mirrors: LockupItem.getVideoId(), getTitle(), getThumbnails() in CommonHelper.kt
     private func parseLockupViewModel(_ lockup: [String: Any]) -> Video? {
         // videoId: rendererContext.commandContext.onTap.innertubeCommand.{watchEndpoint|reelWatchEndpoint}.videoId
@@ -537,7 +540,9 @@ extension InnerTubeAPI {
                     }
                 }
             }
-            return nil
+            // TV lockups put "Go to channel" in the long-press menu instead of
+            // attaching a browse endpoint to the creator's metadata text.
+            return channelBrowseID(in: commandContext["onLongPress"])
         }()
 
         // thumbnail: contentImage.thumbnailViewModel.image.thumbnails

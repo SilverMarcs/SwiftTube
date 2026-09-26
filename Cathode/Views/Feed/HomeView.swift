@@ -31,7 +31,8 @@ struct HomeView: View {
                 }
                 #endif
 
-                ForEach(videoLoader.recommendationRows) { group in
+                // Keep section positions stable while refreshed titles and categories change.
+                ForEach(videoLoader.recommendationRows.enumerated(), id: \.offset) { _, group in
                     VideoShelf(group: group) {
                         Task { await videoLoader.loadMoreInShelf(group.id) }
                     } destination: {

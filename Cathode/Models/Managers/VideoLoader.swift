@@ -130,10 +130,8 @@ final class VideoLoader {
             // Flat list for the signed-out grid fallback + TopShelf: every shelf's
             // videos, globally deduped so a video shared across shelves appears once.
             let flat = cleaned.flatMap(\.videos).removingDuplicates()
-            withAnimation {
-                self.recommendationRows = cleaned
-                self.recommendations = flat
-            }
+            self.recommendationRows = cleaned
+            self.recommendations = flat
             TopShelfCache.save(videos: flat)
         } catch {
             print("Error loading recommendations: \(error)")
