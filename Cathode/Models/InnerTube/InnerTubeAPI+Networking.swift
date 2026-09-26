@@ -103,9 +103,10 @@ extension InnerTubeAPI {
         }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await session.data(for: request)
-        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+        let response = try await YTCookieAuth.shared.sendAuthenticated(request)
+        let data = response.data
+        let statusCode = response.http.statusCode
+        guard (200..<300).contains(statusCode) else {
             throw ITAPIError.httpError(statusCode)
         }
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {

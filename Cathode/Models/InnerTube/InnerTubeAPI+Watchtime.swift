@@ -12,18 +12,6 @@ import OSLog
 
 extension InnerTubeAPI {
 
-    // MARK: - Session
-    //
-    // Dedicated session for account-bound watchtime calls. Cookie auto-handling
-    // is OFF, so the explicit header from `YTCookieAuth`'s isolated snapshot is
-    // authoritative and anonymous extraction cannot inherit account state.
-    private static let watchtimeSession: URLSession = {
-        let config = URLSessionConfiguration.default
-        config.httpShouldSetCookies = false
-        config.httpCookieStorage = nil
-        config.timeoutIntervalForRequest = 30
-        return URLSession(configuration: config)
-    }()
     private static let watchtimeLogger = Logger(
         subsystem: "com.SilverMarcs.SwiftTube",
         category: "WatchtimeAPI"
@@ -40,6 +28,8 @@ extension InnerTubeAPI {
     // MARK: - Account-bound tracking URLs
 
     public func fetchAuthenticatedTrackingURLs(videoId: String) async -> PlaybackTrackingURLs? {
+        await YTCookieAuth.shared.validateAndRenew()
+        var responseSessionID: UUID?
         guard var components = URLComponents(string: "https://www.youtube.com/watch") else { return nil }
         components.queryItems = [
             URLQueryItem(name: "v", value: videoId),
@@ -60,26 +50,31 @@ extension InnerTubeAPI {
             request.setValue(cookies, forHTTPHeaderField: "Cookie")
             request.setValue(InnerTubeClients.WebSafari.userAgent, forHTTPHeaderField: "User-Agent")
             request.setValue("https://www.youtube.com", forHTTPHeaderField: "Referer")
-            let (data, response) = try await Self.watchtimeSession.data(for: request)
-            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            let response = try await YTCookieAuth.shared.sendAuthenticated(request)
+            responseSessionID = response.sessionID
+            let data = response.data
+            let status = response.http.statusCode
             guard (200..<300).contains(status), let html = String(data: data, encoding: .utf8) else {
                 Self.watchtimeLogger.error("Authenticated watch page returned HTTP \(status)")
-                await YTCookieAuth.shared.setHistorySyncStatus(.unavailable)
+                await YTCookieAuth.shared.setHistorySyncStatus(.unavailable, for: responseSessionID)
                 return nil
             }
-            let tracking = try WatchPageTrackingParser.parse(html, videoID: videoId)
-            await YTCookieAuth.shared.setHistorySyncStatus(.authenticated)
+            var tracking = try WatchPageTrackingParser.parse(html, videoID: videoId)
+            tracking.sessionID = response.sessionID
+            guard await YTCookieAuth.shared.isCurrentSession(response.sessionID) else { return nil }
+            await YTCookieAuth.shared.setHistorySyncStatus(.authenticated, for: response.sessionID)
             Self.watchtimeLogger.info("Received authenticated watch-page tracking configuration")
             return tracking
         } catch is CancellationError {
             return nil
         } catch WatchPageTrackingParser.Failure.unauthenticated {
-            await YTCookieAuth.shared.setHistorySyncStatus(.needsSignIn)
+            await YTCookieAuth.shared.setHistorySyncStatus(.needsSignIn, for: responseSessionID)
+            await YTCookieAuth.shared.recoverSession()
             Self.watchtimeLogger.error("Watch page is signed out; refusing anonymous tracking URLs")
             return nil
         } catch {
             if Task.isCancelled { return nil }
-            await YTCookieAuth.shared.setHistorySyncStatus(.unavailable)
+            await YTCookieAuth.shared.setHistorySyncStatus(.unavailable, for: responseSessionID)
             // Do not log response bodies or signed tracking URLs.
             Self.watchtimeLogger.error("Could not read authenticated watch-page tracking configuration")
             return nil
@@ -94,9 +89,11 @@ extension InnerTubeAPI {
         trackingURLs: PlaybackTrackingURLs,
         runtime: TimeInterval
     ) async -> Bool {
+        guard await YTCookieAuth.shared.isCurrentSession(trackingURLs.sessionID) else { return false }
         let statusCode = await pingTrackingURL(
             trackingURLs.playbackURL,
             usesPOST: trackingURLs.usesPOST,
+            sessionID: trackingURLs.sessionID,
             extraParams: [
                 "ver": "2",
                 "cpn": cpn,
@@ -120,9 +117,11 @@ extension InnerTubeAPI {
         segmentEnd: TimeInterval,
         runtime: TimeInterval
     ) async -> Bool {
+        guard await YTCookieAuth.shared.isCurrentSession(trackingURLs.sessionID) else { return false }
         let statusCode = await pingTrackingURL(
             trackingURLs.watchtimeURL,
             usesPOST: trackingURLs.usesPOST,
+            sessionID: trackingURLs.sessionID,
             extraParams: [
                 "ver": "2",
                 "cpn": cpn,
@@ -155,6 +154,7 @@ extension InnerTubeAPI {
     private func pingTrackingURL(
         _ baseURL: URL,
         usesPOST: Bool,
+        sessionID: UUID?,
         extraParams: [String: String]
     ) async -> Int {
         var comps = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
@@ -185,8 +185,8 @@ extension InnerTubeAPI {
         request.setValue(InnerTubeClients.WebSafari.userAgent, forHTTPHeaderField: "User-Agent")
 
         do {
-            let (_, response) = try await Self.watchtimeSession.data(for: request)
-            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+            let response = try await YTCookieAuth.shared.sendAuthenticated(request, sessionID: sessionID)
+            let statusCode = response.http.statusCode
             if !(200..<300).contains(statusCode) {
                 Self.watchtimeLogger.error("Tracking ping returned HTTP \(statusCode)")
             }

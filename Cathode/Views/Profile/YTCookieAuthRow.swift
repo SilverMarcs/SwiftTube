@@ -30,15 +30,20 @@ struct YTCookieAuthRow: View {
                 HStack {
                     WatchHistorySyncLabel(status: auth.historySyncStatus)
                     Spacer()
-                    Button(role: .destructive) {
-                        confirmSignOut = true
-                    } label: {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                    if auth.historySyncStatus == .needsSignIn {
+                        Button("Sign In", systemImage: "person.badge.key") { showSheet = true }
                     }
+                    Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                        confirmSignOut = true
+                    }
+                    .labelStyle(.iconOnly)
                     .foregroundStyle(.red)
                 }
                 #endif
             }
+            #if !os(tvOS)
+            .sheet(isPresented: $showSheet) { YTCookieSignInView() }
+            #endif
             .alert("Stop syncing watch history?", isPresented: $confirmSignOut) {
                 Button("Sign Out", role: .destructive) {
                     Task { await auth.signOut() }

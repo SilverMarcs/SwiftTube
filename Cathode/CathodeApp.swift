@@ -37,7 +37,7 @@ struct CathodeApp: App {
         // its eager WKWebView pinned the macOS control accent to the system
         // default, leaving sidebar icons system-blue instead of our accent.
         // Touching it here primes the cookie store without that side effect.
-        _ = YTCookieAuth.shared
+        Task { await YTCookieAuth.shared.validateAndRenew() }
 
         if ytAuth.isSignedIn {
             // Fresh launches usually arrive with the ~1h OAuth access token

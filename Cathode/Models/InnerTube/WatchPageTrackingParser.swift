@@ -4,6 +4,7 @@ nonisolated enum WatchPageTrackingParser {
     enum Failure: Error {
         case missingPlayerResponse
         case unauthenticated
+        case unknownAuthentication
         case wrongVideo
         case missingTrackingURLs
     }
@@ -29,9 +30,10 @@ nonisolated enum WatchPageTrackingParser {
         // Anonymous player responses also contain valid-looking tracking URLs.
         // Require affirmative authentication instead of assuming their presence
         // means that YouTube will save the view to the user's account.
-        guard webContext?["loggedOut"] as? Bool == false else {
-            throw Failure.unauthenticated
+        guard let loggedOut = webContext?["loggedOut"] as? Bool else {
+            throw Failure.unknownAuthentication
         }
+        if loggedOut { throw Failure.unauthenticated }
         let details = json["videoDetails"] as? [String: Any]
         guard details?["videoId"] as? String == videoID else { throw Failure.wrongVideo }
         let tracking = json["playbackTracking"] as? [String: Any]

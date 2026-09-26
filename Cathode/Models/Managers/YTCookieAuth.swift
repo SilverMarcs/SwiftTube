@@ -1,23 +1,3 @@
-//
-//  YTCookieAuth.swift
-//  Cathode
-//
-//  Cookie-based YouTube auth. Augments YTTVAuthManager (TV device-code OAuth).
-//
-//  Sign-in flow (iOS / macOS / visionOS): user authenticates inside a WKWebView
-//  pointed at accounts.google.com → continues to youtube.com. The resulting
-//  session cookies (SAPISID, __Secure-3PSID, HSID, SSID, APISID, LOGIN_INFO)
-//  live in `WKWebsiteDataStore.default()`.
-//
-//  tvOS: no WebKit, so no interactive sign-in. Instead, the cookie set is
-//  pulled from iCloud KVS (written by an iOS device that did sign in) and kept
-//  in this actor-isolated snapshot. Native requests attach it explicitly.
-//
-//  For native AVPlayer playback, we extract the `SAPISID` cookie, compute the
-//  SAPISIDHASH header YouTube's web client uses, and attach it to authenticated
-//  /player calls so we can get back account-bound watchtime tracking URLs.
-//
-
 import CryptoKit
 import Foundation
 import SwiftUI
@@ -25,293 +5,319 @@ import SwiftUI
 import WebKit
 #endif
 
+/// Owns the history session. Reading/importing never publishes credentials.
+/// Only a verified login or a server-issued renewal can write to iCloud.
 @MainActor
 @Observable
 public final class YTCookieAuth {
     public static let shared = YTCookieAuth()
 
-    public private(set) var isSignedIn: Bool = false
+    public private(set) var isSignedIn = false
     private(set) var historySyncStatus: WatchHistorySyncStatus = .unverified
     public private(set) var lastSyncedAt: Date?
-
-    /// Timestamp of the most recent successful read from / write to the iCloud
-    /// KVS-backed cookie blob. Populated when we write the blob (iOS/mac/xrOS)
-    /// or when we hydrate from it (any platform, including tvOS).
     public private(set) var iCloudSyncedAt: Date?
-
-    /// True when the locally-active cookie set was hydrated from iCloud rather
-    /// than captured from a sign-in on this device. Surfaced in Settings so
-    /// the user knows watch-history sync is working through iCloud.
-    public private(set) var hydratedFromICloud: Bool = false
-
-    /// Current SAPISID cookie value — used to derive the SAPISIDHASH header.
-    /// Refreshed every time `refreshSignInState()` runs.
+    public private(set) var hydratedFromICloud = false
     private(set) var sapisid: String?
-
-    /// In-memory snapshot of the user's YouTube/Google auth cookies. Native
-    /// URL sessions never use the shared cookie store; authenticated requests
-    /// build an explicit Cookie header from this snapshot.
     private(set) var authCookies: [HTTPCookie] = []
 
+    private let store = YTCookieSessionStore()
+    private var current: YTCookieSession?
+    private var bootstrapTask: Task<Void, Never>?
+    private var validationTask: Task<Void, Never>?
+    private var lastValidationAttempt: Date?
+    private var lastRecoveryAttempt: Date?
+    private var interactiveSignIn = false
 #if canImport(WebKit)
-    /// The default website data store, where the sign-in WebView's session
-    /// cookies persist across launches.
-    nonisolated let dataStore = WKWebsiteDataStore.default()
-
-    /// Persistent WKWebView that exists only to wake the default data store
-    /// on cold launch. Without any WKWebView instance bound to the data store,
-    /// `httpCookieStore.allCookies()` returns an empty set even when valid
-    /// session cookies are on disk — that's why a fresh app launch always
-    /// showed "not signed in" until the user opened the sign-in sheet (which
-    /// instantiated a WebView and woke the store as a side effect).
-    private let dataStorePrimer: WKWebView
+    let dataStore = WKWebsiteDataStore.default()
+    private let browser = YTSessionWebRefresher(dataStore: .default())
 #endif
 
     private init() {
-#if canImport(WebKit)
-        let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default()
-        dataStorePrimer = WKWebView(frame: .zero, configuration: config)
-#endif
-        // Observe iCloud KVS pushes from sibling devices so cookie updates
-        // written on iOS land here without a re-launch. FinStream uses the
-        // same pattern for SeerrAuth and reports reliable tvOS sync.
+        current = store.loadLocal()
+        updateState()
         NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(externalKVSChange(_:)),
+            self, selector: #selector(externalKVSChange(_:)),
             name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
             object: NSUbiquitousKeyValueStore.default
         )
-        NSUbiquitousKeyValueStore.default.synchronize()
-        Self.clearLegacySharedCookies()
-        Task { await self.bootstrapSignInState() }
+        bootstrapTask = Task {
+            await bootstrap()
+        }
     }
 
     @objc private nonisolated func externalKVSChange(_ note: Notification) {
+        let keys = note.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String] ?? []
+        guard keys.contains(where: { $0.hasPrefix(YTCookieSessionStore.prefix) || $0 == "cathode_yt_cookie_jar" }) else { return }
         Task { @MainActor in
-            await self.hydrateFromICloud(force: true)
-            await self.refreshSignInState()
+            await refreshSignInState()
+            await validateAndRenew()
         }
     }
 
+    private func bootstrap() async {
+        adoptLatestSession()
+        if current == nil {
+            var cookies = store.legacyCookies().compactMap(\.httpCookie)
 #if canImport(WebKit)
-    /// Forces the WKHTTPCookieStore to flush its disk read by chaining a
-    /// `getAllCookies` callback before our state refresh. On a freshly
-    /// primed data store the first call returns synchronously empty
-    /// occasionally; this guards against that.
-    private func bootstrapSignInState() async {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            dataStore.httpCookieStore.getAllCookies { _ in
-                continuation.resume()
+            // The browser primes WebKit's persistent store. This is migration
+            // only; once versioned, native state no longer rereads stale WebKit.
+            if cookies.isEmpty {
+                _ = await dataStore.httpCookieStore.allCookies()
+                cookies = await dataStore.httpCookieStore.allCookies()
+            }
+#endif
+            // Recheck after the suspension: a new login or iCloud delivery wins.
+            adoptLatestSession()
+            if current == nil && !cookies.isEmpty {
+                let legacy = YTCookieSession(cookies: YTCookieSession.normalized(cookies), now: .distantPast)
+                install(legacy, fromCloud: false)
             }
         }
-        await hydrateFromICloud(force: false)
-        await refreshSignInState()
-    }
-#else
-    /// tvOS bootstrap: no WebKit store, so iCloud KVS is the only cookie source.
-    private func bootstrapSignInState() async {
-        await hydrateFromICloud(force: false)
-        await refreshSignInState()
-    }
-#endif
-
-    /// Inject cookies from the iCloud KVS blob into the local cookie stores.
-    /// `force == true` ignores the existing-SAPISID short-circuit, used when
-    /// we know KVS just changed externally (sibling device pushed an update).
-    private func hydrateFromICloud(force: Bool) async {
-        let stored = Self.loadStoredCookies()
-        guard !stored.isEmpty else {
-            if force { hydratedFromICloud = false }
-            return
-        }
-        let storedCookies = stored.compactMap(\.httpCookie)
-#if canImport(WebKit)
-        let existing = await dataStore.httpCookieStore.allCookies()
-        let alreadyHaveSession = existing.contains { $0.name == "SAPISID" && Self.isYouTubeCookie($0) }
-#else
-        let alreadyHaveSession = authCookies.contains { $0.name == "SAPISID" && Self.isYouTubeCookie($0) }
-#endif
-        if alreadyHaveSession && !force { return }
-
-#if canImport(WebKit)
-        for cookie in storedCookies {
-            await dataStore.httpCookieStore.setCookie(cookie)
-        }
-#else
-        authCookies = storedCookies
-#endif
-        iCloudSyncedAt = Date()
-        hydratedFromICloud = true
+        clearLegacySharedCookies()
     }
 
-    // MARK: - Sign-in state
-
-    /// Reads cookies from the platform-appropriate isolated source and updates
-    /// the explicit native-auth snapshot.
+    /// Reconcile the local snapshot with iCloud. This method never uploads.
     public func refreshSignInState() async {
+        await bootstrapTask?.value
+        // Legacy KVS/WebKit data can arrive after the first launch read. Once a
+        // versioned session exists, it remains authoritative.
+        if current == nil && !interactiveSignIn { await bootstrap() }
+        adoptLatestSession()
+        updateState()
+    }
+
+    private func adoptLatestSession() {
+        guard let remote = store.latest(), current.map({ remote.isNewer(than: $0) }) ?? true else { return }
+        install(remote, fromCloud: true)
+        iCloudSyncedAt = Date()
+    }
+
+    private func install(_ session: YTCookieSession, fromCloud: Bool) {
+        current = session
+        store.saveLocal(session)
+        hydratedFromICloud = fromCloud
+        historySyncStatus = .unverified
+        lastValidationAttempt = nil
+        updateState()
+    }
+
+    private func updateState() {
+        authCookies = current?.signedOut == false
+            ? current?.cookies.filter { $0.isValid(at: Date()) }.compactMap(\.httpCookie) ?? [] : []
+        // The Google-domain SAPISID is not the signing cookie for youtube.com.
+        sapisid = authCookies.first { $0.name == "SAPISID" && isYouTubeHost($0.domain) }?.value
+            ?? authCookies.first { $0.name == "__Secure-3PAPISID" && isYouTubeHost($0.domain) }?.value
+        isSignedIn = sapisid != nil
+    }
+
+    /// Bounded, coalesced health check. WebKit also runs YouTube's own browser
+    /// renewal on supported platforms; tvOS renews from HTTP response cookies.
+    func validateAndRenew(force: Bool = false) async {
+        await refreshSignInState()
+        guard !interactiveSignIn, let current, !current.signedOut else { return }
+        if let validationTask { await validationTask.value; return }
+        let interval: TimeInterval = historySyncStatus == .authenticated ? 6 * 60 * 60 : 60
+        if !force, let lastValidationAttempt, Date().timeIntervalSince(lastValidationAttempt) < interval { return }
+        store.synchronize()
+        adoptLatestSession()
+        lastValidationAttempt = Date()
+        let task = Task {
+            // If iCloud replaces the session during the check, validate the
+            // replacement once rather than leaving its status unverified.
+            for _ in 0..<2 {
+                let revision = self.current?.revision
+                await self.validateCurrentSession()
+                if self.historySyncStatus != .unverified || self.current?.revision == revision { break }
+            }
+        }
+        validationTask = task
+        await task.value
+        validationTask = nil
+        if historySyncStatus != .unverified { lastValidationAttempt = Date() }
+    }
+
+    /// One silent recovery per minute after an explicit signed-out response.
+    /// Reporting retries otherwise just reread the same rejected credentials.
+    func recoverSession() async {
+        store.synchronize()
+        await refreshSignInState()
+        if let lastRecoveryAttempt, Date().timeIntervalSince(lastRecoveryAttempt) < 60 { return }
+        lastRecoveryAttempt = Date()
+        await validateAndRenew(force: true)
+    }
+
+    private func validateCurrentSession() async {
+        guard let snapshot = current else { return }
+        do {
+            var cookies = snapshot.cookies
 #if canImport(WebKit)
-        let cookies = await dataStore.httpCookieStore.allCookies()
-        let ytCookies = cookies.filter { Self.isYouTubeCookie($0) }
-#else
-        let ytCookies = authCookies.isEmpty
-            ? Self.loadStoredCookies().compactMap(\.httpCookie)
-            : authCookies
-#endif
-        if let sapis = ytCookies.first(where: { $0.name == "SAPISID" })?.value {
-            if sapisid != sapis { historySyncStatus = .unverified }
-            sapisid = sapis
-            authCookies = ytCookies
-            isSignedIn = true
-            lastSyncedAt = Date()
-#if canImport(WebKit)
-            // Only iOS/mac/visionOS write the iCloud blob — tvOS is read-only.
-            if Self.persistCookies(ytCookies) {
-                iCloudSyncedAt = Date()
+            // Do not run a hidden browser alongside the user's login flow.
+            if !interactiveSignIn {
+                await replaceBrowserCookies(with: cookies)
+                guard self.current?.acceptsResponse(to: snapshot) == true else { return }
+                // A network failure in WebKit can still be recoverable natively.
+                if (try? await browser.refresh()) != nil {
+                    cookies = YTCookieSession.normalized(await dataStore.httpCookieStore.allCookies())
+                }
             }
 #endif
-        } else {
-            historySyncStatus = .unverified
-            sapisid = nil
-            authCookies = []
-            isSignedIn = false
+            let result = try await verify(cookies: cookies)
+            adoptLatestSession()
+            guard current?.acceptsResponse(to: snapshot) == true else { return }
+            guard let authenticated = YTSessionValidation.authenticated(in: result.data) else {
+                historySyncStatus = .unavailable
+                return
+            }
+            if authenticated {
+                acceptCookies(result.cookies, for: snapshot, verified: true)
+                historySyncStatus = .authenticated
+                lastSyncedAt = Date()
+            } else {
+                // Reconciliation above happens before declaring failure, so a
+                // newer iCloud login is never marked failed by an older request.
+                historySyncStatus = .needsSignIn
+            }
+        } catch {
+            guard current?.acceptsResponse(to: snapshot) == true else { return }
+            historySyncStatus = .unavailable
         }
-        Self.clearLegacySharedCookies()
     }
+
+    private func verify(cookies: [YTStoredCookie]) async throws -> YTSessionTransport.Response {
+        guard let url = URL(string: "https://www.youtube.com/feed/history") else { throw URLError(.badURL) }
+        var request = URLRequest(url: url)
+        request.setValue(InnerTubeClients.WebSafari.userAgent, forHTTPHeaderField: "User-Agent")
+        let result = try await YTSessionTransport.send(request, cookies: cookies)
+        guard (200..<300).contains(result.http.statusCode) else { throw URLError(.badServerResponse) }
+        return result
+    }
+
+    /// Account requests renew only their own snapshot, never a replacement login.
+    func sendAuthenticated(_ request: URLRequest, sessionID: UUID? = nil) async throws -> YTSessionTransport.Response {
+        await refreshSignInState()
+        guard let snapshot = current, !snapshot.signedOut, isSignedIn else { throw URLError(.userAuthenticationRequired) }
+        if let sessionID, sessionID != snapshot.id { throw CancellationError() }
+        var request = request
+        if request.value(forHTTPHeaderField: "Authorization") != nil {
+            request.setValue(sapisidHashAuthorization(), forHTTPHeaderField: "Authorization")
+        }
+        var result = try await YTSessionTransport.send(request, cookies: snapshot.cookies)
+        adoptLatestSession()
+        guard current?.acceptsResponse(to: snapshot) == true else { throw CancellationError() }
+        if (200..<300).contains(result.http.statusCode),
+           YTSessionValidation.authenticated(in: result.data) != false {
+            acceptCookies(result.cookies, for: snapshot)
+        }
+        result.sessionID = snapshot.id
+        return result
+    }
+
+    private func acceptCookies(_ cookies: [YTStoredCookie], for snapshot: YTCookieSession, verified: Bool = false) {
+        guard var session = current, session.acceptsResponse(to: snapshot) else { return }
+        let shouldPublish = session.receive(cookies, verified: verified)
+        if session != current {
+            current = session
+            store.saveLocal(session)
+            updateState()
+        }
+        // Renewal retains the original generation date. Simply validating saved
+        // cookies, including legacy cookies on launch, never causes an upload.
+        if shouldPublish {
+            store.publish(session)
+        }
+    }
+
+#if canImport(WebKit)
+    func prepareInteractiveSignIn() async {
+        await refreshSignInState()
+        interactiveSignIn = true
+        await validationTask?.value
+        await replaceBrowserCookies(with: current?.signedOut == false ? current?.cookies ?? [] : [])
+    }
+
+    func endInteractiveSignIn() { interactiveSignIn = false }
+
+    /// Called after YouTube navigation finishes, not when a partial Google
+    /// cookie set first appears. Only successful native verification publishes.
+    func completeInteractiveSignIn() async -> Bool {
+        guard interactiveSignIn else { return false }
+        let cookies = YTCookieSession.normalized(await dataStore.httpCookieStore.allCookies())
+        guard cookies.contains(where: { $0.name == "SAPISID" && isYouTubeHost($0.domain) }) else { return false }
+        guard let result = try? await verify(cookies: cookies),
+              YTSessionValidation.authenticated(in: result.data) == true,
+              interactiveSignIn else { return false }
+        adoptLatestSession()
+        let session = YTCookieSession(cookies: result.cookies, after: current, verified: true)
+        install(session, fromCloud: false)
+        store.publish(session)
+        historySyncStatus = .authenticated
+        lastSyncedAt = Date()
+        lastValidationAttempt = Date()
+        interactiveSignIn = false
+        return true
+    }
+
+    private func replaceBrowserCookies(with cookies: [YTStoredCookie]) async {
+        let jar = dataStore.httpCookieStore
+        for cookie in await jar.allCookies() where Self.isYouTubeCookie(cookie) {
+            await jar.deleteCookie(cookie)
+        }
+        for cookie in cookies where cookie.isValid(at: Date()) {
+            if let value = cookie.httpCookie { await jar.setCookie(value) }
+        }
+    }
+#endif
 
     public func signOut() async {
+        await refreshSignInState()
+        // A new empty generation prevents delayed renewals from resurrecting it.
+        let signedOut = YTCookieSession(cookies: [], after: current, signedOut: true)
+        install(signedOut, fromCloud: false)
+        store.publish(signedOut)
+        clearLegacySharedCookies()
 #if canImport(WebKit)
-        let ckStore = dataStore.httpCookieStore
-        let cookies = await ckStore.allCookies()
-        for cookie in cookies where Self.isYouTubeCookie(cookie) {
-            await ckStore.deleteCookie(cookie)
+        await validationTask?.value
+        if current?.id == signedOut.id && !interactiveSignIn {
+            await replaceBrowserCookies(with: [])
         }
 #endif
-        Self.clearLegacySharedCookies()
-        sapisid = nil
-        authCookies = []
-        isSignedIn = false
-        historySyncStatus = .unverified
-        hydratedFromICloud = false
-        iCloudSyncedAt = nil
-        Self.deleteStoredCookies()
     }
 
-    // MARK: - SAPISIDHASH
-
-    func setHistorySyncStatus(_ status: WatchHistorySyncStatus) {
+    func setHistorySyncStatus(_ status: WatchHistorySyncStatus, for sessionID: UUID? = nil) {
+        if let sessionID, current?.id != sessionID { return }
         historySyncStatus = status
     }
 
-    /// Builds the `Authorization: SAPISIDHASH …` header value YouTube's web
-    /// client uses. Returns `nil` when not signed in.
+    func isCurrentSession(_ sessionID: UUID?) -> Bool {
+        sessionID != nil && current?.id == sessionID && current?.signedOut == false
+    }
+
     public func sapisidHashAuthorization(origin: String = "https://www.youtube.com") -> String? {
         guard let sapisid else { return nil }
-        let ts = Int(Date().timeIntervalSince1970)
-        let input = "\(ts) \(sapisid) \(origin)"
-        let hashBytes = Insecure.SHA1.hash(data: Data(input.utf8))
-        let hex = hashBytes.map { String(format: "%02x", $0) }.joined()
-        return "SAPISIDHASH \(ts)_\(hex)"
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let hash = Insecure.SHA1.hash(data: Data("\(timestamp) \(sapisid) \(origin)".utf8))
+        let hex = hash.map { String(format: "%02x", $0) }.joined()
+        return "SAPISIDHASH \(timestamp)_\(hex)"
     }
 
-    /// Returns the `Cookie:` header value to attach to an authenticated native
-    /// request. Anonymous and OAuth-only sessions never receive this header.
     public func cookieHeader(for url: URL) -> String? {
-        guard let host = url.host else { return nil }
-        let matching = authCookies.filter { cookie in
-            host.hasSuffix(cookie.domain.trimmingCharacters(in: .init(charactersIn: ".")))
-                || cookie.domain.hasSuffix(host)
-        }
-        guard !matching.isEmpty else { return nil }
-        return matching.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+        let cookies = current?.cookies.filter { $0.matches(url) } ?? []
+        guard !cookies.isEmpty, current?.signedOut == false else { return nil }
+        return cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
     }
 
-    // MARK: - Helpers
-
-    static func isYouTubeCookie(_ cookie: HTTPCookie) -> Bool {
-        let d = cookie.domain.trimmingCharacters(in: .init(charactersIn: "."))
-        return d.hasSuffix("youtube.com") || d.hasSuffix("google.com")
+    nonisolated static func isYouTubeCookie(_ cookie: HTTPCookie) -> Bool {
+        YTStoredCookie.isYouTubeDomain(cookie.domain)
     }
 
-    /// Removes cookies left by older Cathode builds that mirrored WebKit auth
-    /// into Foundation's global store. Current code never writes auth there.
-    private static func clearLegacySharedCookies() {
-        for cookie in HTTPCookieStorage.shared.cookies ?? [] where isYouTubeCookie(cookie) {
+    private func isYouTubeHost(_ domain: String) -> Bool {
+        let host = domain.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        return host == "youtube.com" || host.hasSuffix(".youtube.com")
+    }
+
+    private func clearLegacySharedCookies() {
+        for cookie in HTTPCookieStorage.shared.cookies ?? [] where Self.isYouTubeCookie(cookie) {
             HTTPCookieStorage.shared.deleteCookie(cookie)
         }
-    }
-}
-
-// MARK: - iCloud KVS cookie sync
-//
-// iOS captures cookies via WKWebView sign-in; tvOS has no interactive way to
-// sign in, so we ride NSUbiquitousKeyValueStore (iCloud KVS) to replicate
-// the cookie set. We use KVS rather than the synchronizable Keychain because
-// the sibling FinStream project found Keychain sync unreliable on tvOS;
-// KVS is the proven path. Tradeoff: the blob lives in iCloud unencrypted at
-// rest by KVS, which is acceptable here since YouTube session cookies are
-// already exposed within the user's iCloud account context.
-//
-// KVS budget: 1 MB total / 1 MB per key — far above the few-hundred-byte
-// cookie blob we write. Google rotates cookies on every authenticated
-// response, so iOS rewrites the KVS blob on each `refreshSignInState`.
-
-private struct StoredCookie: Codable {
-    let name: String
-    let value: String
-    let domain: String
-    let path: String
-    let expires: Date?
-    let isSecure: Bool
-    let isHTTPOnly: Bool
-
-    init(_ c: HTTPCookie) {
-        name = c.name
-        value = c.value
-        domain = c.domain
-        path = c.path
-        expires = c.expiresDate
-        isSecure = c.isSecure
-        isHTTPOnly = c.isHTTPOnly
-    }
-
-    var httpCookie: HTTPCookie? {
-        var props: [HTTPCookiePropertyKey: Any] = [
-            .name: name,
-            .value: value,
-            .domain: domain,
-            .path: path,
-        ]
-        if isSecure { props[.secure] = "TRUE" }
-        if let expires { props[.expires] = expires }
-        return HTTPCookie(properties: props)
-    }
-}
-
-extension YTCookieAuth {
-    private static let kvsCookieKey = "cathode_yt_cookie_jar"
-
-    /// Writes the cookie set to iCloud KVS. Returns true if KVS accepted the
-    /// payload (the data also went into local KVS storage; `synchronize()`
-    /// nudges the iCloud daemon to schedule an upload).
-    @discardableResult
-    fileprivate static func persistCookies(_ cookies: [HTTPCookie]) -> Bool {
-        let stored = cookies.map(StoredCookie.init)
-        guard let data = try? JSONEncoder().encode(stored) else { return false }
-        let kvs = NSUbiquitousKeyValueStore.default
-        kvs.set(data, forKey: kvsCookieKey)
-        return kvs.synchronize()
-    }
-
-    fileprivate static func loadStoredCookies() -> [StoredCookie] {
-        guard let data = NSUbiquitousKeyValueStore.default.data(forKey: kvsCookieKey)
-        else { return [] }
-        return (try? JSONDecoder().decode([StoredCookie].self, from: data)) ?? []
-    }
-
-    fileprivate static func deleteStoredCookies() {
-        let kvs = NSUbiquitousKeyValueStore.default
-        kvs.removeObject(forKey: kvsCookieKey)
-        kvs.synchronize()
     }
 }

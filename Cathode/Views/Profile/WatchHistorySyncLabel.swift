@@ -13,7 +13,7 @@ struct WatchHistorySyncLabel: View {
                     .foregroundStyle(.green)
             }
         case .unverified:
-            Label("YouTube history sync enabled", systemImage: "person.badge.key")
+            Label("Checking YouTube history sync", systemImage: "arrow.triangle.2.circlepath")
         case .needsSignIn:
             Label("History sync needs sign-in", systemImage: "exclamationmark.triangle")
         case .unavailable:

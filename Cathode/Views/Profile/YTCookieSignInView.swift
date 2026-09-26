@@ -1,36 +1,20 @@
-//
-//  YTCookieSignInView.swift
-//  Cathode
-//
-//  Presents YouTube's sign-in flow inside a SwiftUI `WebView`. After the user
-//  logs in, the session cookies land in `WKWebsiteDataStore.default()`, where
-//  `YTCookieAuth` reads them to mint SAPISIDHASH headers for native /player
-//  calls.
-//
-//  A `WKHTTPCookieStoreObserver` watches the data store and dismisses the
-//  sheet the moment SAPISID arrives, instead of polling on each navigation.
-//
-
 #if !os(tvOS)
 import SwiftUI
 import WebKit
 
-private let signInURL = URL(string: "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F")!
-
 struct YTCookieSignInView: View {
     @Environment(\.dismiss) private var dismiss
     private let auth = YTCookieAuth.shared
-
     @State private var page: WebPage
-    @State private var dataStore: WKWebsiteDataStore
-    @State private var observer = YTCookieObserver()
+    @State private var checking = false
+    @State private var ready = false
+    @State private var verificationFailed = false
+    @State private var checkTask: Task<Void, Never>?
 
     init() {
-        let store = WKWebsiteDataStore.default()
-        var config = WebPage.Configuration()
-        config.websiteDataStore = store
-        _dataStore = State(initialValue: store)
-        _page = State(initialValue: WebPage(configuration: config))
+        var configuration = WebPage.Configuration()
+        configuration.websiteDataStore = .default()
+        _page = State(initialValue: WebPage(configuration: configuration))
     }
 
     var body: some View {
@@ -44,54 +28,50 @@ struct YTCookieSignInView: View {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { dismiss() }
                     }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(checking ? "Checking…" : "Finish Sign-In") {
+                            checkSignIn(showFailure: true)
+                        }
+                        .disabled(checking || !ready || page.isLoading)
+                    }
                 }
                 .task {
-                    page.load(URLRequest(url: signInURL))
-                    observer.start(cookieStore: dataStore.httpCookieStore) {
-                        Task {
-                            await auth.refreshSignInState()
-                            if auth.isSignedIn { dismiss() }
-                        }
-                    }
+                    await auth.prepareInteractiveSignIn()
+                    guard !Task.isCancelled,
+                          let url = URL(string: "https://accounts.google.com/ServiceLogin?service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2F") else { return }
+                    ready = true
+                    page.load(URLRequest(url: url))
+                }
+                .onChange(of: page.isLoading) { _, loading in
+                    guard ready, !loading, !checking,
+                          let host = page.url?.host(), host == "youtube.com" || host.hasSuffix(".youtube.com") else { return }
+                    checkSignIn(showFailure: false)
+                }
+                .alert("Couldn’t verify history sync", isPresented: $verificationFailed) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text("Finish signing in to YouTube, then try again. If you’re already signed in, check your connection.")
+                }
+                .onDisappear {
+                    checkTask?.cancel()
+                    auth.endInteractiveSignIn()
                 }
         }
         #if os(macOS)
         .frame(minWidth: 480, minHeight: 500)
         #endif
     }
-}
 
-// MARK: - Cookie observer
-
-final class YTCookieObserver: NSObject, WKHTTPCookieStoreObserver {
-    private weak var cookieStore: WKHTTPCookieStore?
-    private var onSignedIn: (() -> Void)?
-    private var lastSeenSAPISID: String?
-
-    func start(cookieStore: WKHTTPCookieStore, onSignedIn: @escaping () -> Void) {
-        guard self.cookieStore == nil else { return }
-        self.cookieStore = cookieStore
-        self.onSignedIn = onSignedIn
-        cookieStore.add(self)
-        check()
-    }
-
-    func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
-        check()
-    }
-
-    private func check() {
-        cookieStore?.getAllCookies { [weak self] cookies in
-            guard let self else { return }
-            guard let sapis = cookies.first(where: { $0.name == "SAPISID" }) else { return }
-            guard sapis.value != self.lastSeenSAPISID else { return }
-            self.lastSeenSAPISID = sapis.value
-            self.onSignedIn?()
+    private func checkSignIn(showFailure: Bool) {
+        guard !checking else { return }
+        checking = true
+        checkTask = Task {
+            let verified = await auth.completeInteractiveSignIn()
+            guard !Task.isCancelled else { return }
+            checking = false
+            if verified { dismiss() }
+            else if showFailure { verificationFailed = true }
         }
-    }
-
-    deinit {
-        cookieStore?.remove(self)
     }
 }
 #endif
