@@ -5,6 +5,7 @@ nonisolated struct YouTubeStream: Sendable {
         case mwebPO
         case visionOS
         case authenticatedTV
+        case authenticatedEmbedded
         case authenticatedWebSafari
         case android
     }

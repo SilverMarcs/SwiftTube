@@ -15,7 +15,7 @@ final class ExperimentalPlaybackSettings {
         get { configuration.isEnabled }
         set { configuration.isEnabled = newValue; publish() }
     }
-    // Missing credentials fail in the broker instead of silently selecting local extraction.
+    // Anonymous playback requires service credentials; authenticated HLS stays on device.
     var usesBroker: Bool { isUnlocked && isServerPlaybackEnabled }
 
     @ObservationIgnored private let cloud = NSUbiquitousKeyValueStore.default

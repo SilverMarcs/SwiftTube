@@ -48,14 +48,17 @@ actor StreamResolver {
         try Task.checkCancellation()
         if useBroker {
             do {
-                let token = try await PlaybackBrokerClient.shared.token(videoID: videoID, refresh: freshness == .revalidate)
+                let context = await YouTubeStreamExtractor.playbackContext(usingTokenService: true)
+                let token = context.requiresPOToken
+                    ? try await PlaybackBrokerClient.shared.token(videoID: videoID, refresh: freshness == .revalidate)
+                    : nil
                 // A recovery must not reuse connection pools from before suspension.
                 let freshSession = freshness == .revalidate ? YouTubeMediaTransport.makeExtractionSession() : nil
                 defer { freshSession?.invalidateAndCancel() }
                 let tokenExtractor = freshSession.map { YouTubeStreamExtractor(session: $0) } ?? extractor
-                let extraction = try await tokenExtractor.extract(videoID: videoID, poToken: token)
+                let extraction = try await tokenExtractor.extract(videoID: videoID, context: context, poToken: token)
                 let source = try await prepareSource(from: extraction, requiring: nil, allowingLowQualityFallback: false)
-                return source.limitingExpiry(to: token.expiresAt)
+                return token.map { source.limitingExpiry(to: $0.expiresAt) } ?? source
             } catch is CancellationError {
                 throw StreamResolutionError.cancelled
             } catch let error as StreamExtractionError {
@@ -323,10 +326,19 @@ actor StreamResolver {
             )
         }
 
-        if minimumHeight != nil {
-            throw StreamResolutionError.adaptivePreparation(
-                "The HLS master could not be constrained to an HD language rendition."
+        if let minimumHeight {
+            guard let variant = UnlabelledHLSVariant.select(
+                in: manifest, baseURL: nativeHLS.url, minimumHeight: minimumHeight
+            ) else {
+                throw StreamResolutionError.adaptivePreparation(
+                    "The HLS master could not be constrained to an HD language rendition."
+                )
+            }
+            try await preflightNativeHLSVariant(variant.url, requestHeaders: nativeHLS.requestHeaders)
+            let lease = try await manifests.registerNativeMaster(
+                variant.manifest, requestHeaders: nativeHLS.requestHeaders
             )
+            return .nativeHLS(lease: lease, expiresAt: Self.expiry(of: nativeHLS.url), httpUserAgent: nil)
         }
 
         guard let preferredVariantURL = Self.preferredNativeHLSVariantURL(

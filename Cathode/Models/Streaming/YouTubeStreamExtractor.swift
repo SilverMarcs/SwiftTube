@@ -8,17 +8,9 @@ import OSLog
 actor YouTubeStreamExtractor {
     static let shared = YouTubeStreamExtractor()
 
-    private enum AuthenticationMode: Sendable {
-        case none
-        case cookie
-        case cookieOrAnonymous
-        case tvOAuthOrCookie
-    }
-
     private enum PlayerAuthentication: Sendable {
         case none
         case cookie(CookieAuthentication)
-        case oauthBearer(String)
     }
 
     private struct Client: Sendable {
@@ -34,8 +26,6 @@ actor YouTubeStreamExtractor {
         let osVersion: String?
         let prefersNativeHLS: Bool
         let allowsAdaptiveDirectURLs: Bool
-        let requiresWatchBootstrap: Bool
-        let authenticationMode: AuthenticationMode
     }
 
     struct WatchBootstrap: Sendable {
@@ -58,6 +48,7 @@ actor YouTubeStreamExtractor {
 
         struct Context: Encodable {
             let client: ClientContext
+            let thirdParty: YouTubeEmbeddedPlayerConfiguration.ThirdParty?
         }
 
         struct ClientContext: Encodable {
@@ -72,6 +63,7 @@ actor YouTubeStreamExtractor {
             let osVersion: String?
             let userAgent: String
             let visitorData: String?
+            let platform: String?
         }
 
         struct PlaybackContext: Encodable {
@@ -82,6 +74,7 @@ actor YouTubeStreamExtractor {
             struct ContentPlaybackContext: Encodable {
                 let html5Preference = "HTML5_PREF_WANTS"
                 let signatureTimestamp: Int
+                let encryptedHostFlags: String?
             }
         }
     }
@@ -129,7 +122,6 @@ actor YouTubeStreamExtractor {
     }
 
     private struct ClientResponse: Sendable {
-        let priority: Int
         let client: Client
         let response: PlayerResponse
     }
@@ -159,111 +151,36 @@ actor YouTubeStreamExtractor {
         298, 299,
     ]
 
-    // Extraction requests every enabled entry in parallel. Keep only visionOS
-    // enabled for now; uncomment other entries to include them in that batch.
-    // Stream selection and resolver retries still apply to the returned sources.
-    private static let clients: [Client] = [
-        // The current visionOS identity is the first HD candidate. Its direct
-        // fMP4 URLs support the deep range access required by our synthesized
-        // HLS presentation without a GVS PO token.
-        Client(
-            kind: .visionOS,
-            name: InnerTubeClients.VisionOS.name,
-            nameID: InnerTubeClients.VisionOS.nameID,
-            version: InnerTubeClients.VisionOS.version,
-            userAgent: InnerTubeClients.VisionOS.userAgent,
-            androidSDKVersion: nil,
-            deviceMake: InnerTubeClients.VisionOS.deviceMake,
-            deviceModel: InnerTubeClients.VisionOS.deviceModel,
-            osName: InnerTubeClients.VisionOS.osName,
-            osVersion: InnerTubeClients.VisionOS.osVersion,
-            prefersNativeHLS: false,
-            allowsAdaptiveDirectURLs: true,
-            requiresWatchBootstrap: true,
-            authenticationMode: .none
-        ),
-        /*
-        // OAuth-authenticated TV remains the first authenticated HD fallback.
-        // Cookie auth is used when a TV OAuth session is unavailable.
-        Client(
-            kind: .authenticatedTV,
-            name: InnerTubeClients.TVPlayback.name,
-            nameID: InnerTubeClients.TVPlayback.nameID,
-            version: InnerTubeClients.TVPlayback.version,
-            userAgent: InnerTubeClients.TVPlayback.userAgent,
-            androidSDKVersion: nil,
-            deviceMake: nil,
-            deviceModel: nil,
-            osName: nil,
-            osVersion: nil,
-            prefersNativeHLS: true,
-            allowsAdaptiveDirectURLs: true,
-            requiresWatchBootstrap: true,
-            authenticationMode: .tvOAuthOrCookie
-        ),
-        // The downgraded TV identity remains a compatibility fallback for
-        // accounts/videos on which current TV returns only SABR formats.
-        Client(
-            kind: .authenticatedTV,
-            name: InnerTubeClients.TVDowngraded.name,
-            nameID: InnerTubeClients.TVDowngraded.nameID,
-            version: InnerTubeClients.TVDowngraded.version,
-            userAgent: InnerTubeClients.TVDowngraded.userAgent,
-            androidSDKVersion: nil,
-            deviceMake: nil,
-            deviceModel: nil,
-            osName: nil,
-            osVersion: nil,
-            prefersNativeHLS: true,
-            allowsAdaptiveDirectURLs: true,
-            requiresWatchBootstrap: true,
-            authenticationMode: .tvOAuthOrCookie
-        ),
-        // Safari's authenticated player response can provide pre-muxed HD HLS
-        // without the direct-URL PO-token cutoff.
-        Client(
-            kind: .authenticatedWebSafari,
-            name: InnerTubeClients.WebSafari.name,
-            nameID: InnerTubeClients.WebSafari.nameID,
-            version: InnerTubeClients.WebSafari.version,
-            userAgent: InnerTubeClients.WebSafari.userAgent,
-            androidSDKVersion: nil,
-            deviceMake: nil,
-            deviceModel: nil,
-            osName: nil,
-            osVersion: nil,
-            prefersNativeHLS: true,
-            allowsAdaptiveDirectURLs: false,
-            requiresWatchBootstrap: true,
-            authenticationMode: .cookie
-        ),
-        // Android supplies a muxed source for videos that expose no adaptive
-        // option. It is deliberately not allowed to replace a failed HD path.
-        Client(
-            kind: .android,
-            name: InnerTubeClients.Android.name,
-            nameID: InnerTubeClients.Android.nameID,
-            version: InnerTubeClients.Android.version,
-            userAgent: InnerTubeClients.Android.userAgent,
-            androidSDKVersion: InnerTubeClients.Android.androidSdkVersion,
-            deviceMake: nil,
-            deviceModel: nil,
-            osName: "Android",
-            osVersion: "11",
-            prefersNativeHLS: false,
-            allowsAdaptiveDirectURLs: false,
-            requiresWatchBootstrap: false,
-            authenticationMode: .none
-        ),
-        */
-    ]
+    // Normal playback keeps its existing anonymous visionOS policy.
+    private static let localClient = Client(
+        kind: .visionOS,
+        name: InnerTubeClients.VisionOS.name,
+        nameID: InnerTubeClients.VisionOS.nameID,
+        version: InnerTubeClients.VisionOS.version,
+        userAgent: InnerTubeClients.VisionOS.userAgent,
+        androidSDKVersion: nil,
+        deviceMake: InnerTubeClients.VisionOS.deviceMake,
+        deviceModel: InnerTubeClients.VisionOS.deviceModel,
+        osName: InnerTubeClients.VisionOS.osName,
+        osVersion: InnerTubeClients.VisionOS.osVersion,
+        prefersNativeHLS: false,
+        allowsAdaptiveDirectURLs: true
+    )
+
+    // Safari embedded-player HLS remains available to authenticated sessions
+    // whose MWEB responses expose only SABR and a low-quality progressive URL.
+    private static let authenticatedClient = Client(
+        kind: .authenticatedEmbedded, name: "WEB_EMBEDDED_PLAYER", nameID: "56",
+        version: "2.20260708.00.00", userAgent: InnerTubeClients.WebSafari.userAgent,
+        androidSDKVersion: nil, deviceMake: nil, deviceModel: nil, osName: nil, osVersion: nil,
+        prefersNativeHLS: true, allowsAdaptiveDirectURLs: false
+    )
 
     private static let tokenClient = Client(
         kind: .mwebPO, name: "MWEB", nameID: "2", version: "2.20260708.05.00",
         userAgent: "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)",
         androidSDKVersion: nil, deviceMake: nil, deviceModel: nil, osName: nil, osVersion: nil,
-        prefersNativeHLS: false, allowsAdaptiveDirectURLs: true, requiresWatchBootstrap: true,
-        authenticationMode: .cookieOrAnonymous
+        prefersNativeHLS: false, allowsAdaptiveDirectURLs: true
     )
 
     private static let bootstrapUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15,gzip(gfe)"
@@ -288,83 +205,54 @@ actor YouTubeStreamExtractor {
         try await Self.fetchWatchBootstrap(videoID: videoID, session: session)
     }
 
-    func extract(videoID: String, poToken: PlaybackPOToken? = nil) async throws -> YouTubeStreamExtraction {
+    @MainActor
+    static func playbackContext(usingTokenService: Bool) async -> YouTubePlaybackContext {
+        guard usingTokenService else { return .local }
+        let auth = YTCookieAuth.shared
+        await auth.refreshSignInState()
+        let url = URL(string: "https://www.youtube.com")
+        return YouTubePlaybackContext(usingTokenService: true,
+                                      authorization: auth.sapisidHashAuthorization(),
+                                      cookies: url.flatMap { auth.cookieHeader(for: $0) })
+    }
+
+    func extract(
+        videoID: String,
+        context: YouTubePlaybackContext = .local,
+        poToken: PlaybackPOToken? = nil
+    ) async throws -> YouTubeStreamExtraction {
         do {
             try Task.checkCancellation()
             if let poToken, poToken.videoID != videoID || poToken.expiresAt <= Date() {
                 throw StreamExtractionError.invalidResponse
             }
-            let clients = poToken == nil ? Self.clients : [Self.tokenClient]
-            var responses: [ClientResponse] = []
-            var errors: [Error] = []
-            let cookieAuthentication = await Self.cookieAuthentication()
-            let oauthBearerToken = try? await YTTVAuthManager.shared.validAccessToken()
-            // Adaptive URLs are valid only when issued in the watch page's
-            // visitor context. Do not silently continue with the 360p Android
-            // response when bootstrap fails; that turns a transient extraction
-            // error into an unexplained quality downgrade.
-            let bootstrap: WatchBootstrap?
-            let bootstrapError: StreamExtractionError?
-            do {
-                bootstrap = try await Self.fetchWatchBootstrap(
-                    videoID: videoID,
-                    session: session,
-                    cookies: poToken == nil ? nil : cookieAuthentication?.cookies
-                )
-                bootstrapError = nil
-            } catch let error as StreamExtractionError {
-                bootstrap = nil
-                bootstrapError = error
-            } catch {
-                bootstrap = nil
-                bootstrapError = .network(String(describing: error))
+            guard context.requiresPOToken == (poToken != nil) else {
+                throw StreamExtractionError.invalidResponse
             }
-
-            await withTaskGroup(of: Result<ClientResponse, Error>.self) { group in
-                for (priority, client) in clients.enumerated()
-                where !client.requiresWatchBootstrap || bootstrap != nil {
-                    guard let authentication = Self.authentication(
-                        for: client,
-                        cookieAuthentication: cookieAuthentication,
-                        oauthBearerToken: oauthBearerToken
-                    ) else { continue }
-                    group.addTask { [session] in
-                        do {
-                            let response = try await Self.fetch(
-                                videoID: videoID,
-                                client: client,
-                                bootstrap: client.requiresWatchBootstrap ? bootstrap : nil,
-                                authentication: authentication,
-                                session: session
-                            )
-                            return .success(ClientResponse(
-                                priority: priority,
-                                client: client,
-                                response: response
-                            ))
-                        } catch {
-                            Self.logger.error("Player client=\(client.name, privacy: .public) v=\(client.version, privacy: .public) fetch failed: \(String(describing: error), privacy: .public)")
-                            return .failure(error)
-                        }
-                    }
-                }
-
-                for await result in group {
-                    switch result {
-                    case .success(let response): responses.append(response)
-                    case .failure(let error): errors.append(error)
-                    }
-                }
+            let client: Client = switch context.strategy {
+            case .visionOS: Self.localClient
+            case .anonymousMWEB: Self.tokenClient
+            case .authenticatedEmbedded: Self.authenticatedClient
             }
-
+            let authentication: PlayerAuthentication
+            if let authorization = context.authorization, let cookies = context.cookies {
+                authentication = .cookie(CookieAuthentication(authorization: authorization, cookies: cookies))
+            } else {
+                authentication = .none
+            }
+            // Pin one client and one credential snapshot. Do not probe another
+            // login state or downgrade an authenticated request to anonymous.
+            let bootstrap = try await Self.fetchWatchBootstrap(
+                videoID: videoID, session: session, cookies: context.cookies
+            )
+            let response = try await Self.fetch(videoID: videoID, client: client,
+                                                bootstrap: bootstrap, authentication: authentication,
+                                                session: session)
             try Task.checkCancellation()
-
-            let matchingResponses = responses
-                .sorted { $0.priority < $1.priority }
-                .filter {
-                    $0.response.videoDetails?.videoId == nil
-                        || $0.response.videoDetails?.videoId == videoID
-                }
+            guard response.videoDetails?.videoId == nil || response.videoDetails?.videoId == videoID else {
+                throw StreamExtractionError.invalidResponse
+            }
+            let matchingResponses = [ClientResponse(client: client, response: response)]
             for clientResponse in matchingResponses {
                 let streamingData = clientResponse.response.streamingData
                 Self.logger.info("Player client=\(clientResponse.client.name, privacy: .public) status=\(clientResponse.response.playabilityStatus?.status ?? "none", privacy: .public) formats=\((streamingData?.formats ?? []).count, privacy: .public) adaptive=\((streamingData?.adaptiveFormats ?? []).count, privacy: .public) hls=\(streamingData?.hlsManifestUrl != nil, privacy: .public)")
@@ -400,22 +288,15 @@ actor YouTubeStreamExtractor {
             let challenges = nativeHLSCandidates.map(\.challenge)
                 + formatCandidates.map(\.challenge)
             let resolvedURLs: [URL]
-            if let bootstrap {
-                do {
-                    resolvedURLs = try await urlSigner.resolve(
-                        challenges,
-                        playerJavaScriptURL: bootstrap.playerJavaScriptURL
-                    )
-                } catch is CancellationError {
-                    throw StreamExtractionError.cancelled
-                } catch {
-                    Self.logger.error("Player URL signing failed: \(String(describing: error), privacy: .public)")
-                    throw StreamExtractionError.urlSigning(String(describing: error))
-                }
-            } else if challenges.allSatisfy({ !Self.requiresTransformation($0) }) {
-                resolvedURLs = challenges.map(\.url)
-            } else {
-                throw bootstrapError ?? StreamExtractionError.invalidResponse
+            do {
+                resolvedURLs = try await urlSigner.resolve(
+                    challenges, playerJavaScriptURL: bootstrap.playerJavaScriptURL
+                )
+            } catch is CancellationError {
+                throw StreamExtractionError.cancelled
+            } catch {
+                Self.logger.error("Player URL signing failed: \(String(describing: error), privacy: .public)")
+                throw StreamExtractionError.urlSigning(String(describing: error))
             }
 
             let nativeHLS = zip(
@@ -467,9 +348,6 @@ actor YouTubeStreamExtractor {
                     nativeHLS: nativeHLS
                 )
             }
-            if let bootstrapError {
-                throw bootstrapError
-            }
             if !streams.isEmpty {
                 return YouTubeStreamExtraction(
                     streams: streams,
@@ -485,12 +363,15 @@ actor YouTubeStreamExtractor {
                 .first {
                 throw StreamExtractionError.unavailable(reason)
             }
-            if let firstError = errors.first {
-                throw StreamExtractionError.network(String(describing: firstError))
-            }
             throw StreamExtractionError.noStreams
         } catch is CancellationError {
             throw StreamExtractionError.cancelled
+        } catch let error as StreamExtractionError {
+            throw error
+        } catch let error as PlaybackBrokerError {
+            throw error
+        } catch {
+            throw StreamExtractionError.network(String(describing: error))
         }
     }
 
@@ -501,33 +382,34 @@ actor YouTubeStreamExtractor {
         authentication: PlayerAuthentication,
         session: URLSession
     ) async throws -> PlayerResponse {
-        let endpoint = if case .oauthBearer = authentication {
-            "https://youtubei.googleapis.com/youtubei/v1/player?prettyPrint=false"
-        } else if case .none = authentication {
-            "https://www.youtube.com/youtubei/v1/player?prettyPrint=false"
-        } else {
-            "https://www.youtube.com/youtubei/v1/player?prettyPrint=false&key=\(InnerTubeClients.apiKey)"
-        }
+        let endpoint = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false"
+        let embedded = client.kind == .authenticatedEmbedded
+            ? try await fetchEmbeddedConfiguration(videoID: videoID, authentication: authentication, session: session)
+            : nil
+        let clientVersion = embedded?.clientVersion ?? client.version
+        let visitorData = embedded?.visitorData ?? bootstrap?.visitorData
         guard let url = URL(string: endpoint) else {
             throw StreamExtractionError.invalidResponse
         }
         let context = PlayerRequest.ClientContext(
             clientName: client.name,
-            clientVersion: client.version,
+            clientVersion: clientVersion,
             androidSdkVersion: client.androidSDKVersion,
             deviceMake: client.deviceMake,
             deviceModel: client.deviceModel,
             osName: client.osName,
             osVersion: client.osVersion,
             userAgent: client.userAgent,
-            visitorData: bootstrap?.visitorData
+            visitorData: visitorData,
+            platform: embedded == nil ? nil : "DESKTOP"
         )
         let payload = PlayerRequest(
-            context: .init(client: context),
+            context: .init(client: context, thirdParty: embedded?.thirdParty),
             videoId: videoID,
             playbackContext: bootstrap.map {
                 .init(adPlaybackContext: client.kind == .mwebPO ? .init() : nil,
-                      contentPlaybackContext: .init(signatureTimestamp: $0.signatureTimestamp))
+                      contentPlaybackContext: .init(signatureTimestamp: $0.signatureTimestamp,
+                                                   encryptedHostFlags: embedded?.encryptedHostFlags))
             }
         )
         var request = URLRequest(url: url)
@@ -536,12 +418,8 @@ actor YouTubeStreamExtractor {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(client.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(client.nameID, forHTTPHeaderField: "X-YouTube-Client-Name")
-        request.setValue(client.version, forHTTPHeaderField: "X-YouTube-Client-Version")
+        request.setValue(clientVersion, forHTTPHeaderField: "X-YouTube-Client-Version")
         switch authentication {
-        case .oauthBearer(let oauthBearerToken):
-            // youtubei.googleapis.com rejects a www.youtube.com Origin with
-            // HTTP 400 "Origin doesn't match Host for XD3" — send no Origin.
-            request.setValue("Bearer \(oauthBearerToken)", forHTTPHeaderField: "Authorization")
         case .cookie(let cookieAuthentication):
             request.setValue("https://www.youtube.com", forHTTPHeaderField: "Origin")
             request.setValue("https://www.youtube.com", forHTTPHeaderField: "X-Origin")
@@ -551,7 +429,7 @@ actor YouTubeStreamExtractor {
             request.setValue("https://www.youtube.com", forHTTPHeaderField: "Origin")
             request.setValue("https://www.youtube.com", forHTTPHeaderField: "X-Origin")
         }
-        if let visitorData = bootstrap?.visitorData {
+        if let visitorData {
             request.setValue(visitorData, forHTTPHeaderField: "X-Goog-Visitor-Id")
         }
         request.httpBody = try JSONEncoder().encode(payload)
@@ -572,34 +450,29 @@ actor YouTubeStreamExtractor {
         return playerResponse
     }
 
-    private static func authentication(
-        for client: Client,
-        cookieAuthentication: CookieAuthentication?,
-        oauthBearerToken: String?
-    ) -> PlayerAuthentication? {
-        switch client.authenticationMode {
-        case .none:
-            return PlayerAuthentication.none
-        case .cookie:
-            return cookieAuthentication.map(PlayerAuthentication.cookie)
-        case .cookieOrAnonymous:
-            return cookieAuthentication.map(PlayerAuthentication.cookie) ?? PlayerAuthentication.none
-        case .tvOAuthOrCookie:
-            if let oauthBearerToken {
-                return .oauthBearer(oauthBearerToken)
-            } else {
-                return cookieAuthentication.map(PlayerAuthentication.cookie)
-            }
+    private static func fetchEmbeddedConfiguration(
+        videoID: String,
+        authentication: PlayerAuthentication,
+        session: URLSession
+    ) async throws -> YouTubeEmbeddedPlayerConfiguration {
+        guard case .cookie(let authentication) = authentication,
+              var components = URLComponents(string: "https://www.youtube.com/embed/") else {
+            throw StreamExtractionError.invalidResponse
         }
-    }
-
-    private static func cookieAuthentication() async -> CookieAuthentication? {
-        let url = URL(string: "https://www.youtube.com")
-        guard let authorization = await YTCookieAuth.shared.sapisidHashAuthorization(),
-              let url,
-              let cookies = await YTCookieAuth.shared.cookieHeader(for: url)
-        else { return nil }
-        return CookieAuthentication(authorization: authorization, cookies: cookies)
+        components.path += videoID
+        components.queryItems = [URLQueryItem(name: "html5", value: "1")]
+        guard let url = components.url else { throw StreamExtractionError.invalidResponse }
+        var request = URLRequest(url: url)
+        request.httpShouldHandleCookies = false
+        request.setValue(authenticatedClient.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue(YouTubeEmbeddedPlayerConfiguration.embedURL, forHTTPHeaderField: "Referer")
+        request.setValue(authentication.cookies, forHTTPHeaderField: "Cookie")
+        let (data, response) = try await session.data(for: request)
+        guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode),
+              let html = String(data: data, encoding: .utf8) else {
+            throw StreamExtractionError.invalidResponse
+        }
+        return try YouTubeEmbeddedPlayerConfiguration.parse(html)
     }
 
     private static func fetchWatchBootstrap(
@@ -750,17 +623,4 @@ actor YouTubeStreamExtractor {
         )
     }
 
-    private static func requiresTransformation(
-        _ challenge: YouTubePlayerURLSigner.Challenge
-    ) -> Bool {
-        challenge.signature != nil
-            || URLComponents(url: challenge.url, resolvingAgainstBaseURL: false)?
-                .queryItems?
-                .contains(where: { $0.name == "n" }) == true
-            || {
-                let parts = challenge.url.pathComponents
-                guard let nIndex = parts.firstIndex(of: "n") else { return false }
-                return parts.indices.contains(parts.index(after: nIndex))
-            }()
-    }
 }
