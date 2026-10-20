@@ -85,8 +85,6 @@ nonisolated enum PlaybackSourceSelector {
 
     private static func clientPriority(_ clientKind: YouTubeStream.ClientKind) -> Int {
         switch clientKind {
-        case .mwebPO:
-            -1
         case .visionOS:
             0
         case .authenticatedTV:

@@ -67,8 +67,8 @@ nonisolated enum FMP4Parser {
         throw FMP4ParseError.rangeNotSupported(statusCode: lastStatusCode)
     }
 
-    /// Checks byte offsets beyond the one-megabyte metadata prefix. YouTube's
-    /// selective GVS proof-token enforcement can allow that prefix and then
+    /// Checks byte offsets beyond the one-megabyte metadata prefix. YouTube can
+    /// allow that prefix and then
     /// return 403 for the first media range that crosses it, causing playback
     /// to die roughly a minute later despite a successful initial preflight.
     static func preflightMediaAccess(

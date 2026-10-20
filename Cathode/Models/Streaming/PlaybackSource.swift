@@ -6,27 +6,37 @@ nonisolated struct PlaybackSource: Sendable {
         case nativeHLS
         case progressive
         case adaptiveHLS
-        case tokenAssistedHLS
     }
 
     let url: URL
     let expiresAt: Date?
     let kind: Kind
     let httpUserAgent: String?
+    let strategy: PlaybackStrategy?
 
     /// Keeps namespaced localhost manifests alive for as long as this source
     /// belongs to an installed player item.
     private let manifestLease: HLSManifestLease?
 
-    var isBroker: Bool { kind == .tokenAssistedHLS }
-
     var dependsOnManifestServer: Bool {
         manifestLease != nil
     }
 
-    func limitingExpiry(to deadline: Date) -> PlaybackSource {
-        PlaybackSource(url: url, expiresAt: min(expiresAt ?? deadline, deadline), kind: kind,
-                       httpUserAgent: httpUserAgent, manifestLease: manifestLease)
+    private init(
+        url: URL, expiresAt: Date?, kind: Kind, httpUserAgent: String?,
+        manifestLease: HLSManifestLease?, strategy: PlaybackStrategy? = nil
+    ) {
+        self.url = url
+        self.expiresAt = expiresAt
+        self.kind = kind
+        self.httpUserAgent = httpUserAgent
+        self.manifestLease = manifestLease
+        self.strategy = strategy
+    }
+
+    func using(_ strategy: PlaybackStrategy) -> Self {
+        Self(url: url, expiresAt: expiresAt, kind: kind, httpUserAgent: httpUserAgent,
+             manifestLease: manifestLease, strategy: strategy)
     }
 
     static func local(url: URL) -> PlaybackSource {
@@ -37,11 +47,6 @@ nonisolated struct PlaybackSource: Sendable {
             httpUserAgent: nil,
             manifestLease: nil
         )
-    }
-
-    static func tokenAssisted(lease: HLSManifestLease, expiresAt: Date) -> PlaybackSource {
-        PlaybackSource(url: lease.url, expiresAt: expiresAt, kind: .tokenAssistedHLS,
-                       httpUserAgent: nil, manifestLease: lease)
     }
 
     static func progressive(url: URL, expiresAt: Date) -> PlaybackSource {

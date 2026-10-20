@@ -31,100 +31,64 @@ actor StreamResolver {
         self.manifests = manifests
     }
 
+    /// Resolves the ordered attempts for consumers that handle their own player.
     func resolvePlaybackSource(
         videoID: String,
         freshness: Freshness = .standard,
-        requiring requiredKind: PlaybackSource.Kind? = nil,
-        usingBroker selectedBroker: Bool? = nil
+        startingWith strategy: PlaybackStrategy = .authenticatedEmbedded
     ) async throws -> PlaybackSource {
-        // A full-player load pins its selected backend before starting work.
-        // Shorts select the current setting when their resolution starts.
-        let useBroker: Bool
-        if let selectedBroker {
-            useBroker = selectedBroker
-        } else {
-            useBroker = await ExperimentalPlaybackSettings.shared.usesBroker
-        }
-        try Task.checkCancellation()
-        if useBroker {
-            do {
-                let context = await YouTubeStreamExtractor.playbackContext(usingTokenService: true)
-                let token = context.requiresPOToken
-                    ? try await PlaybackBrokerClient.shared.token(videoID: videoID, refresh: freshness == .revalidate)
-                    : nil
-                // A recovery must not reuse connection pools from before suspension.
-                let freshSession = freshness == .revalidate ? YouTubeMediaTransport.makeExtractionSession() : nil
-                defer { freshSession?.invalidateAndCancel() }
-                let tokenExtractor = freshSession.map { YouTubeStreamExtractor(session: $0) } ?? extractor
-                let extraction = try await tokenExtractor.extract(videoID: videoID, context: context, poToken: token)
-                let source = try await prepareSource(from: extraction, requiring: nil, allowingLowQualityFallback: false)
-                return token.map { source.limitingExpiry(to: $0.expiresAt) } ?? source
-            } catch is CancellationError {
-                throw StreamResolutionError.cancelled
-            } catch let error as StreamExtractionError {
-                if case .cancelled = error { throw StreamResolutionError.cancelled }
-                throw StreamResolutionError.extraction(error)
-            } catch let error as PlaybackBrokerError {
-                throw StreamResolutionError.broker(error)
-            }
-        }
-
-        // Selective GVS enforcement is assigned per returned URL. Reject and
-        // re-extract bad candidates before AVPlayer sees them instead of
-        // discovering the cutoff after a minute of playback.
-        let maximumAttempts = 3
+        var attempt: PlaybackStrategy? = strategy
         var lastError: StreamResolutionError?
-        var lowQualityFallback: PlaybackSource?
-
-        for attempt in 0..<maximumAttempts {
+        while let strategy = attempt {
             do {
-                try Task.checkCancellation()
-                let extraction = try await extractor.extract(videoID: videoID)
-                if requiredKind != .local,
-                   let progressive = PlaybackSourceSelector.progressive(from: extraction.streams),
-                   (progressive.height ?? 0) < 720 {
-                    lowQualityFallback = .progressive(
-                        url: progressive.url,
-                        expiresAt: Self.expiry(of: progressive.url)
-                    )
-                }
-                return try await prepareSource(
-                    from: extraction,
-                    requiring: requiredKind,
-                    allowingLowQualityFallback: attempt + 1 == maximumAttempts
+                return try await resolvePlaybackAttempt(
+                    videoID: videoID, strategy: strategy, freshness: freshness
                 )
-            } catch let error as StreamExtractionError {
-                if case .cancelled = error { throw StreamResolutionError.cancelled }
-                lastError = .extraction(error)
             } catch let error as StreamResolutionError {
                 if case .cancelled = error { throw error }
                 lastError = error
-            } catch is CancellationError {
-                throw StreamResolutionError.cancelled
-            } catch {
-                lastError = .extraction(.network(String(describing: error)))
             }
-
-            if attempt + 1 < maximumAttempts {
-                try await Task.sleep(for: .milliseconds(250 * (attempt + 1)))
-            }
-        }
-
-        // Keep an earlier 360p candidate usable even if the final re-extraction
-        // fails before it can return the same fallback again.
-        if let lowQualityFallback {
-            return lowQualityFallback
+            attempt = strategy.next
         }
         throw lastError ?? .noPlayableSource
+    }
+
+    /// The full player advances its session after either a resolution error or
+    /// a later AVPlayer failure, so it resolves exactly one strategy at a time.
+    func resolvePlaybackAttempt(
+        videoID: String,
+        strategy: PlaybackStrategy,
+        freshness: Freshness = .standard
+    ) async throws -> PlaybackSource {
+        do {
+            try Task.checkCancellation()
+            guard let context = await YouTubeStreamExtractor.playbackContext(for: strategy) else {
+                throw StreamResolutionError.noPlayableSource
+            }
+            let freshSession = freshness == .revalidate ? YouTubeMediaTransport.makeExtractionSession() : nil
+            defer { freshSession?.invalidateAndCancel() }
+            let activeExtractor = freshSession.map { YouTubeStreamExtractor(session: $0) } ?? extractor
+            let extraction = try await activeExtractor.extract(videoID: videoID, context: context)
+            let source = try await prepareSource(
+                from: extraction, allowingLowQualityFallback: strategy == .visionOS
+            )
+            return source.using(strategy)
+        } catch is CancellationError {
+            throw StreamResolutionError.cancelled
+        } catch let error as StreamResolutionError {
+            throw error
+        } catch let error as StreamExtractionError {
+            if case .cancelled = error { throw StreamResolutionError.cancelled }
+            throw StreamResolutionError.extraction(error)
+        } catch {
+            throw StreamResolutionError.extraction(.network(String(describing: error)))
+        }
     }
 
     func resolveProgressiveRequest(
         videoID: String,
         freshness: Freshness = .revalidate
     ) async throws -> URLRequest {
-        guard await !ExperimentalPlaybackSettings.shared.usesBroker else {
-            throw StreamResolutionError.broker(.downloadsUnsupported)
-        }
         let maximumAttempts = freshness == .revalidate ? 2 : 1
         var lastError: StreamResolutionError?
 
@@ -158,35 +122,18 @@ actor StreamResolver {
 
     private func prepareSource(
         from extraction: YouTubeStreamExtraction,
-        requiring requiredKind: PlaybackSource.Kind?,
         allowingLowQualityFallback: Bool
     ) async throws -> PlaybackSource {
         let adaptivePairs = PlaybackSourceSelector.adaptivePairs(from: extraction.streams)
-        if requiredKind == .nativeHLS, !allowingLowQualityFallback {
-            return try await nativeHLSSource(from: extraction, minimumHeight: 720)
-        }
-        if requiredKind == .progressive {
-            return try progressiveSource(from: extraction)
-        }
-        if requiredKind == .local {
-            throw StreamResolutionError.noPlayableSource
-        }
-
         var preparationFailure: StreamResolutionError?
-        if requiredKind == .adaptiveHLS, !allowingLowQualityFallback {
-            return try await prepareFirstAdaptive(in: adaptivePairs)
-        }
         do {
-            // `adaptivePairs` is ordered by client policy: visionOS first,
-            // authenticated TV second, followed by the remaining fallbacks.
             return try await prepareFirstAdaptive(in: adaptivePairs)
         } catch let error as StreamResolutionError {
             if case .cancelled = error { throw error }
             preparationFailure = error
         }
-        // Native HLS must resolve to an HD language rendition until the final
-        // extraction attempt. Only then may a lower-quality rendition replace
-        // the adaptive paths that have repeatedly failed.
+        // Prefer HD on the authenticated attempt; the final anonymous attempt
+        // may use lower quality when no adaptive stream can be prepared.
         if extraction.nativeHLS != nil {
             do {
                 let minimumNativeHLSHeight: Int? = allowingLowQualityFallback ? nil : 720
@@ -201,9 +148,8 @@ actor StreamResolver {
                 preparationFailure = .adaptivePreparation(String(describing: error))
             }
         }
-        // A progressive HD source is still useful immediately. Sub-720p
-        // progressive playback remains the absolute last resort and is
-        // withheld until every resolver retry has been used.
+        // Keep a lower-quality progressive stream as the final attempt's
+        // fallback when adaptive preparation fails.
         if let progressive = PlaybackSourceSelector.progressive(from: extraction.streams),
            allowingLowQualityFallback || (progressive.height ?? 0) >= 720 {
             return .progressive(
@@ -270,9 +216,6 @@ actor StreamResolver {
             audioCodec: pair.audio.audioCodec ?? "mp4a.40.2",
             audioRequestHeaders: pair.audio.requestHeaders
         )
-        if pair.video.clientKind == .mwebPO {
-            return .tokenAssisted(lease: lease, expiresAt: Self.expiry(of: pair.video.url, pair.audio.url))
-        }
         return .adaptive(lease: lease, expiresAt: Self.expiry(of: pair.video.url, pair.audio.url))
     }
 

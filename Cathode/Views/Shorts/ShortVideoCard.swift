@@ -6,24 +6,30 @@ struct ShortVideoCard: View {
     let isActive: Bool
 
     @State private var showDetail = false
-    @State private var playbackSource: PlaybackSource?
-    @State private var isResolving = false
-    @State private var resolutionError: String?
+    @State private var playback = ShortPlaybackModel()
     @State private var fetchedChannel: Channel?
 
     var body: some View {
         ZStack {
             Color.black
-            if let playbackSource {
-                ShortPlayerView(video: video, url: playbackSource.url, isActive: isActive)
-            } else if isResolving {
+            if let source = playback.source {
+                ShortPlayerView(video: video, url: source.url, isActive: isActive) { message in
+                    Task { await playback.playerFailed(message, source: source, videoID: video.id) }
+                }
+            } else if playback.isResolving {
                 UniversalProgressView()
                     .environment(\.colorScheme, .dark)
-            } else if resolutionError != nil {
-                Button("Retry playback", systemImage: "arrow.clockwise") {
-                    Task { await resolveStreamIfNeeded() }
+            } else if let error = playback.error {
+                VStack {
+                    Text(error)
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                    Button("Retry playback", systemImage: "arrow.clockwise") {
+                        Task { await playback.retry(videoID: video.id) }
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.borderedProminent)
+                .padding()
             }
         }
         .aspectRatio(9 / 16, contentMode: .fit)
@@ -68,7 +74,7 @@ struct ShortVideoCard: View {
         }
         .task(id: isActive) {
             guard isActive else { return }
-            await resolveStreamIfNeeded()
+            await playback.resolveIfNeeded(videoID: video.id)
         }
         .task(id: video.channelId) {
             guard let channelId = video.channelId, !channelId.isEmpty else { return }
@@ -96,29 +102,4 @@ struct ShortVideoCard: View {
         }
     }
 
-    /// Reuses the source while the selected backend is unchanged. Shorts use
-    /// the same playback routing as regular videos, including token-assisted mode.
-    private func resolveStreamIfNeeded() async {
-        if let playbackSource,
-           playbackSource.isBroker != ExperimentalPlaybackSettings.shared.usesBroker {
-            self.playbackSource = nil
-        }
-        guard playbackSource == nil, !isResolving else { return }
-        isResolving = true
-        resolutionError = nil
-        do {
-            let source = try await StreamResolver.shared.resolvePlaybackSource(videoID: video.id)
-            guard !Task.isCancelled else { return }
-            playbackSource = source
-            isResolving = false
-        } catch let error as StreamResolutionError {
-            guard !Task.isCancelled else { return }
-            resolutionError = error.errorDescription
-            isResolving = false
-        } catch {
-            guard !Task.isCancelled else { return }
-            resolutionError = error.localizedDescription
-            isResolving = false
-        }
-    }
 }

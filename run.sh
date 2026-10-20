@@ -33,7 +33,7 @@ EOF
 }
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEVICE_ID_RE='([0-9A-F]{8}-[0-9A-F]{16}|[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12})'
+DEVICE_ID_RE='([[:xdigit:]]{40}|[[:xdigit:]]{8}-[[:xdigit:]]{16}|[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12})'
 
 PROJECT=$(ls -d "$ROOT_DIR"/*.xcodeproj 2>/dev/null | head -1)
 if [[ -z "${PROJECT:-}" ]]; then

@@ -40,7 +40,7 @@ nonisolated enum InnerTubeClients {
 
     /// Android client — used exclusively for downloads.
     /// CDN URLs signed by the Android client are reliably downloadable using just
-    /// the Android UA; no session cookies or PO tokens required.
+    /// the Android UA; without browser-session credentials.
     /// Exact params from yt-dlp to avoid YouTube bot detection / HTTP 400.
     enum Android {
         static let name            = "ANDROID"
@@ -52,7 +52,7 @@ nonisolated enum InnerTubeClients {
 
     /// visionOS is the primary adaptive playback identity. Unlike the retired
     /// Android VR client, its current direct video and audio URLs permit range
-    /// access throughout the media without a GVS PO token.
+    /// access throughout the media using the anonymous playback context.
     enum VisionOS {
         static let name = "VISIONOS"
         static let nameID = "101"

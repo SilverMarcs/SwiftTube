@@ -9,6 +9,7 @@ struct ShortPlayerView: View {
     let video: Video
     let url: URL
     let isActive: Bool
+    let onFailure: (String) -> Void
 
     @State private var player: AVQueuePlayer?
     @State private var looper: AVPlayerLooper?
@@ -16,6 +17,8 @@ struct ShortPlayerView: View {
     // re-serving it in recommendations (mirrors VideoManager for regular videos).
     @State private var watchtime = WatchtimeReporter()
     @State private var timeObserver: Any?
+    @State private var statusObservation: NSKeyValueObservation?
+    @State private var itemStatusObservation: NSKeyValueObservation?
 
     var body: some View {
         PlayerLayerView(player: player)
@@ -44,7 +47,24 @@ struct ShortPlayerView: View {
         teardown()
         let queue = AVQueuePlayer()
         // AVPlayerLooper seamlessly re-enqueues the item for gapless looping.
-        looper = AVPlayerLooper(player: queue, templateItem: AVPlayerItem(url: url))
+        let loop = AVPlayerLooper(player: queue, templateItem: AVPlayerItem(url: url))
+        looper = loop
+        statusObservation = loop.observe(\.status, options: [.initial, .new]) { [weak queue] loop, _ in
+            guard loop.status == .failed else { return }
+            let message = loop.error?.localizedDescription ?? "The video stopped playing unexpectedly."
+            Task { @MainActor [weak queue] in
+                guard let queue, player === queue else { return }
+                onFailure(message)
+            }
+        }
+        itemStatusObservation = queue.observe(\.currentItem?.status, options: [.new]) { [weak queue] player, _ in
+            guard player.currentItem?.status == .failed else { return }
+            let message = player.currentItem?.error?.localizedDescription ?? "The video stopped playing unexpectedly."
+            Task { @MainActor [weak queue] in
+                guard let queue, self.player === queue else { return }
+                onFailure(message)
+            }
+        }
         queue.play()
 
         watchtime.begin(for: video)
@@ -63,6 +83,10 @@ struct ShortPlayerView: View {
     }
 
     private func teardown() {
+        statusObservation?.invalidate()
+        statusObservation = nil
+        itemStatusObservation?.invalidate()
+        itemStatusObservation = nil
         if let timeObserver {
             player?.removeTimeObserver(timeObserver)
             self.timeObserver = nil

@@ -6,7 +6,6 @@ nonisolated enum StreamResolutionError: Error, LocalizedError, Sendable {
     case noPlayableSource
     case adaptivePreparation(String)
     case manifestServer(String)
-    case broker(PlaybackBrokerError)
 
     var errorDescription: String? {
         switch self {
@@ -20,8 +19,6 @@ nonisolated enum StreamResolutionError: Error, LocalizedError, Sendable {
             "The high-quality stream could not be prepared."
         case .manifestServer:
             "The local playback service could not be started."
-        case .broker(let error):
-            error.errorDescription
         }
     }
 }

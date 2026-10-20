@@ -14,12 +14,11 @@ struct PlaybackSession {
 
     enum LoadReason {
         case initial
-        case automaticRecovery(attempt: Int)
+        case strategyFallback
         case manualRetry
         case expirationRefresh
         case manifestRecovery
         case foregroundRecovery
-        case installationRecovery
     }
 
     enum Phase {
@@ -38,19 +37,17 @@ struct PlaybackSession {
 
     let id = UUID()
     let videoID: String
-    var usesBroker: Bool
+    private(set) var strategy: PlaybackStrategy = .authenticatedEmbedded
     private(set) var loadID = UUID()
     var phase: Phase
     var intent: Intent
     var source: PlaybackSource?
     var position = PlaybackPositionState()
-    var recovery = PlaybackRecoveryPolicy()
     private var itemReachedReady = false
     private var installationCompleted = false
 
-    init(videoID: String, autoPlay: Bool, usesBroker: Bool = false) {
+    init(videoID: String, autoPlay: Bool) {
         self.videoID = videoID
-        self.usesBroker = usesBroker
         phase = .resolving(.initial)
         intent = autoPlay ? .playing : .paused
     }
@@ -65,7 +62,6 @@ struct PlaybackSession {
 
     mutating func markItemReady() {
         itemReachedReady = true
-        recovery.markItemReady()
         publishReadyIfPossible()
     }
 
@@ -80,6 +76,17 @@ struct PlaybackSession {
 
     func matches(_ token: PlaybackLoadToken) -> Bool {
         currentToken == token
+    }
+
+    /// Extraction, installation, and playback failures share this same budget.
+    mutating func advanceToNextStrategy() -> Bool {
+        guard let next = strategy.next else { return false }
+        strategy = next
+        return true
+    }
+
+    mutating func resetStrategy() {
+        strategy = .authenticatedEmbedded
     }
 
     private mutating func publishReadyIfPossible() {

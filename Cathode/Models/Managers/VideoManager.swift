@@ -134,7 +134,6 @@ final class VideoManager {
         switch player.timeControlStatus {
         case .playing:
             session.intent = .playing
-            session.recovery.recordStablePlayback()
             if seconds > 0 {
                 watchtime.report(videoId: session.videoID, position: seconds, isFinal: false)
             }
@@ -143,11 +142,10 @@ final class VideoManager {
             if !isAppInBackground, manifestServerRecoveryToken != session.currentToken {
                 session.intent = .paused
             }
-            session.recovery.pauseStabilityClock()
         case .waitingToPlayAtSpecifiedRate:
-            session.recovery.pauseStabilityClock()
+            break
         @unknown default:
-            session.recovery.pauseStabilityClock()
+            break
         }
 
         playbackSession = session
@@ -179,7 +177,6 @@ final class VideoManager {
         token: PlaybackLoadToken
     ) {
         removeHealthObservers()
-        playbackSession?.recovery.prepareForReplacementItem()
 
         statusObservation = item.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
             Task { @MainActor [weak self] in
@@ -271,16 +268,14 @@ final class VideoManager {
         token: PlaybackLoadToken
     ) {
         guard player?.currentItem === item,
-              var session = playbackSession,
+              let session = playbackSession,
               session.matches(token),
               session.videoID == video.id
         else { return }
 
-        session.recovery.pauseStabilityClock()
         let source = session.source
-        let failedSourceKind = source?.kind
         let failureDetails = Self.playbackFailureDetails(for: item)
-        print("Playback failed for \(video.id) using \(String(describing: failedSourceKind)): \(failureDetails)")
+        print("Playback failed for \(video.id) using \(String(describing: source?.kind)): \(failureDetails)")
 
         // The proxy listener is expected to disappear while suspended. Keep
         // the current item and source intact until activation has a chance to
@@ -293,35 +288,9 @@ final class VideoManager {
             return
         }
 
-        // A fatal player notification is not evidence that a fresh signed URL
-        // expired. Replacing a healthy item here caused mid-video reloads and
-        // quality changes after one transient transport failure. Automatically
-        // re-resolve only when the URL is actually at its expiry boundary or
-        // when the item depends on Cathode's proxy transport.
-        let sourceNeedsRefresh = session.source?.expiresAt.map {
-            Date().addingTimeInterval(5 * 60) >= $0
-        } ?? false
-        guard sourceNeedsRefresh || source?.dependsOnManifestServer == true,
-              let attempt = session.recovery.consumeAutomaticRecovery()
-        else {
-            playbackSession = session
-            surfacePlaybackFailure(
-                .player(item.error?.localizedDescription),
-                for: video,
-                sessionID: token.sessionID
-            )
-            return
-        }
-
         playbackSession = session
-        manifestBackedItemNeedsRecovery = false
-        player?.pause()
-        startLoading(
-            video,
-            reason: .automaticRecovery(attempt: attempt),
-            freshness: .revalidate,
-            bypassLocalFile: failedSourceKind == .local,
-            requiredRemoteKind: requiredRemoteKind(for: source)
+        surfacePlaybackFailure(
+            .player(item.error?.localizedDescription), for: video, sessionID: token.sessionID
         )
     }
 
@@ -338,8 +307,7 @@ final class VideoManager {
     func setVideo(_ video: Video, autoPlay: Bool = true) {
         isExpanded = autoPlay
         persistCurrentTime()
-        let usesBroker = ExperimentalPlaybackSettings.shared.usesBroker
-        guard video.id != currentVideo?.id || playbackSession?.usesBroker != usesBroker else { return }
+        guard video.id != currentVideo?.id else { return }
 
         loadWasInterruptedByBackground = false
         manifestBackedItemNeedsRecovery = false
@@ -349,7 +317,7 @@ final class VideoManager {
         watchtime.finalize(playerPosition: player?.currentTime().seconds)
 
         currentVideo = video
-        playbackSession = PlaybackSession(videoID: video.id, autoPlay: autoPlay, usesBroker: usesBroker)
+        playbackSession = PlaybackSession(videoID: video.id, autoPlay: autoPlay)
         sponsor.reset()
         fetchUpNext(for: video)
         watchtime.begin(for: video)
@@ -366,7 +334,7 @@ final class VideoManager {
         loadWasInterruptedByBackground = false
         manifestBackedItemNeedsRecovery = false
         session.intent = .playing
-        session.recovery.reset()
+        session.resetStrategy()
         playbackSession = session
 
         player?.pause()
@@ -406,21 +374,13 @@ final class VideoManager {
               let session = playbackSession
         else { return }
 
-        if session.usesBroker, case .failed = session.phase {
-            clearManifestServerRecovery(for: session.currentToken)
-            playbackSession?.recovery.reset()
-            startLoading(video, reason: .foregroundRecovery, freshness: .revalidate)
-            return
-        }
-
         if session.phase.isLoading, loadWasInterruptedByBackground {
             clearManifestServerRecovery(for: session.currentToken)
             loadWasInterruptedByBackground = false
             startLoading(
                 video,
                 reason: .foregroundRecovery,
-                freshness: .revalidate,
-                requiredRemoteKind: requiredRemoteKind(for: session.source)
+                freshness: .revalidate
             )
             return
         }
@@ -467,22 +427,18 @@ final class VideoManager {
            !itemNeedsRecovery {
             if sourceIsExpiring && isPaused {
                 recordCurrentPositionIfHealthy(in: &currentSession)
-                currentSession.recovery.reset()
                 playbackSession = currentSession
                 player.pause()
                 startLoading(
                     video,
                     reason: .expirationRefresh,
-                    freshness: .revalidate,
-                    requiredRemoteKind: requiredRemoteKind(for: source)
+                    freshness: .revalidate
                 )
                 return
             }
             if currentSession.intent == .playing {
                 player.play()
-                if currentSession.usesBroker {
-                    startResumeWatchdog(for: video, player: player, token: currentSession.currentToken)
-                }
+                startResumeWatchdog(for: video, player: player, token: currentSession.currentToken)
             }
             return
         }
@@ -492,7 +448,6 @@ final class VideoManager {
         }
 
         recordCurrentPositionIfHealthy(in: &currentSession)
-        currentSession.recovery.reset()
         playbackSession = currentSession
         player.pause()
 
@@ -501,8 +456,7 @@ final class VideoManager {
             reason: !manifestIsAvailable || itemNeedsRecovery
                 ? .manifestRecovery
                 : .expirationRefresh,
-            freshness: .revalidate,
-            requiredRemoteKind: requiredRemoteKind(for: source)
+            freshness: .revalidate
         )
     }
 
@@ -527,8 +481,9 @@ final class VideoManager {
                    duration.isFinite, currentTime >= duration - 0.5 { return }
             }
             guard let self else { return }
-            self.playbackSession?.recovery.reset()
-            self.startLoading(video, reason: .foregroundRecovery, freshness: .revalidate)
+            self.surfacePlaybackFailure(
+                .player("The video did not resume playing."), for: video, sessionID: token.sessionID
+            )
         }
     }
 
@@ -558,8 +513,7 @@ final class VideoManager {
         _ video: Video,
         reason: PlaybackSession.LoadReason,
         freshness: StreamResolver.Freshness,
-        bypassLocalFile: Bool = false,
-        requiredRemoteKind: PlaybackSource.Kind? = nil
+        bypassLocalFile: Bool = false
     ) {
         resumeWatchdogTask?.cancel()
         resumeWatchdogTask = nil
@@ -572,12 +526,11 @@ final class VideoManager {
               session.videoID == video.id
         else { return }
 
-        session.usesBroker = ExperimentalPlaybackSettings.shared.usesBroker
         let token = session.beginLoad(reason: reason)
         // Retain the player and its manifest lease until the replacement is
         // ready. Fullscreen AVKit presentations are attached to this player.
         playbackSession = session
-        if session.usesBroker { startResolutionWatchdog(for: video, token: token) }
+        startResolutionWatchdog(for: video, token: token)
 
         loadingTask = Task { [weak self] in
             guard let self else { return }
@@ -586,8 +539,7 @@ final class VideoManager {
                 token: token,
                 reason: reason,
                 freshness: freshness,
-                bypassLocalFile: bypassLocalFile,
-                requiredRemoteKind: requiredRemoteKind
+                bypassLocalFile: bypassLocalFile
             )
             guard self.playbackSession?.matches(token) == true else { return }
             self.loadingTask = nil
@@ -599,26 +551,23 @@ final class VideoManager {
         token: PlaybackLoadToken,
         reason: PlaybackSession.LoadReason,
         freshness: StreamResolver.Freshness,
-        bypassLocalFile: Bool,
-        requiredRemoteKind: PlaybackSource.Kind?
+        bypassLocalFile: Bool
     ) async {
         guard isCurrent(token), !Task.isCancelled else { return }
         let plannedResumeAt = resumePosition(for: video)
-        let usesBroker = playbackSession?.usesBroker ?? false
+        guard let strategy = playbackSession?.strategy else { return }
 
         let source: PlaybackSource
         #if os(iOS)
-        if !usesBroker,
-           !bypassLocalFile,
+        if !bypassLocalFile,
            let localURL = DownloadManager.shared.localURL(for: video.id) {
             source = .local(url: localURL)
         } else {
             do {
-                source = try await StreamResolver.shared.resolvePlaybackSource(
+                source = try await StreamResolver.shared.resolvePlaybackAttempt(
                     videoID: video.id,
-                    freshness: freshness,
-                    requiring: requiredRemoteKind,
-                    usingBroker: usesBroker
+                    strategy: strategy,
+                    freshness: freshness
                 )
             } catch let error as StreamResolutionError {
                 guard !Task.isCancelled, isCurrent(token), !Self.isCancellation(error) else { return }
@@ -636,11 +585,10 @@ final class VideoManager {
         }
         #else
         do {
-            source = try await StreamResolver.shared.resolvePlaybackSource(
+            source = try await StreamResolver.shared.resolvePlaybackAttempt(
                 videoID: video.id,
-                freshness: freshness,
-                requiring: requiredRemoteKind,
-                usingBroker: usesBroker
+                strategy: strategy,
+                freshness: freshness
             )
         } catch let error as StreamResolutionError {
             guard !Task.isCancelled, isCurrent(token), !Self.isCancellation(error) else { return }
@@ -697,8 +645,7 @@ final class VideoManager {
         startInstallationWatchdog(
             for: playerItem,
             video: video,
-            token: token,
-            reason: reason
+            token: token
         )
 
         #if !os(macOS)
@@ -764,8 +711,7 @@ final class VideoManager {
     private func startInstallationWatchdog(
         for item: AVPlayerItem,
         video: Video,
-        token: PlaybackLoadToken,
-        reason: PlaybackSession.LoadReason
+        token: PlaybackLoadToken
     ) {
         loadingWatchdogTask?.cancel()
         loadingWatchdogTask = Task { @MainActor [weak self, weak item] in
@@ -778,8 +724,7 @@ final class VideoManager {
             self.handleInstallationTimeout(
                 for: item,
                 video: video,
-                token: token,
-                reason: reason
+                token: token
             )
         }
     }
@@ -793,8 +738,7 @@ final class VideoManager {
     private func handleInstallationTimeout(
         for item: AVPlayerItem,
         video: Video,
-        token: PlaybackLoadToken,
-        reason: PlaybackSession.LoadReason
+        token: PlaybackLoadToken
     ) {
         guard player?.currentItem === item,
               let session = playbackSession,
@@ -802,32 +746,11 @@ final class VideoManager {
               case .installing = session.phase
         else { return }
 
-        if case .installationRecovery = reason {
-            loadingTask?.cancel()
-            surfacePlaybackFailure(
-                .player("The video took too long to become ready."),
-                for: video,
-                sessionID: token.sessionID
-            )
-            return
-        }
-
-        startLoading(
-            video,
-            reason: .installationRecovery,
-            freshness: .revalidate,
-            bypassLocalFile: session.source?.kind == .local,
-            requiredRemoteKind: requiredRemoteKind(for: session.source)
+        loadingTask?.cancel()
+        surfacePlaybackFailure(
+            .player("The video took too long to become ready."),
+            for: video, sessionID: token.sessionID
         )
-    }
-
-    private func requiredRemoteKind(for source: PlaybackSource?) -> PlaybackSource.Kind? {
-        guard let source else { return nil }
-        return switch source.kind {
-        case .adaptiveHLS: .adaptiveHLS
-        case .nativeHLS where source.dependsOnManifestServer: .nativeHLS
-        default: nil
-        }
     }
 
     private func applyPreferredAudioSelection(
@@ -891,6 +814,22 @@ final class VideoManager {
               var session = playbackSession,
               session.id == sessionID
         else { return }
+
+        if session.source?.kind == .local {
+            session.source = nil
+            playbackSession = session
+            startLoading(video, reason: .strategyFallback, freshness: .revalidate, bypassLocalFile: true)
+            return
+        }
+
+        if session.advanceToNextStrategy() {
+            // Keep the player, play intent, and last healthy position while the
+            // second source is resolved. A load token rejects late first-item events.
+            playbackSession = session
+            player?.pause()
+            startLoading(video, reason: .strategyFallback, freshness: .revalidate, bypassLocalFile: true)
+            return
+        }
 
         loadingWatchdogTask?.cancel()
         loadingWatchdogTask = nil
@@ -963,7 +902,6 @@ final class VideoManager {
 
         if player.timeControlStatus == .playing {
             session.intent = .paused
-            session.recovery.pauseStabilityClock()
             player.pause()
         } else {
             session.intent = .playing

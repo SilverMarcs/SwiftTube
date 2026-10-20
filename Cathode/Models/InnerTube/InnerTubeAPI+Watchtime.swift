@@ -4,7 +4,7 @@
 //
 //  Watch-history reporting for the native AVPlayer path. Uses YouTube's web
 //  watch page authenticated with the isolated cookie snapshot. Tracking is
-//  independent of the client or PO token used to obtain the media stream.
+//  independent of the client used to obtain the media stream.
 //
 
 import Foundation
@@ -42,7 +42,7 @@ extension InnerTubeAPI {
         }
         do {
             // Fetch account-bound tracking independently of media extraction.
-            // Both normal and PO-token streams use this same reporting path.
+            // All playback strategies use this same reporting path.
             // A separate WEB /player POST can return loggedOut=true despite
             // valid cookies, whereas the authenticated watch page retains them.
             var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)

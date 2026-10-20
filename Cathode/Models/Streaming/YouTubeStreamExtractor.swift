@@ -67,8 +67,6 @@ actor YouTubeStreamExtractor {
         }
 
         struct PlaybackContext: Encodable {
-            struct AdPlaybackContext: Encodable { let pyv = true }
-            let adPlaybackContext: AdPlaybackContext?
             let contentPlaybackContext: ContentPlaybackContext
 
             struct ContentPlaybackContext: Encodable {
@@ -80,7 +78,6 @@ actor YouTubeStreamExtractor {
     }
 
     private struct PlayerResponse: Decodable, Sendable {
-        var availableAt: Date?
         let playabilityStatus: PlayabilityStatus?
         let streamingData: StreamingData?
         let videoDetails: VideoDetails?
@@ -167,20 +164,12 @@ actor YouTubeStreamExtractor {
         allowsAdaptiveDirectURLs: true
     )
 
-    // Safari embedded-player HLS remains available to authenticated sessions
-    // whose MWEB responses expose only SABR and a low-quality progressive URL.
+    // Authenticated embedded-player HLS is the first remote playback attempt.
     private static let authenticatedClient = Client(
         kind: .authenticatedEmbedded, name: "WEB_EMBEDDED_PLAYER", nameID: "56",
         version: "2.20260708.00.00", userAgent: InnerTubeClients.WebSafari.userAgent,
         androidSDKVersion: nil, deviceMake: nil, deviceModel: nil, osName: nil, osVersion: nil,
         prefersNativeHLS: true, allowsAdaptiveDirectURLs: false
-    )
-
-    private static let tokenClient = Client(
-        kind: .mwebPO, name: "MWEB", nameID: "2", version: "2.20260708.05.00",
-        userAgent: "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)",
-        androidSDKVersion: nil, deviceMake: nil, deviceModel: nil, osName: nil, osVersion: nil,
-        prefersNativeHLS: false, allowsAdaptiveDirectURLs: true
     )
 
     private static let bootstrapUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15,gzip(gfe)"
@@ -206,32 +195,26 @@ actor YouTubeStreamExtractor {
     }
 
     @MainActor
-    static func playbackContext(usingTokenService: Bool) async -> YouTubePlaybackContext {
-        guard usingTokenService else { return .local }
+    static func playbackContext(for strategy: PlaybackStrategy) async -> YouTubePlaybackContext? {
+        guard strategy == .authenticatedEmbedded else { return .anonymous }
         let auth = YTCookieAuth.shared
         await auth.refreshSignInState()
-        let url = URL(string: "https://www.youtube.com")
-        return YouTubePlaybackContext(usingTokenService: true,
-                                      authorization: auth.sapisidHashAuthorization(),
-                                      cookies: url.flatMap { auth.cookieHeader(for: $0) })
+        guard let url = URL(string: "https://www.youtube.com"),
+              let authorization = auth.sapisidHashAuthorization(), !authorization.isEmpty,
+              let cookies = auth.cookieHeader(for: url), !cookies.isEmpty
+        else { return nil }
+        return YouTubePlaybackContext(strategy: .authenticatedEmbedded,
+                                      authorization: authorization, cookies: cookies)
     }
 
     func extract(
         videoID: String,
-        context: YouTubePlaybackContext = .local,
-        poToken: PlaybackPOToken? = nil
+        context: YouTubePlaybackContext = .anonymous
     ) async throws -> YouTubeStreamExtraction {
         do {
             try Task.checkCancellation()
-            if let poToken, poToken.videoID != videoID || poToken.expiresAt <= Date() {
-                throw StreamExtractionError.invalidResponse
-            }
-            guard context.requiresPOToken == (poToken != nil) else {
-                throw StreamExtractionError.invalidResponse
-            }
             let client: Client = switch context.strategy {
             case .visionOS: Self.localClient
-            case .anonymousMWEB: Self.tokenClient
             case .authenticatedEmbedded: Self.authenticatedClient
             }
             let authentication: PlayerAuthentication
@@ -240,8 +223,8 @@ actor YouTubeStreamExtractor {
             } else {
                 authentication = .none
             }
-            // Pin one client and one credential snapshot. Do not probe another
-            // login state or downgrade an authenticated request to anonymous.
+            // Each attempt pins one client and credential snapshot. The caller
+            // advances to anonymous extraction only after this attempt fails.
             let bootstrap = try await Self.fetchWatchBootstrap(
                 videoID: videoID, session: session, cookies: context.cookies
             )
@@ -320,7 +303,7 @@ actor YouTubeStreamExtractor {
             for (candidate, resolvedURL) in zip(formatCandidates, resolvedFormatURLs) {
                 guard let stream = Self.makeStream(
                     from: candidate.format,
-                    resolvedURL: try poToken?.applying(to: resolvedURL) ?? resolvedURL,
+                    resolvedURL: resolvedURL,
                     client: candidate.client
                 ) else { continue }
                 guard candidate.client.allowsAdaptiveDirectURLs
@@ -333,11 +316,6 @@ actor YouTubeStreamExtractor {
                     isDRC: stream.isDRC
                 )
                 streamsByIdentity[identity] = streamsByIdentity[identity] ?? stream
-            }
-            if poToken != nil, let availableAt = matchingResponses.compactMap({ $0.response.availableAt }).max() {
-                let delay = availableAt.timeIntervalSinceNow
-                guard delay <= 120 else { throw StreamExtractionError.invalidResponse }
-                if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
             }
             let streams = Array(streamsByIdentity.values)
             let hasAdaptiveVideo = streams.contains { $0.includesVideo && !$0.includesAudio }
@@ -366,9 +344,9 @@ actor YouTubeStreamExtractor {
             throw StreamExtractionError.noStreams
         } catch is CancellationError {
             throw StreamExtractionError.cancelled
+        } catch let error as URLError where error.code == .cancelled {
+            throw StreamExtractionError.cancelled
         } catch let error as StreamExtractionError {
-            throw error
-        } catch let error as PlaybackBrokerError {
             throw error
         } catch {
             throw StreamExtractionError.network(String(describing: error))
@@ -407,8 +385,7 @@ actor YouTubeStreamExtractor {
             context: .init(client: context, thirdParty: embedded?.thirdParty),
             videoId: videoID,
             playbackContext: bootstrap.map {
-                .init(adPlaybackContext: client.kind == .mwebPO ? .init() : nil,
-                      contentPlaybackContext: .init(signatureTimestamp: $0.signatureTimestamp,
+                .init(contentPlaybackContext: .init(signatureTimestamp: $0.signatureTimestamp,
                                                    encryptedHostFlags: embedded?.encryptedHostFlags))
             }
         )
@@ -443,11 +420,7 @@ actor YouTubeStreamExtractor {
             logger.error("Player client=\(client.name, privacy: .public) v=\(client.version, privacy: .public) HTTP \(statusCode, privacy: .public): \(body, privacy: .public)")
             throw StreamExtractionError.invalidResponse
         }
-        var playerResponse = try JSONDecoder().decode(PlayerResponse.self, from: data)
-        if client.kind == .mwebPO {
-            playerResponse.availableAt = Date(timeIntervalSince1970: ceil(Date().timeIntervalSince1970) + YouTubePlaybackDelay.seconds(in: data))
-        }
-        return playerResponse
+        return try JSONDecoder().decode(PlayerResponse.self, from: data)
     }
 
     private static func fetchEmbeddedConfiguration(
