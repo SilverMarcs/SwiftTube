@@ -20,79 +20,33 @@ extension InnerTubeAPI {
 
     // MARK: - Home
 
+    /// One page of WEB Home, including channel links and avatars inline.
     public func fetchHome(continuationToken: String? = nil) async throws -> VideoGroup {
-        let isAuth = authToken != nil
-        if !isAuth {
-            return try await search(query: "trending", continuationToken: continuationToken)
-        }
-        
-        var body = makeBody(client: tvClientContext,
-                            continuationToken: continuationToken,
-                            includeVisitorData: true)
-        if continuationToken == nil {
-            body["browseId"] = "FEwhat_to_watch"
-        }
-        let data = try await postTV(endpoint: "browse", body: body)
-        updateVisitorData(from: data)
-        return try parseVideoGroup(from: data, title: BrowseSection.SectionType.home.defaultTitle)
-    }
-
-    /// Fetches the home feed as multiple named shelves (TYPE_ROW in Android).
-    /// Returns one VideoGroup per shelf; each has layout == .row.
-    /// Falls back to a single flat VideoGroup if no shelves are found.
-    public func fetchHomeRows(continuationToken: String? = nil) async throws -> [VideoGroup] {
-        let isAuth = authToken != nil
-        var body = makeBody(client: isAuth ? tvClientContext : webClientContext,
-                            continuationToken: continuationToken,
-                            includeVisitorData: true)
-        if continuationToken == nil {
-            body["browseId"] = "FEwhat_to_watch"
-        }
-        let data = isAuth
-            ? try await postTV(endpoint: "browse", body: body)
-            : try await post(endpoint: "browse", body: body)
-        updateVisitorData(from: data)
-        let rows = parseVideoGroupRows(from: data)
-        return rows
-    }
-
-    public func fetchAllRecommendations(maxPages: Int = 5) async throws -> [Video] {
-        var all: [Video] = []
-        var token: String? = nil
-        for _ in 0..<maxPages {
-            let group = try await fetchHome(continuationToken: token)
-            all.append(contentsOf: group.videos)
-            guard let next = group.nextPageToken, !next.isEmpty else { break }
-            token = next
-        }
-        return all
-    }
-
-    /// Pages the home feed as named shelves (one `.row` VideoGroup each) and
-    /// concatenates them, preserving shelf order. The page-level continuation is
-    /// carried on the last shelf's `nextPageToken` (set by `parseVideoGroupRows`);
-    /// paging stops when a page yields no shelves or no further token.
-    public func fetchAllRecommendationRows(maxPages: Int = 6) async throws -> [VideoGroup] {
-        var all: [VideoGroup] = []
-        var token: String? = nil
-        for _ in 0..<maxPages {
-            let rows = try await fetchHomeRows(continuationToken: token)
-            guard !rows.isEmpty else { break }
-            all.append(contentsOf: rows)
-            guard let next = rows.last?.nextPageToken, !next.isEmpty else { break }
-            token = next
-        }
-        return all
-    }
-
-    /// Loads MORE items for a single home shelf via its horizontal continuation
-    /// token. Uses the generic flat parser, which walks tileRenderers and captures
-    /// the next continuation regardless of the continuation wrapper's exact key.
-    /// Only `.videos` and `.nextPageToken` (the shelf's next token) are meaningful here.
-    public func fetchHomeShelfContinuation(continuationToken: String) async throws -> VideoGroup {
-        let body = makeBody(client: tvClientContext, continuationToken: continuationToken)
-        let data = try await postTV(endpoint: "browse", body: body)
+        let data = try await fetchHomeResponse(continuationToken: continuationToken)
         return try parseVideoGroup(from: data, title: nil)
+    }
+
+    /// Shared with Shorts so both feeds use the same session and Home source.
+    func fetchHomeResponse(continuationToken: String? = nil) async throws -> [String: Any] {
+        await YTCookieAuth.shared.refreshSignInState()
+        var body = makeBody(client: webClientContext,
+                            continuationToken: continuationToken,
+                            includeVisitorData: true)
+        if continuationToken == nil { body["browseId"] = "FEwhat_to_watch" }
+        let data: [String: Any]
+        if await YTCookieAuth.shared.sapisidHashAuthorization() != nil {
+            do {
+                data = try await postWebAuthenticated(endpoint: "browse", body: body)
+            } catch is CancellationError {
+                try Task.checkCancellation()
+                // A cookie renewal can replace an in-flight session. Retry the read once.
+                data = try await postWebAuthenticated(endpoint: "browse", body: body)
+            }
+        } else {
+            data = try await post(endpoint: "browse", body: body)
+        }
+        updateVisitorData(from: data)
+        return data
     }
 
     // MARK: - Subscriptions

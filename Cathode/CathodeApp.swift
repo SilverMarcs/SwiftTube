@@ -40,25 +40,16 @@ struct CathodeApp: App {
         Task { await YTCookieAuth.shared.validateAndRenew() }
 
         if ytAuth.isSignedIn {
-            // Fresh launches usually arrive with the ~1h OAuth access token
-            // expired: loadFromKeychain() nils it, so InnerTubeAPI holds no
-            // bearer and every launch fetch went out unauthenticated —
-            // personalised home returned no shelves and the feed sat on its
-            // spinner until a manual refresh (by which time the background
-            // token refresh had landed). Refresh the token and hand it to
-            // InnerTubeAPI before any fetch starts.
+            // Restore the TV OAuth token before loading subscriptions and library.
+            // Home uses the separate web session and can load independently.
             if let token = try? await ytAuth.validAccessToken() {
                 await InnerTubeAPI.shared.setAuthToken(token)
             }
             await store.refresh()
-            videoLoader.mode = .subscriptions
-        } else {
-            videoLoader.mode = .recommendations
         }
         async let subs: Void = videoLoader.loadAllChannelVideos()
-        async let recs: Void = videoLoader.loadRecommendations()
-        async let shorts: Void = videoLoader.loadShorts()
-        _ = await (subs, recs, shorts)
+        async let recs: Void = videoLoader.loadRecommendationsIfNeeded()
+        _ = await (subs, recs)
 
         if videoManager.currentVideo == nil,
            let mostRecentVideo = videoLoader.getMostRecentHistoryVideo() {

@@ -145,7 +145,7 @@ extension InnerTubeAPI {
     }
 
     /// Authenticated InnerTube endpoint — TVHTML5 client on youtubei.googleapis.com.
-    /// Required for subscriptions, history, playlists, and personalised home: the OAuth
+    /// Required for subscriptions, history, and playlists: the OAuth
     /// token issued by the TV device-code flow is matched to this client. The WEB client
     /// on www.youtube.com rejects Bearer tokens (returns 400).
     ///

@@ -26,7 +26,7 @@ extension InnerTubeAPI {
     /// First screen of the Shorts feed: the Shorts already in the personalised home
     /// feed. `nextPageToken` carries a seed marker that `fetchShortsMore` expands.
     public func fetchShorts() async throws -> VideoGroup {
-        let data = try await personalisedHomeFeed()
+        let data = try await fetchHomeResponse()
         // WEB home stores Shorts in shortsLockup/reel structures the rich parser may
         // not flag as `isShort`, so also run a reelWatchEndpoint scan (proven by the
         // diagnostics to find all of them) and keep whichever set is more complete.
@@ -41,8 +41,8 @@ extension InnerTubeAPI {
         }
         // 2026-07: the authenticated home feed stopped carrying a Shorts shelf
         // entirely. The reel sequence still works and personalises via the
-        // account cookies, so seed it from a random first-shelf video.
-        guard let seed = parseVideoGroupRows(from: data).first?.videos.randomElement()?.id else {
+        // account cookies, so seed it from a random Home video.
+        guard let seed = try parseVideoGroup(from: data, title: nil).videos.randomElement()?.id else {
             return VideoGroup(title: "Shorts", videos: [], nextPageToken: nil)
         }
         return try await fetchShortsMore(continuationToken: Self.reelSeedPrefix + seed)
@@ -56,29 +56,6 @@ extension InnerTubeAPI {
             : token
         let (videos, continuation) = await reelSequence(sequenceParams: params)
         return VideoGroup(title: "Shorts", videos: videos, nextPageToken: continuation)
-    }
-
-    // MARK: - Personalised home
-
-    /// Fetches the personalised home feed (`FEwhat_to_watch`), which carries the
-    /// Shorts shelf. Cookie account first (the youtube.com For You feed), then TV
-    /// OAuth, then signed-out. Warms the cookie store first so the first call after
-    /// launch doesn't miss the SAPISIDHASH.
-    private func personalisedHomeFeed() async throws -> [String: Any] {
-        await YTCookieAuth.shared.refreshSignInState()
-        var body = makeBody(client: webClientContext, includeVisitorData: true)
-        body["browseId"] = "FEwhat_to_watch"
-
-        if await YTCookieAuth.shared.sapisidHashAuthorization() != nil,
-           let data = try? await postWebAuthenticated(endpoint: "browse", body: body) {
-            return data
-        }
-        if authToken != nil {
-            var tv = makeBody(client: tvClientContext, includeVisitorData: true)
-            tv["browseId"] = "FEwhat_to_watch"
-            return try await postTV(endpoint: "browse", body: tv)
-        }
-        return try await post(endpoint: "browse", body: body)
     }
 
     // MARK: - reel_watch_sequence

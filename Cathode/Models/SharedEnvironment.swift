@@ -32,13 +32,10 @@ struct SharedEnvironment: ViewModifier {
                 // — the cold-launch load fired before auth was restored
                 // and left the lists empty.
                 if ytAuth.isSignedIn {
-                    videoLoader.mode = .subscriptions
                     await store.refresh()
                     await videoLoader.loadAllChannelVideos()
                 } else {
-                    videoLoader.mode = .recommendations
                     videoLoader.clearSubscriptions()
-                    await videoLoader.loadRecommendations()
                 }
             }
     }

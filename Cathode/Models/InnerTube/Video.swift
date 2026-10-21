@@ -8,6 +8,8 @@ public struct Video: Identifiable, Hashable, Codable, Sendable {
     public var title: String
     public var channelTitle: String
     public var channelId: String?
+    /// Creator image supplied by the feed; does not require a channel lookup.
+    public var channelAvatarURL: URL?
     public var description: String?
     public var duration: TimeInterval?      // seconds
     public var viewCount: Int?
@@ -39,7 +41,7 @@ public struct Video: Identifiable, Hashable, Codable, Sendable {
     public var isDownloaded: Bool { localFileURL != nil }
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, channelTitle, channelId, description, duration
+        case id, title, channelTitle, channelId, channelAvatarURL, description, duration
         case viewCount, publishedAt, isLive, isUpcoming, isShort, hasPortraitThumbnail
         case watchProgress, playlistId, playlistIndex, badges
         case notInterestedToken, dontLikeToken, hideChannelToken
@@ -52,6 +54,7 @@ public struct Video: Identifiable, Hashable, Codable, Sendable {
         title: String,
         channelTitle: String,
         channelId: String? = nil,
+        channelAvatarURL: URL? = nil,
         description: String? = nil,
         duration: TimeInterval? = nil,
         viewCount: Int? = nil,
@@ -72,6 +75,7 @@ public struct Video: Identifiable, Hashable, Codable, Sendable {
         self.title = title
         self.channelTitle = channelTitle
         self.channelId = channelId
+        self.channelAvatarURL = channelAvatarURL
         self.description = description
         self.duration = duration
         self.viewCount = viewCount

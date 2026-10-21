@@ -1,141 +1,14 @@
 import Foundation
 
-// MARK: - VideoGroup
-
-/// A named collection of videos that maps to an Android `VideoGroup`.
-public struct VideoGroup: Identifiable, Sendable {
-    public let id: UUID
+/// One page of videos returned by a browse or search request.
+public struct VideoGroup: Sendable {
     public var title: String?
     public var videos: [Video]
     public var nextPageToken: String?
-    public var action: Action
-    /// How this group should be laid out in the UI.
-    /// `.row` renders as a horizontal scrolling shelf (home feed rows);
-    /// `.grid` renders as the default adaptive vertical grid.
-    public var layout: Layout
-    /// Continuation token for loading MORE items *within this shelf* (horizontal
-    /// pagination). Distinct from `nextPageToken`, which pages the feed/next set of
-    /// shelves. Set for `.row` shelves that carry a horizontalListRenderer continuation.
-    public var shelfContinuationToken: String? = nil
 
-    public enum Action: Sendable {
-        case append
-        case replace
-        case remove
-        case prepend
-    }
-
-    public enum Layout: Sendable {
-        case grid
-        case row
-    }
-
-    public init(
-        id: UUID = UUID(),
-        title: String? = nil,
-        videos: [Video] = [],
-        nextPageToken: String? = nil,
-        action: Action = .replace,
-        layout: Layout = .grid
-    ) {
-        self.id = id
+    public init(title: String? = nil, videos: [Video] = [], nextPageToken: String? = nil) {
         self.title = title
         self.videos = videos
-        self.nextPageToken = nextPageToken
-        self.action = action
-        self.layout = layout
-    }
-}
-
-// MARK: - BrowseSection
-
-/// Represents a tab/section shown in the main browse screen (mirrors Android `BrowseSection`).
-public struct BrowseSection: Identifiable, Hashable, Sendable {
-    public let id: String
-    public var title: String
-    public var type: SectionType
-
-    public enum SectionType: String, CaseIterable, Codable, Sendable {
-        case home          = "home"
-        case recommended   = "recommended"
-        case subscriptions = "subscriptions"
-        case history       = "history"
-        case playlists     = "playlists"
-        case channels      = "channels"
-        case shorts        = "shorts"
-        case music         = "music"
-        case news          = "news"
-        case gaming        = "gaming"
-        case live          = "live"
-        case sports        = "sports"
-        case settings      = "settings"
-
-        /// Canonical display title — single source of truth used by defaultSections,
-        /// allSections, and any code that needs a localised label for a section type.
-        public var defaultTitle: String {
-            switch self {
-            case .home:          return "Home"
-            case .recommended:   return "Recommended"
-            case .subscriptions: return "Subscriptions"
-            case .history:       return "History"
-            case .playlists:     return "Playlists"
-            case .channels:      return "Channels"
-            case .shorts:        return "Shorts"
-            case .music:         return "Music"
-            case .news:          return "News"
-            case .gaming:        return "Gaming"
-            case .live:          return "Live"
-            case .sports:        return "Sports"
-            case .settings:      return "Settings"
-            }
-        }
-    }
-
-    public init(id: String, title: String, type: SectionType) {
-        self.id = id
-        self.title = title
-        self.type = type
-    }
-
-    /// Convenience: creates a section whose id and title are derived from the type.
-    public init(type: SectionType) {
-        self.id    = type.rawValue
-        self.title = type.defaultTitle
-        self.type  = type
-    }
-
-    public static let defaultSections: [BrowseSection] = [
-        BrowseSection(type: .home),
-        BrowseSection(type: .subscriptions),
-        BrowseSection(type: .history),
-        BrowseSection(type: .playlists),
-        BrowseSection(type: .channels),
-    ]
-
-    /// All known sections including extended categories (music, gaming, etc.).
-    public static let allSections: [BrowseSection] = defaultSections + [
-        BrowseSection(type: .recommended),
-        BrowseSection(type: .shorts),
-        BrowseSection(type: .music),
-        BrowseSection(type: .gaming),
-        BrowseSection(type: .news),
-        BrowseSection(type: .live),
-        BrowseSection(type: .sports),
-    ]
-}
-
-// MARK: - SearchResult
-
-public struct SearchResult: Identifiable, Sendable {
-    public let id: UUID
-    public var videos: [Video]
-    public var query: String
-    public var nextPageToken: String?
-
-    public init(id: UUID = UUID(), videos: [Video] = [], query: String, nextPageToken: String? = nil) {
-        self.id = id
-        self.videos = videos
-        self.query = query
         self.nextPageToken = nextPageToken
     }
 }

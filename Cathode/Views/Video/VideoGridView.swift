@@ -63,6 +63,14 @@ struct VideoGridView<Header: View>: View {
         shortsExtractionEnabled ? videos.filter { !$0.isShort } : videos
     }
 
+    private var usesGridLayout: Bool {
+        #if os(tvOS)
+        true
+        #else
+        horizontalSizeClass == .regular
+        #endif
+    }
+
     private var gridColumns: [GridItem] {
         #if os(tvOS)
         [GridItem(.adaptive(minimum: 420, maximum: 560), spacing: gridSpacing, alignment: .top)]
@@ -96,11 +104,10 @@ struct VideoGridView<Header: View>: View {
 
     var body: some View {
         Group {
-            if horizontalSizeClass == .regular {
+            if usesGridLayout {
                 ScrollView {
                     LazyVStack(spacing: gridSpacing) {
-                        // Full-width so the rail blends to the device edge like the
-                        // Home shelves; `HorizontalShelf` supplies its own leading gutter.
+                        // The Shorts rail supplies its own leading gutter.
                         if !shorts.isEmpty {
                             ShortsRail(shorts: shorts, onReachEnd: onReachEnd)
                         }
