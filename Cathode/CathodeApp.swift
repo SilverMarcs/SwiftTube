@@ -40,8 +40,7 @@ struct CathodeApp: App {
         Task { await YTCookieAuth.shared.validateAndRenew() }
 
         if ytAuth.isSignedIn {
-            // Restore the TV OAuth token before loading subscriptions and library.
-            // Home uses the separate web session and can load independently.
+            // Restore TV OAuth before loading Home shelves, subscriptions, and library.
             if let token = try? await ytAuth.validAccessToken() {
                 await InnerTubeAPI.shared.setAuthToken(token)
             }

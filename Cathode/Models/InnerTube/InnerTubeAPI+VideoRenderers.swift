@@ -202,7 +202,7 @@ extension InnerTubeAPI {
         // TV client subtitle format: "ChannelName • @handle" — YouTube browse API accepts @handle as browseId.
         let channelId: String? = {
             if let id = watchEndpoint?["channelId"] as? String { return id }
-            if let id = (onSelectCommand?["browseEndpoint"] as? [String: Any])?["browseId"] as? String { return id }
+            if let id = channelBrowseID(in: onSelectCommand) { return id }
             if let id = channelBrowseID(in: tileMetadata) { return id }
             if let id = channelBrowseID(in: tile["onLongPressCommand"]) { return id }
             guard let showMenu = (tile["onLongPressCommand"] as? [String: Any])?["showMenuCommand"] as? [String: Any],

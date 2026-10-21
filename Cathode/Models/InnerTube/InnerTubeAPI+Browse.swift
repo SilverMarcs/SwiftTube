@@ -18,37 +18,6 @@ extension InnerTubeAPI {
         visitorData = vd
     }
 
-    // MARK: - Home
-
-    /// One page of WEB Home, including channel links and avatars inline.
-    public func fetchHome(continuationToken: String? = nil) async throws -> VideoGroup {
-        let data = try await fetchHomeResponse(continuationToken: continuationToken)
-        return try parseVideoGroup(from: data, title: nil)
-    }
-
-    /// Shared with Shorts so both feeds use the same session and Home source.
-    func fetchHomeResponse(continuationToken: String? = nil) async throws -> [String: Any] {
-        await YTCookieAuth.shared.refreshSignInState()
-        var body = makeBody(client: webClientContext,
-                            continuationToken: continuationToken,
-                            includeVisitorData: true)
-        if continuationToken == nil { body["browseId"] = "FEwhat_to_watch" }
-        let data: [String: Any]
-        if await YTCookieAuth.shared.sapisidHashAuthorization() != nil {
-            do {
-                data = try await postWebAuthenticated(endpoint: "browse", body: body)
-            } catch is CancellationError {
-                try Task.checkCancellation()
-                // A cookie renewal can replace an in-flight session. Retry the read once.
-                data = try await postWebAuthenticated(endpoint: "browse", body: body)
-            }
-        } else {
-            data = try await post(endpoint: "browse", body: body)
-        }
-        updateVisitorData(from: data)
-        return data
-    }
-
     // MARK: - Subscriptions
 
     /// Fetches subscriptions feed (requires auth).

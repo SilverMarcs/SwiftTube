@@ -26,7 +26,7 @@ extension InnerTubeAPI {
     /// First screen of the Shorts feed: the Shorts already in the personalised home
     /// feed. `nextPageToken` carries a seed marker that `fetchShortsMore` expands.
     public func fetchShorts() async throws -> VideoGroup {
-        let data = try await fetchHomeResponse()
+        let data = try await personalisedShortsHome()
         // WEB home stores Shorts in shortsLockup/reel structures the rich parser may
         // not flag as `isShort`, so also run a reelWatchEndpoint scan (proven by the
         // diagnostics to find all of them) and keep whichever set is more complete.
@@ -56,6 +56,25 @@ extension InnerTubeAPI {
             : token
         let (videos, continuation) = await reelSequence(sequenceParams: params)
         return VideoGroup(title: "Shorts", videos: videos, nextPageToken: continuation)
+    }
+
+    /// Shorts retain their own cookie-based seed; Home shelves use TV OAuth.
+    private func personalisedShortsHome() async throws -> [String: Any] {
+        await YTCookieAuth.shared.refreshSignInState()
+        var body = makeBody(client: webClientContext, includeVisitorData: true)
+        body["browseId"] = "FEwhat_to_watch"
+        if await YTCookieAuth.shared.sapisidHashAuthorization() != nil,
+           let data = try? await postWebAuthenticated(endpoint: "browse", body: body) {
+            return data
+        }
+        try Task.checkCancellation()
+        if let token = try? await YTTVAuthManager.shared.validAccessToken() {
+            var tvBody = makeBody(client: tvClientContext, includeVisitorData: true)
+            tvBody["browseId"] = "FEwhat_to_watch"
+            return try await postTV(endpoint: "browse", body: tvBody, explicitBearerToken: token)
+        }
+        try Task.checkCancellation()
+        return try await post(endpoint: "browse", body: body)
     }
 
     // MARK: - reel_watch_sequence

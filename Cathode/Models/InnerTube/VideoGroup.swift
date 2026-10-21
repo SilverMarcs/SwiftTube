@@ -1,12 +1,14 @@
 import Foundation
 
 /// One page of videos returned by a browse or search request.
-public struct VideoGroup: Sendable {
+public struct VideoGroup: Identifiable, Sendable {
+    public let id: UUID
     public var title: String?
     public var videos: [Video]
     public var nextPageToken: String?
 
-    public init(title: String? = nil, videos: [Video] = [], nextPageToken: String? = nil) {
+    public init(id: UUID = UUID(), title: String? = nil, videos: [Video] = [], nextPageToken: String? = nil) {
+        self.id = id
         self.title = title
         self.videos = videos
         self.nextPageToken = nextPageToken

@@ -16,9 +16,11 @@ final class VideoLoader {
     private(set) var videos: [Video] = []
     private(set) var shortVideos: [Video] = []
     private(set) var recommendations: [Video] = []
+    private(set) var recommendationRows: [VideoGroup] = []
     private var recommendationPageToken: String?
     private var recommendationGeneration = UUID()
     private var isLoadingMoreRecommendations = false
+    private var shelvesLoadingMore: Set<VideoGroup.ID> = []
 
     /// Re-entry guard for subscriptions pagination.
     private var isLoadingMore = false
@@ -102,24 +104,27 @@ final class VideoLoader {
     }
 
     func loadRecommendationsIfNeeded() async {
-        guard recommendations.isEmpty else { return }
+        guard recommendationRows.isEmpty else { return }
         await loadRecommendations()
     }
 
-    /// Publish the first page immediately; subsequent pages load as the user scrolls.
+    /// TV Home supplies titled shelves, with separate page and shelf continuations.
     func loadRecommendations() async {
-        guard !isLoadingRecommendations else { return }
+        guard YTTVAuthManager.shared.isSignedIn, !isLoadingRecommendations else { return }
         isLoadingRecommendations = true
         recommendationGeneration = UUID()
+        let generation = recommendationGeneration
         isLoadingMoreRecommendations = false
-        defer { isLoadingRecommendations = false }
+        defer {
+            if generation == recommendationGeneration { isLoadingRecommendations = false }
+        }
         do {
-            let group = try await InnerTubeAPI.shared.fetchHome()
+            let page = try await InnerTubeAPI.shared.fetchHomePage()
             try Task.checkCancellation()
-            let (_, regular) = splitShorts(group.videos)
-            recommendations = regular.removingDuplicates()
-            recommendationPageToken = group.nextPageToken
-            TopShelfCache.save(videos: recommendations)
+            guard generation == recommendationGeneration else { return }
+            recommendationRows = cleanedShelves(page.shelves)
+            recommendationPageToken = page.nextPageToken
+            updateFlatRecommendations()
         } catch {
             print("Error loading recommendations: \(error)")
         }
@@ -134,16 +139,59 @@ final class VideoLoader {
             if generation == recommendationGeneration { isLoadingMoreRecommendations = false }
         }
         do {
-            let group = try await InnerTubeAPI.shared.fetchHome(continuationToken: token)
+            let page = try await InnerTubeAPI.shared.fetchHomePage(continuationToken: token)
             try Task.checkCancellation()
             // A refresh replaces the feed; discard pages from the previous feed.
             guard generation == recommendationGeneration else { return }
-            let (_, regular) = splitShorts(group.videos)
-            recommendations = (recommendations + regular).removingDuplicates()
-            recommendationPageToken = group.nextPageToken == token ? nil : group.nextPageToken
+            recommendationRows.append(contentsOf: cleanedShelves(page.shelves))
+            recommendationPageToken = page.nextPageToken == token ? nil : page.nextPageToken
+            updateFlatRecommendations()
         } catch {
             print("Error loading more recommendations: \(error)")
         }
+    }
+
+    func loadMoreInShelf(_ shelfID: VideoGroup.ID) async {
+        guard !isLoadingRecommendations, !shelvesLoadingMore.contains(shelfID),
+              let shelf = recommendationRows.first(where: { $0.id == shelfID }),
+              let token = shelf.nextPageToken, !token.isEmpty else { return }
+        shelvesLoadingMore.insert(shelfID)
+        defer { shelvesLoadingMore.remove(shelfID) }
+        do {
+            let group = try await InnerTubeAPI.shared.fetchHomeShelfContinuation(continuationToken: token)
+            try Task.checkCancellation()
+            guard let index = recommendationRows.firstIndex(where: { $0.id == shelfID }) else { return }
+            let (_, regular) = splitShorts(group.videos)
+            recommendationRows[index].videos = (recommendationRows[index].videos + regular).removingDuplicates()
+            recommendationRows[index].nextPageToken = group.nextPageToken == token ? nil : group.nextPageToken
+            updateFlatRecommendations()
+        } catch {
+            print("Error loading shelf: \(error)")
+        }
+    }
+
+    private func cleanedShelves(_ shelves: [VideoGroup]) -> [VideoGroup] {
+        shelves.compactMap { shelf in
+            let (_, regular) = splitShorts(shelf.videos)
+            guard !regular.isEmpty else { return nil }
+            var result = shelf
+            result.videos = regular.removingDuplicates()
+            return result
+        }
+    }
+
+    private func updateFlatRecommendations() {
+        recommendations = recommendationRows.flatMap(\.videos).removingDuplicates()
+        TopShelfCache.save(videos: recommendations)
+    }
+
+    func clearRecommendations() {
+        recommendationGeneration = UUID()
+        recommendationRows = []
+        recommendations = []
+        recommendationPageToken = nil
+        isLoadingRecommendations = false
+        isLoadingMoreRecommendations = false
     }
 
     func clearSubscriptions() {

@@ -1,30 +1,8 @@
 import SwiftUI
 
-/// Card density for the compact-width (iPhone) list. Persisted via `@AppStorage`.
-enum VideoListStyle: String {
-    case large, compact
-
-    var title: String {
-        switch self {
-        case .large: return "Large"
-        case .compact: return "Compact"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .large: return "rectangle.grid.1x2"
-        case .compact: return "list.bullet"
-        }
-    }
-}
-
 struct VideoGridView<Header: View>: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(YTTVAuthManager.self) private var ytAuth
-    #if os(iOS)
-    @AppStorage("videoListStyle") private var listStyle: VideoListStyle = .large
-    #endif
 
     let videos: [Video]
     var showChannelLinkInContextMenu: Bool = true
@@ -87,21 +65,6 @@ struct VideoGridView<Header: View>: View {
         #endif
     }
 
-    /// The list row for the compact-width layout. On iPhone it honors the
-    /// `listStyle` toggle (Big → `VideoCard`, Compact → `CompactVideoCard`).
-    @ViewBuilder
-    private func listRow(for video: Video) -> some View {
-        #if os(iOS)
-        if listStyle == .compact {
-            CompactVideoCard(video: video)
-        } else {
-            VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsBookmarkIcon: showsBookmarkIcon)
-        }
-        #else
-        VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsBookmarkIcon: showsBookmarkIcon)
-        #endif
-    }
-
     var body: some View {
         Group {
             if usesGridLayout {
@@ -146,22 +109,12 @@ struct VideoGridView<Header: View>: View {
                         .listRowInsets(.horizontal, 0)
                         .listRowInsets(.vertical, 0)
                     ForEach(mainVideos) { video in
-                        listRow(for: video)
-                            #if os(iOS)
-                            // Compact rows show a divider only below each row (not above);
-                            // the Large style uses full cards, so no separators.
-                            .listRowSeparator(.hidden, edges: .top)
-                            .listRowSeparator(listStyle == .compact ? .visible : .hidden, edges: .bottom)
-                            #elseif os(macOS)
+                        VideoCard(video: video, showChannelLink: showChannelLinkInContextMenu, showsBookmarkIcon: showsBookmarkIcon)
+                            #if !os(tvOS)
                             .listRowSeparator(.hidden)
                             #endif
-                            #if os(iOS)
-                            .listRowInsets(.vertical, listStyle == .compact ? 15 : 5)
-                            .listRowInsets(.horizontal, listStyle == .compact ? 15 : 10)
-                            #else
                             .listRowInsets(.vertical, 5)
                             .listRowInsets(.horizontal, 10)
-                            #endif
                             .task {
                                 if video.id == mainVideos.last?.id { onReachEnd?() }
                             }
@@ -189,19 +142,6 @@ struct VideoGridView<Header: View>: View {
                         #endif
                 }
             }
-        }
-        .toolbar {
-            #if os(iOS)
-            // iPhone only — iPad/macOS/tvOS use the grid layout, no density toggle.
-            if Device.isIPhone {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Toggle Layout", systemImage: listStyle.systemImage) {
-                        listStyle = listStyle == .large ? .compact : .large
-                    }
-                    .accessibilityValue(listStyle.title)
-                }
-            }
-            #endif
         }
         #if os(tvOS)
         .focusSection()
