@@ -38,18 +38,6 @@ nonisolated enum InnerTubeClients {
         }
     }
 
-    /// Android client — used exclusively for downloads.
-    /// CDN URLs signed by the Android client are reliably downloadable using just
-    /// the Android UA; without browser-session credentials.
-    /// Exact params from yt-dlp to avoid YouTube bot detection / HTTP 400.
-    enum Android {
-        static let name            = "ANDROID"
-        static let nameID          = "3"
-        static let version         = "21.02.35"
-        static let androidSdkVersion = 30  // Android 11
-        static let userAgent       = "com.google.android.youtube/\(version) (Linux; U; Android 11) gzip"
-    }
-
     /// visionOS is the primary adaptive playback identity. Unlike the retired
     /// Android VR client, its current direct video and audio URLs permit range
     /// access throughout the media using the anonymous playback context.

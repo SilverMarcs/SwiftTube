@@ -512,8 +512,7 @@ final class VideoManager {
     private func startLoading(
         _ video: Video,
         reason: PlaybackSession.LoadReason,
-        freshness: StreamResolver.Freshness,
-        bypassLocalFile: Bool = false
+        freshness: StreamResolver.Freshness
     ) {
         resumeWatchdogTask?.cancel()
         resumeWatchdogTask = nil
@@ -538,8 +537,7 @@ final class VideoManager {
                 for: video,
                 token: token,
                 reason: reason,
-                freshness: freshness,
-                bypassLocalFile: bypassLocalFile
+                freshness: freshness
             )
             guard self.playbackSession?.matches(token) == true else { return }
             self.loadingTask = nil
@@ -550,40 +548,13 @@ final class VideoManager {
         for video: Video,
         token: PlaybackLoadToken,
         reason: PlaybackSession.LoadReason,
-        freshness: StreamResolver.Freshness,
-        bypassLocalFile: Bool
+        freshness: StreamResolver.Freshness
     ) async {
         guard isCurrent(token), !Task.isCancelled else { return }
         let plannedResumeAt = resumePosition(for: video)
         guard let strategy = playbackSession?.strategy else { return }
 
         let source: PlaybackSource
-        #if os(iOS)
-        if !bypassLocalFile,
-           let localURL = DownloadManager.shared.localURL(for: video.id) {
-            source = .local(url: localURL)
-        } else {
-            do {
-                source = try await StreamResolver.shared.resolvePlaybackAttempt(
-                    videoID: video.id,
-                    strategy: strategy,
-                    freshness: freshness
-                )
-            } catch let error as StreamResolutionError {
-                guard !Task.isCancelled, isCurrent(token), !Self.isCancellation(error) else { return }
-                surfacePlaybackFailure(.stream(error), for: video, sessionID: token.sessionID)
-                return
-            } catch {
-                guard !Task.isCancelled, isCurrent(token) else { return }
-                surfacePlaybackFailure(
-                    .stream(.extraction(.network(String(describing: error)))),
-                    for: video,
-                    sessionID: token.sessionID
-                )
-                return
-            }
-        }
-        #else
         do {
             source = try await StreamResolver.shared.resolvePlaybackAttempt(
                 videoID: video.id,
@@ -603,7 +574,6 @@ final class VideoManager {
             )
             return
         }
-        #endif
 
         guard !Task.isCancelled,
               var session = playbackSession,
@@ -815,19 +785,12 @@ final class VideoManager {
               session.id == sessionID
         else { return }
 
-        if session.source?.kind == .local {
-            session.source = nil
-            playbackSession = session
-            startLoading(video, reason: .strategyFallback, freshness: .revalidate, bypassLocalFile: true)
-            return
-        }
-
         if session.advanceToNextStrategy() {
             // Keep the player, play intent, and last healthy position while the
             // second source is resolved. A load token rejects late first-item events.
             playbackSession = session
             player?.pause()
-            startLoading(video, reason: .strategyFallback, freshness: .revalidate, bypassLocalFile: true)
+            startLoading(video, reason: .strategyFallback, freshness: .revalidate)
             return
         }
 

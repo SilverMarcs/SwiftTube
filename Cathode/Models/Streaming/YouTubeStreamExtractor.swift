@@ -19,7 +19,6 @@ actor YouTubeStreamExtractor {
         let nameID: String
         let version: String
         let userAgent: String
-        let androidSDKVersion: Int?
         let deviceMake: String?
         let deviceModel: String?
         let osName: String?
@@ -56,7 +55,6 @@ actor YouTubeStreamExtractor {
             let gl = "US"
             let clientName: String
             let clientVersion: String
-            let androidSdkVersion: Int?
             let deviceMake: String?
             let deviceModel: String?
             let osName: String?
@@ -155,7 +153,6 @@ actor YouTubeStreamExtractor {
         nameID: InnerTubeClients.VisionOS.nameID,
         version: InnerTubeClients.VisionOS.version,
         userAgent: InnerTubeClients.VisionOS.userAgent,
-        androidSDKVersion: nil,
         deviceMake: InnerTubeClients.VisionOS.deviceMake,
         deviceModel: InnerTubeClients.VisionOS.deviceModel,
         osName: InnerTubeClients.VisionOS.osName,
@@ -168,7 +165,7 @@ actor YouTubeStreamExtractor {
     private static let authenticatedClient = Client(
         kind: .authenticatedEmbedded, name: "WEB_EMBEDDED_PLAYER", nameID: "56",
         version: "2.20260708.00.00", userAgent: InnerTubeClients.WebSafari.userAgent,
-        androidSDKVersion: nil, deviceMake: nil, deviceModel: nil, osName: nil, osVersion: nil,
+        deviceMake: nil, deviceModel: nil, osName: nil, osVersion: nil,
         prefersNativeHLS: true, allowsAdaptiveDirectURLs: false
     )
 
@@ -372,7 +369,6 @@ actor YouTubeStreamExtractor {
         let context = PlayerRequest.ClientContext(
             clientName: client.name,
             clientVersion: clientVersion,
-            androidSdkVersion: client.androidSDKVersion,
             deviceMake: client.deviceMake,
             deviceModel: client.deviceModel,
             osName: client.osName,

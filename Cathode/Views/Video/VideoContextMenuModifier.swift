@@ -36,13 +36,6 @@ struct VideoContextMenuModifier: ViewModifier {
                     }
                     #endif
                 }
-
-                #if os(iOS)
-                Section {
-                    DownloadMenuButton(video: video)
-                        .tint(.primary)
-                }
-                #endif
             }
     }
 }

@@ -2,7 +2,6 @@ import Foundation
 
 nonisolated struct PlaybackSource: Sendable {
     enum Kind: Hashable, Sendable {
-        case local
         case nativeHLS
         case progressive
         case adaptiveHLS
@@ -37,16 +36,6 @@ nonisolated struct PlaybackSource: Sendable {
     func using(_ strategy: PlaybackStrategy) -> Self {
         Self(url: url, expiresAt: expiresAt, kind: kind, httpUserAgent: httpUserAgent,
              manifestLease: manifestLease, strategy: strategy)
-    }
-
-    static func local(url: URL) -> PlaybackSource {
-        PlaybackSource(
-            url: url,
-            expiresAt: nil,
-            kind: .local,
-            httpUserAgent: nil,
-            manifestLease: nil
-        )
     }
 
     static func progressive(url: URL, expiresAt: Date) -> PlaybackSource {

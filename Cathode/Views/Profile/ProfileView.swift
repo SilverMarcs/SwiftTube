@@ -16,10 +16,6 @@ struct ProfileView: View {
             BookmarkView()
 
             HistoryView()
-
-            #if os(iOS)
-            DownloadsPreviewView()
-            #endif
         }
         .formStyle(.grouped)
         .contentMargins(.top, 5)

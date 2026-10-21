@@ -91,8 +91,6 @@ nonisolated enum PlaybackSourceSelector {
             1
         case .authenticatedEmbedded, .authenticatedWebSafari:
             2
-        case .android:
-            3
         }
     }
 }

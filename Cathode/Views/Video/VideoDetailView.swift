@@ -25,14 +25,8 @@ struct VideoDetailView: View {
                             Image(systemName: "chevron.left")
                         }
                     }
-                            
-                    ToolbarItem {
-                        DownloadMenuButton(video: video)
-                    }
-                    
-                    ToolbarSpacer(.fixed)        
                     #endif
-                    
+
                     VideoActionsToolbarContent(video: video)
                 }
             #endif

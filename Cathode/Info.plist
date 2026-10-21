@@ -6,10 +6,6 @@
 	<array>
 		<string>audio</string>
 	</array>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>com.SilverMarcs.SwiftTube.downloads</string>
-	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

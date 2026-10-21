@@ -85,41 +85,6 @@ actor StreamResolver {
         }
     }
 
-    func resolveProgressiveRequest(
-        videoID: String,
-        freshness: Freshness = .revalidate
-    ) async throws -> URLRequest {
-        let maximumAttempts = freshness == .revalidate ? 2 : 1
-        var lastError: StreamResolutionError?
-
-        for attempt in 0..<maximumAttempts {
-            do {
-                try Task.checkCancellation()
-                let extraction = try await extractor.extract(videoID: videoID)
-                if let progressive = PlaybackSourceSelector.progressive(from: extraction.streams) {
-                    var request = URLRequest(url: progressive.url)
-                    request.httpShouldHandleCookies = false
-                    for (header, value) in progressive.requestHeaders {
-                        request.setValue(value, forHTTPHeaderField: header)
-                    }
-                    return request
-                }
-                lastError = .noPlayableSource
-            } catch let error as StreamExtractionError {
-                if case .cancelled = error { throw StreamResolutionError.cancelled }
-                lastError = .extraction(error)
-            } catch is CancellationError {
-                throw StreamResolutionError.cancelled
-            }
-
-            if attempt + 1 < maximumAttempts {
-                try await Task.sleep(for: .milliseconds(250))
-            }
-        }
-
-        throw lastError ?? .noPlayableSource
-    }
-
     private func prepareSource(
         from extraction: YouTubeStreamExtraction,
         allowingLowQualityFallback: Bool

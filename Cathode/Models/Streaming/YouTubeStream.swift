@@ -6,7 +6,6 @@ nonisolated struct YouTubeStream: Sendable {
         case authenticatedTV
         case authenticatedEmbedded
         case authenticatedWebSafari
-        case android
     }
 
     enum MediaKind: Sendable {

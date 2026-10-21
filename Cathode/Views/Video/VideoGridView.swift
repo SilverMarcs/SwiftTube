@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Card density for the compact-width (iPhone) list. Persisted via `@AppStorage`.
-enum VideoListStyle: String, CaseIterable {
+enum VideoListStyle: String {
     case large, compact
 
     var title: String {
@@ -195,15 +195,10 @@ struct VideoGridView<Header: View>: View {
             // iPhone only — iPad/macOS/tvOS use the grid layout, no density toggle.
             if Device.isIPhone {
                 ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Picker("Layout", selection: $listStyle) {
-                            ForEach(VideoListStyle.allCases, id: \.self) { style in
-                                Label(style.title, systemImage: style.systemImage).tag(style)
-                            }
-                        }
-                    } label: {
-                        Label("Layout", systemImage: listStyle.systemImage)
+                    Button("Toggle Layout", systemImage: listStyle.systemImage) {
+                        listStyle = listStyle == .large ? .compact : .large
                     }
+                    .accessibilityValue(listStyle.title)
                 }
             }
             #endif
