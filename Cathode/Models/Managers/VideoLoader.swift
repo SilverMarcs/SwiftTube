@@ -66,8 +66,7 @@ final class VideoLoader {
         }
     }
 
-    /// Loads the personalised "For You" Shorts feed: the home Shorts shelf first,
-    /// then endless `reel_watch_sequence` pages via `loadMoreShorts()`.
+    /// Loads the TV Shorts feed; `loadMoreShorts()` pages the rest of the sequence.
     func loadShorts() async {
         if let existing = shortsLoadTask {
             await existing.value
