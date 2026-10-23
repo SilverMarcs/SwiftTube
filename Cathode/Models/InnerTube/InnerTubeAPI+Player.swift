@@ -28,6 +28,7 @@ extension InnerTubeAPI {
         let videoDetails = json["videoDetails"] as? [String: Any]
         let title = videoDetails?["title"] as? String ?? ""
         let channelTitle = videoDetails?["author"] as? String ?? ""
+        let channelId = videoDetails?["channelId"] as? String
         let description = videoDetails?["shortDescription"] as? String
         let durationStr = videoDetails?["lengthSeconds"] as? String
         let duration = durationStr.flatMap { Double($0) }
@@ -61,6 +62,7 @@ extension InnerTubeAPI {
             id: videoId,
             title: title,
             channelTitle: channelTitle,
+            channelId: channelId,
             description: description,
             duration: duration,
             viewCount: viewCount,

@@ -10,6 +10,17 @@ extension InnerTubeAPI {
         return parseHomePage(from: data)
     }
 
+    /// WEB Home via the cookie session, used only for the channel links and
+    /// avatars TV tiles omit. Empty without a cookie sign-in.
+    func fetchWebHomeVideos() async throws -> [Video] {
+        await YTCookieAuth.shared.refreshSignInState()
+        guard await YTCookieAuth.shared.sapisidHashAuthorization() != nil else { return [] }
+        var body = makeBody(client: webClientContext)
+        body["browseId"] = "FEwhat_to_watch"
+        let data = try await postWebAuthenticated(endpoint: "browse", body: body)
+        return try parseVideoGroup(from: data, title: nil).videos
+    }
+
     func fetchHomeShelfContinuation(continuationToken: String) async throws -> VideoGroup {
         let token = try await YTTVAuthManager.shared.validAccessToken()
         let body = makeBody(client: tvClientContext, continuationToken: continuationToken)

@@ -118,6 +118,7 @@ final class VideoLoader {
         defer {
             if generation == recommendationGeneration { isLoadingRecommendations = false }
         }
+        async let webVideos = try? InnerTubeAPI.shared.fetchWebHomeVideos()
         do {
             let page = try await InnerTubeAPI.shared.fetchHomePage()
             try Task.checkCancellation()
@@ -125,6 +126,9 @@ final class VideoLoader {
             recommendationRows = cleanedShelves(page.shelves)
             recommendationPageToken = page.nextPageToken
             updateFlatRecommendations()
+            // Rows are live; don't block paging while WEB Home is still loading.
+            isLoadingRecommendations = false
+            LibraryStore.shared.learnChannels(from: await webVideos ?? [])
         } catch {
             print("Error loading recommendations: \(error)")
         }

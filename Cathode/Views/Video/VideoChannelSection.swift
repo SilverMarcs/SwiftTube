@@ -6,36 +6,46 @@ struct VideoChannelSection: View {
     let video: Video
 
     @Environment(LibraryStore.self) private var library
-    @State private var fetchedChannel: Channel?
+    /// Backfilled from `/player` when the listing omitted the channel — TV
+    /// history and Home tiles often carry only the channel name.
+    @State private var resolvedChannelId: String?
+
+    private var channelId: String? {
+        if let id = video.channelId, !id.isEmpty { return id }
+        return library.channel(for: video)?.id ?? resolvedChannelId
+    }
 
     var body: some View {
-        if let channelId = video.channelId, !channelId.isEmpty {
-            Section {
-                ChannelRowView(channel: library.channel(forId: channelId)
-                               ?? fetchedChannel
-                               ?? Channel(id: channelId, title: video.channelTitle))
-                #if os(macOS)
-                .padding(8)
-                .background(.background.secondary, in: RoundedRectangle(cornerRadius: 15))
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
-                #endif
-            }
-            #if os(iOS) || os(visionOS)
-            .listSectionMargins(.top, 0)
-            #endif
-            .task(id: channelId) {
-                if library.channel(forId: channelId) != nil { return }
-                if fetchedChannel?.id == channelId { return }
-                do {
-                    let channel = try await InnerTubeAPI.shared.fetchChannelInfo(channelId: channelId)
-                    if !Task.isCancelled {
-                        fetchedChannel = channel
-                        library.remember(channel)
-                    }
-                } catch {
-                    print("VideoChannelSection channel fetch failed: \(error)")
+        Group {
+            if let channelId {
+                Section {
+                    ChannelRowView(channel: library.channel(forId: channelId)
+                                   ?? Channel(id: channelId, title: video.channelTitle))
+                    #if os(macOS)
+                    .padding(8)
+                    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 15))
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
+                    #endif
                 }
+                #if os(iOS) || os(visionOS)
+                .listSectionMargins(.top, 0)
+                #endif
+                .task(id: channelId) {
+                    await library.loadChannel(forId: channelId)
+                }
+            }
+        }
+        .task(id: video.id) {
+            resolvedChannelId = nil
+            if channelId != nil { return }
+            do {
+                let info = try await InnerTubeAPI.shared.fetchPlayerInfo(videoId: video.id)
+                if !Task.isCancelled, let id = info.video.channelId, !id.isEmpty {
+                    resolvedChannelId = id
+                }
+            } catch {
+                print("VideoChannelSection channel ID backfill failed: \(error)")
             }
         }
     }

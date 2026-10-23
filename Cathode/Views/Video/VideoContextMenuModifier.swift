@@ -20,7 +20,8 @@ struct VideoContextMenuModifier: ViewModifier {
                 }
 
                 Section {
-                    if showChannelLink, let channelId = video.channelId, !channelId.isEmpty {
+                    if showChannelLink, let channelId = video.channelId ?? library.channel(for: video)?.id,
+                       !channelId.isEmpty {
                         NavigationLink {
                             ChannelVideoList(channelId: channelId, title: video.channelTitle)
                         } label: {

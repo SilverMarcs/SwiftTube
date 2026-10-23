@@ -34,6 +34,8 @@ final class LibraryStore {
     /// on every refresh, and extended on demand when views resolve a channel
     /// the user isn't subscribed to (e.g. tapping into a creator from search).
     private(set) var channelsById: [String: Channel] = [:]
+    /// Same channels by display name, for TV items that carry only the name.
+    private var channelsByTitle: [String: Channel] = [:]
 
     private var watchLaterNextPageToken: String?
     private var historyNextPageToken: String?
@@ -69,7 +71,7 @@ final class LibraryStore {
         do {
             let channels = try await InnerTubeAPI.shared.fetchSubscribedChannels()
             self.subscribedChannels = channels
-            for ch in channels { self.channelsById[ch.id] = ch }
+            for ch in channels { remember(ch) }
         } catch {
         }
 
@@ -123,8 +125,41 @@ final class LibraryStore {
         return nil
     }
 
+    /// Resolves a feed item's channel by its reference, falling back to the
+    /// exact channel name for TV items that carry no reference.
+    func channel(for video: Video) -> Channel? {
+        if let id = video.channelId, !id.isEmpty, let channel = channel(forId: id) { return channel }
+        guard !video.channelTitle.isEmpty else { return nil }
+        return channelsByTitle[video.channelTitle]
+    }
+
     func remember(_ channel: Channel) {
         channelsById[channel.id] = channel
+        channelsByTitle[channel.title] = channel
+    }
+
+    /// Adopts channel links and avatars from feed items that carry them (WEB
+    /// Home) so TV items from the same creators can borrow them.
+    func learnChannels(from videos: [Video]) {
+        for video in videos {
+            guard let id = video.channelId, !id.isEmpty, channelsById[id] == nil,
+                  let avatar = video.channelAvatarURL else { continue }
+            remember(Channel(id: id, title: video.channelTitle, thumbnailURL: avatar))
+        }
+    }
+
+    /// Fetches a channel a feed referenced but didn't describe. Feeds often
+    /// reference the channel by @handle, so the result is also stored under
+    /// that reference for later lookups.
+    func loadChannel(forId id: String) async {
+        guard channel(forId: id) == nil else { return }
+        do {
+            let channel = try await InnerTubeAPI.shared.fetchChannelInfo(channelId: id)
+            remember(channel)
+            channelsById[id] = channel
+        } catch {
+            print("LibraryStore channel fetch failed for \(id): \(error)")
+        }
     }
 
     // MARK: - Pagination

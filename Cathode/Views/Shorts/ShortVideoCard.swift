@@ -7,7 +7,6 @@ struct ShortVideoCard: View {
 
     @State private var showDetail = false
     @State private var playback = ShortPlaybackModel()
-    @State private var fetchedChannel: Channel?
 
     var body: some View {
         ZStack {
@@ -38,7 +37,6 @@ struct ShortVideoCard: View {
             HStack {
                 if let channelId = video.channelId, !channelId.isEmpty {
                     ChannelRowView(channel: library.channel(forId: channelId)
-                                   ?? fetchedChannel
                                    ?? Channel(id: channelId, title: video.channelTitle))
                     .allowsHitTesting(false)
                     .foregroundStyle(.white)
@@ -78,17 +76,7 @@ struct ShortVideoCard: View {
         }
         .task(id: video.channelId) {
             guard let channelId = video.channelId, !channelId.isEmpty else { return }
-            if library.channel(forId: channelId) != nil { return }
-            if fetchedChannel?.id == channelId { return }
-            do {
-                let channel = try await InnerTubeAPI.shared.fetchChannelInfo(channelId: channelId)
-                if !Task.isCancelled {
-                    fetchedChannel = channel
-                    library.remember(channel)
-                }
-            } catch {
-                print("ShortVideoCard channel fetch failed: \(error)")
-            }
+            await library.loadChannel(forId: channelId)
         }
         .sheet(isPresented: $showDetail) {
             VideoDetailView(video: video)

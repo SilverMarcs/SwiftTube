@@ -13,8 +13,7 @@ struct VideoCard: View {
     }
 
     private var channelAvatarURL: URL? {
-        if let url = video.channelAvatarURL { return url }
-        return video.channelId.flatMap { library.channel(forId: $0)?.thumbnailURL }
+        video.channelAvatarURL ?? library.channel(for: video)?.thumbnailURL
     }
 
     private var watchProgressRatio: Double? {
