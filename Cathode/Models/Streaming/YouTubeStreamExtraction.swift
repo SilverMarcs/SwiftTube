@@ -9,4 +9,5 @@ nonisolated struct YouTubeStreamExtraction: Sendable {
 
     let streams: [YouTubeStream]
     let nativeHLS: NativeHLS?
+    let details: PlayerVideoDetails?
 }

@@ -46,28 +46,6 @@ public actor InnerTubeAPI {
         ]
     ]
 
-    /// The iOS client context used for stream URL retrieval.
-    /// Returns c=iOS URLs and an HLS manifest, both playable natively by AVPlayer.
-    /// `osVersion` is derived at runtime from ProcessInfo so requests reflect the
-    /// actual device OS and are not rejected by YouTube's version validation.
-    var iosClientContext: [String: Any] {
-        let osVer = InnerTubeClients.iOS.currentOSVersionString.replacingOccurrences(of: "_", with: ".")
-        return [
-            "client": [
-                "hl": "en",
-                "gl": "US",
-                "clientName": InnerTubeClients.iOS.name,
-                "clientVersion": InnerTubeClients.iOS.version,
-                "deviceMake": "Apple",
-                "deviceModel": "iPhone16,2",
-                "osName": "iPhone",
-                "osVersion": osVer,
-                "clientScreen": "WATCH",
-            ]
-        ]
-    }
-    let iosUserAgent = InnerTubeClients.iOS.userAgent
-
     /// The TVHTML5 client context required for all authenticated InnerTube requests
     /// (subscriptions, history, playlists, personalised home).
     /// The OAuth token issued by the TV device-code flow is bound to this client.

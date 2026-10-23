@@ -15,14 +15,7 @@ struct SharedEnvironment: ViewModifier {
             // .accentColor(.accent)
             .environment(\.openURL, OpenURLAction { url in
                 if let videoId = url.youtubeVideoID {
-                    Task {
-                        do {
-                            let info = try await InnerTubeAPI.shared.fetchPlayerInfo(videoId: videoId)
-                            videoManager.setVideo(info.video)
-                        } catch {
-                            print("Failed to fetch video: \(error)")
-                        }
-                    }
+                    videoManager.setVideo(Video(id: videoId, title: "", channelTitle: ""))
                     return .handled
                 }
                 return .systemAction

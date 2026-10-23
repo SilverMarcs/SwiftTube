@@ -78,15 +78,11 @@ actor YouTubeStreamExtractor {
     private struct PlayerResponse: Decodable, Sendable {
         let playabilityStatus: PlayabilityStatus?
         let streamingData: StreamingData?
-        let videoDetails: VideoDetails?
+        let videoDetails: PlayerVideoDetails?
 
         struct PlayabilityStatus: Decodable, Sendable {
             let status: String?
             let reason: String?
-        }
-
-        struct VideoDetails: Decodable, Sendable {
-            let videoId: String?
         }
 
         struct StreamingData: Decodable, Sendable {
@@ -320,13 +316,15 @@ actor YouTubeStreamExtractor {
             if nativeHLS != nil || (hasAdaptiveVideo && hasAdaptiveAudio) {
                 return YouTubeStreamExtraction(
                     streams: streams,
-                    nativeHLS: nativeHLS
+                    nativeHLS: nativeHLS,
+                    details: response.videoDetails
                 )
             }
             if !streams.isEmpty {
                 return YouTubeStreamExtraction(
                     streams: streams,
-                    nativeHLS: nativeHLS
+                    nativeHLS: nativeHLS,
+                    details: response.videoDetails
                 )
             }
 

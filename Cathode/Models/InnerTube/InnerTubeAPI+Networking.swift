@@ -22,31 +22,6 @@ extension InnerTubeAPI {
 
     // MARK: - Transport
 
-    /// Player requests use the iOS client UA, googleapis.com base, and no auth header.
-    func postPlayer(body: [String: Any]) async throws -> [String: Any] {
-        guard var comps = URLComponents(url: playerBaseURL.appendingPathComponent("player"), resolvingAgainstBaseURL: false) else {
-            throw ITAPIError.invalidURL("player")
-        }
-        comps.queryItems = [URLQueryItem(name: "key", value: apiKey)]
-        guard let url = comps.url else { throw ITAPIError.invalidURL("player") }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(iosUserAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue(InnerTubeClients.iOS.nameID, forHTTPHeaderField: "X-YouTube-Client-Name")
-        request.setValue(InnerTubeClients.iOS.version, forHTTPHeaderField: "X-YouTube-Client-Version")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, response) = try await session.data(for: request)
-        let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw ITAPIError.httpError(statusCode)
-        }
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw ITAPIError.decodingError("Root JSON is not a dictionary")
-        }
-        return json
-    }
-
     func post(endpoint: String, body: [String: Any], useAuth: Bool = false) async throws -> [String: Any] {
         guard var comps = URLComponents(url: baseURL.appendingPathComponent(endpoint), resolvingAgainstBaseURL: false) else {
             throw ITAPIError.invalidURL(endpoint)

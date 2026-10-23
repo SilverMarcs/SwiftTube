@@ -19,25 +19,6 @@ nonisolated enum InnerTubeClients {
         static let userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
 
-    enum iOS {
-        static let name      = "iOS"
-        static let nameID    = "5"
-        static let version   = "21.02.3"
-        /// Returns the running iOS version formatted as "MAJOR_MINOR_PATCH" (or "MAJOR_MINOR"
-        /// when the patch is 0). Dynamically derived from ProcessInfo so the User-Agent always
-        /// reflects the actual device OS — prevents YouTube from rejecting requests sent from
-        /// devices running iOS versions newer than the hardcoded string.
-        static var currentOSVersionString: String {
-            let v = ProcessInfo.processInfo.operatingSystemVersion
-            return v.patchVersion == 0
-                ? "\(v.majorVersion)_\(v.minorVersion)"
-                : "\(v.majorVersion)_\(v.minorVersion)_\(v.patchVersion)"
-        }
-        static var userAgent: String {
-            "com.google.ios.youtube/\(version) (iPhone16,2; U; CPU iOS \(currentOSVersionString) like Mac OS X;)"
-        }
-    }
-
     /// visionOS is the primary adaptive playback identity. Unlike the retired
     /// Android VR client, its current direct video and audio URLs permit range
     /// access throughout the media using the anonymous playback context.

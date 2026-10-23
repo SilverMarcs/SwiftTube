@@ -72,7 +72,7 @@ actor StreamResolver {
             let source = try await prepareSource(
                 from: extraction, allowingLowQualityFallback: strategy == .visionOS
             )
-            return source.using(strategy)
+            return source.using(strategy, details: extraction.details)
         } catch is CancellationError {
             throw StreamResolutionError.cancelled
         } catch let error as StreamResolutionError {

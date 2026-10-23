@@ -31,9 +31,8 @@ enum PlayerMetadataBuilder {
         metadata.append(makeItem(.iTunesMetadataTrackSubTitle, video.channelTitle))
         metadata.append(makeItem(.commonIdentifierArtist, video.channelTitle))
 
-        // Description — feed/list Video objects don't carry one. Fall back to
-        // /player (same path VideoDetailView uses) so the Info pane has body text.
-        if let description = await resolveDescription(for: video) {
+        if let description = video.description?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !description.isEmpty {
             metadata.append(makeItem(.commonIdentifierDescription, description))
             metadata.append(makeItem(.quickTimeMetadataDescription, description))
             metadata.append(makeItem(.iTunesMetadataDescription, description))
@@ -118,21 +117,6 @@ enum PlayerMetadataBuilder {
         item.value = data as NSData
         item.extendedLanguageTag = "und"
         return item
-    }
-
-    private static func resolveDescription(for video: Video) async -> String? {
-        if let local = video.description?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !local.isEmpty {
-            return local
-        }
-        do {
-            let info = try await InnerTubeAPI.shared.fetchPlayerInfo(videoId: video.id)
-            let fetched = info.video.description?.trimmingCharacters(in: .whitespacesAndNewlines)
-            return (fetched?.isEmpty == false) ? fetched : nil
-        } catch {
-            print("PlayerMetadataBuilder description fetch failed: \(error)")
-            return nil
-        }
     }
 
     private static func loadArtwork(from url: URL?) async -> Data? {

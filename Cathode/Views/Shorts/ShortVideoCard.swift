@@ -8,6 +8,11 @@ struct ShortVideoCard: View {
     @State private var showDetail = false
     @State private var playback = ShortPlaybackModel()
 
+    /// Sequence entries carry only an ID; playback's `/player` response fills the rest.
+    private var resolvedVideo: Video {
+        playback.source?.details.map(video.filling(from:)) ?? video
+    }
+
     var body: some View {
         ZStack {
             Color.black
@@ -35,9 +40,9 @@ struct ShortVideoCard: View {
         .clipped()
         .overlay(alignment: .bottom) {
             HStack {
-                if let channelId = video.channelId, !channelId.isEmpty {
+                if let channelId = resolvedVideo.channelId, !channelId.isEmpty {
                     ChannelRowView(channel: library.channel(forId: channelId)
-                                   ?? Channel(id: channelId, title: video.channelTitle))
+                                   ?? Channel(id: channelId, title: resolvedVideo.channelTitle))
                     .allowsHitTesting(false)
                     .foregroundStyle(.white)
                     .shadow(color: .black, radius: 20, x: 0, y: 0)
@@ -74,12 +79,12 @@ struct ShortVideoCard: View {
             guard isActive else { return }
             await playback.resolveIfNeeded(videoID: video.id)
         }
-        .task(id: video.channelId) {
-            guard let channelId = video.channelId, !channelId.isEmpty else { return }
+        .task(id: resolvedVideo.channelId) {
+            guard let channelId = resolvedVideo.channelId, !channelId.isEmpty else { return }
             await library.loadChannel(forId: channelId)
         }
         .sheet(isPresented: $showDetail) {
-            VideoDetailView(video: video)
+            VideoDetailView(video: resolvedVideo)
                 .presentationDetents([.medium])
                 #if !os(tvOS)
                 .presentationBackground(.bar)

@@ -12,6 +12,8 @@ nonisolated struct PlaybackSource: Sendable {
     let kind: Kind
     let httpUserAgent: String?
     let strategy: PlaybackStrategy?
+    /// Metadata from the same `/player` response the media came from.
+    let details: PlayerVideoDetails?
 
     /// Keeps namespaced localhost manifests alive for as long as this source
     /// belongs to an installed player item.
@@ -23,7 +25,8 @@ nonisolated struct PlaybackSource: Sendable {
 
     private init(
         url: URL, expiresAt: Date?, kind: Kind, httpUserAgent: String?,
-        manifestLease: HLSManifestLease?, strategy: PlaybackStrategy? = nil
+        manifestLease: HLSManifestLease?, strategy: PlaybackStrategy? = nil,
+        details: PlayerVideoDetails? = nil
     ) {
         self.url = url
         self.expiresAt = expiresAt
@@ -31,11 +34,12 @@ nonisolated struct PlaybackSource: Sendable {
         self.httpUserAgent = httpUserAgent
         self.manifestLease = manifestLease
         self.strategy = strategy
+        self.details = details
     }
 
-    func using(_ strategy: PlaybackStrategy) -> Self {
+    func using(_ strategy: PlaybackStrategy, details: PlayerVideoDetails?) -> Self {
         Self(url: url, expiresAt: expiresAt, kind: kind, httpUserAgent: httpUserAgent,
-             manifestLease: manifestLease, strategy: strategy)
+             manifestLease: manifestLease, strategy: strategy, details: details)
     }
 
     static func progressive(url: URL, expiresAt: Date) -> PlaybackSource {

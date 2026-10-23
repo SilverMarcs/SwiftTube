@@ -31,36 +31,20 @@ public struct Comment: Sendable, Identifiable {
     public let isLiked: Bool
 }
 
-// MARK: - PlayerInfo
-
-/// Video metadata returned by the InnerTube `/player` endpoint. Stream URLs are
-/// no longer carried here — playback resolves through `YouTubeStreamExtractor`.
-public struct PlayerInfo: Sendable {
-    public let video: Video
-}
-
 // MARK: - ITAPIError
 
 public enum ITAPIError: LocalizedError {
     case httpError(Int)
     case decodingError(String)
     case notAuthenticated
-    case unavailable(String)
     case invalidURL(String)
-    /// Thrown when YouTube's `/player` response indicates the request was blocked due to
-    /// the source IP address (VPN, proxy, shared datacenter IP). The associated value is
-    /// the raw `playabilityStatus.reason` string from the response.
-    case ipBlocked(String)
 
     public var errorDescription: String? {
         switch self {
         case .httpError(let code):      return "HTTP error \(code)"
         case .decodingError(let msg):   return "Decoding error: \(msg)"
         case .notAuthenticated:          return "You are not signed in"
-        case .unavailable(let reason):   return reason
         case .invalidURL(let endpoint):  return "Could not build URL for endpoint: \(endpoint)"
-        case .ipBlocked:
-            return "YouTube is temporarily blocking this network. Disable your VPN, try a different VPN server, or wait a few minutes and retry."
         }
     }
 }

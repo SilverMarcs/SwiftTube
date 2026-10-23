@@ -583,6 +583,9 @@ final class VideoManager {
         session.phase = .installing(reason)
         session.source = source
         playbackSession = session
+        if let details = source.details, currentVideo?.id == video.id {
+            currentVideo = currentVideo?.filling(from: details)
+        }
 
         let playerItem: AVPlayerItem
         if let httpUserAgent = source.httpUserAgent {
@@ -619,7 +622,7 @@ final class VideoManager {
         )
 
         #if !os(macOS)
-        let externalMetadata = await PlayerMetadataBuilder.externalMetadata(for: video)
+        let externalMetadata = await PlayerMetadataBuilder.externalMetadata(for: currentVideo ?? video)
         guard !Task.isCancelled,
               isCurrent(token),
               player?.currentItem === playerItem

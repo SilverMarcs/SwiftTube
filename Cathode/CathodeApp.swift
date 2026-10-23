@@ -149,14 +149,8 @@ struct CathodeApp: App {
 
     private func handleTopShelfURL(_ url: URL) {
         guard let deepLink = TopShelfDeepLink.parse(url) else { return }
-        Task {
-            do {
-                let info = try await InnerTubeAPI.shared.fetchPlayerInfo(videoId: deepLink.itemID)
-                videoManager.setVideo(info.video, autoPlay: deepLink.action == .play)
-            } catch {
-                print("Failed to handle Top Shelf deep link: \(error)")
-            }
-        }
+        videoManager.setVideo(Video(id: deepLink.itemID, title: "", channelTitle: ""),
+                              autoPlay: deepLink.action == .play)
     }
     #endif
 
