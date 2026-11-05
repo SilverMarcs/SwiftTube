@@ -147,10 +147,8 @@ extension InnerTubeAPI {
     private func fetchCommentsPage(continuationToken: String) async throws -> CommentsPage {
         let body = makeBody(client: webClientContext, continuationToken: continuationToken)
         let data = try await post(endpoint: "next", body: body)
-        return CommentsPage(
-            comments: parseComments(from: data),
-            nextPageToken: parseNextCommentsPageToken(from: data)
-        )
+        let page = CommentPageParser.parse(data)
+        return CommentsPage(comments: page.comments, nextPageToken: page.nextPageToken)
     }
 
     // MARK: - Private social parsers
@@ -306,100 +304,6 @@ extension InnerTubeAPI {
             if let t = found { return t }
         }
         return nil
-    }
-
-    /// Extracts the "load more comments" continuation token from a comments-page
-    /// `/next` response. The token is the trailing `continuationItemRenderer` inside
-    /// `onResponseReceivedEndpoints[*].{reload,append}ContinuationItemsCommand.continuationItems`.
-    /// On the initial page the list of items is reloaded; on subsequent pages it is appended.
-    private func parseNextCommentsPageToken(from json: [String: Any]) -> String? {
-        guard let endpoints = json["onResponseReceivedEndpoints"] as? [[String: Any]] else { return nil }
-        for endpoint in endpoints {
-            let cmd = (endpoint["reloadContinuationItemsCommand"] as? [String: Any])
-                ?? (endpoint["appendContinuationItemsCommand"] as? [String: Any])
-            guard let items = cmd?["continuationItems"] as? [[String: Any]],
-                  let last = items.last,
-                  let ci = last["continuationItemRenderer"] as? [String: Any] else { continue }
-            if let token = (ci["continuationEndpoint"] as? [String: Any])
-                .flatMap({ ($0["continuationCommand"] as? [String: Any]) })
-                .flatMap({ $0["token"] as? String }) {
-                return token
-            }
-        }
-        return nil
-    }
-
-    /// Parses `commentRenderer` objects from a comments continuation `/next` response.
-    private func parseComments(from json: [String: Any]) -> [Comment] {
-        var comments: [Comment] = []
-
-        // New entity-based format (YouTube InnerTube v2):
-        // frameworkUpdates.entityBatchUpdate.mutations[].payload.commentEntityPayload
-        // The comment list in onResponseReceivedEndpoints now holds only `commentViewModel`
-        // key-references; the actual data is in entity mutations.
-        if let frameworkUpdates = json["frameworkUpdates"] as? [String: Any],
-           let entityBatch = frameworkUpdates["entityBatchUpdate"] as? [String: Any],
-           let mutations = entityBatch["mutations"] as? [[String: Any]] {
-            for mutation in mutations {
-                guard let payload = mutation["payload"] as? [String: Any],
-                      let cep = payload["commentEntityPayload"] as? [String: Any] else { continue }
-                let properties = cep["properties"] as? [String: Any]
-                let author     = cep["author"] as? [String: Any]
-
-                let id = properties?["commentId"] as? String ?? UUID().uuidString
-                let authorName = author?["displayName"] as? String ?? ""
-                let avatarURL = (author?["avatarThumbnailUrl"] as? String).flatMap { URL(string: $0) }
-                let text = (properties?["content"] as? [String: Any])?["content"] as? String ?? ""
-                let publishedTime = properties?["publishedTime"] as? String ?? ""
-                let toolbarState = properties?["toolbarState"] as? [String: Any]
-                let likeCount = toolbarState?["likeCountNotliked"] as? String ?? ""
-                let isLiked = (toolbarState?["likeState"] as? String) == "LIKE_STATE_LIKED"
-                comments.append(Comment(
-                    id: id,
-                    author: authorName,
-                    authorAvatarURL: avatarURL,
-                    text: text,
-                    likeCount: likeCount,
-                    publishedTime: publishedTime,
-                    isLiked: isLiked
-                ))
-            }
-            if !comments.isEmpty {
-                return comments
-            }
-        }
-
-        // Legacy format: commentRenderer nested in the response tree.
-        func walk(_ obj: Any, depth: Int = 0) {
-            guard depth < 50 else { return }
-            if let dict = obj as? [String: Any] {
-                if let cr = dict["commentRenderer"] as? [String: Any] {
-                    let id = cr["commentId"] as? String ?? UUID().uuidString
-                    let author = (cr["authorText"] as? [String: Any]).flatMap { extractText($0) } ?? ""
-                    let avatarURL = ((cr["authorThumbnail"] as? [String: Any])?["thumbnails"] as? [[String: Any]])?
-                        .last.flatMap { $0["url"] as? String }.flatMap { URL(string: $0) }
-                    let text = (cr["contentText"] as? [String: Any]).flatMap { extractText($0) } ?? ""
-                    let likeCount = (cr["voteCount"] as? [String: Any]).flatMap { extractText($0) } ?? ""
-                    let publishedTime = (cr["publishedTimeText"] as? [String: Any]).flatMap { extractText($0) } ?? ""
-                    let isLiked = cr["isLiked"] as? Bool ?? false
-                    comments.append(Comment(
-                        id: id,
-                        author: author,
-                        authorAvatarURL: avatarURL,
-                        text: text,
-                        likeCount: likeCount,
-                        publishedTime: publishedTime,
-                        isLiked: isLiked
-                    ))
-                    return
-                }
-                for v in dict.values { walk(v, depth: depth + 1) }
-            } else if let arr = obj as? [Any] {
-                for item in arr { walk(item, depth: depth + 1) }
-            }
-        }
-        walk(json)
-        return comments
     }
 
     // MARK: - Private: parseVideoRenderer passthrough

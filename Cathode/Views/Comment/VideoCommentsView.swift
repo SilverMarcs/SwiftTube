@@ -5,6 +5,7 @@ struct VideoCommentsView: View {
 
     @State private var hasLoaded = false
     @State private var comments: [Comment] = []
+    @State private var commentsVideoID: String?
     @State private var nextPageToken: String?
     @State private var isLoadingMore = false
 
@@ -25,8 +26,13 @@ struct VideoCommentsView: View {
             }
         }
         .task(id: video.id) {
+            if commentsVideoID != video.id {
+                comments = []
+                commentsVideoID = video.id
+            }
+            guard comments.isEmpty else { return }
+
             hasLoaded = false
-            comments = []
             nextPageToken = nil
             do {
                 let page = try await InnerTubeAPI.shared.fetchComments(videoId: video.id)

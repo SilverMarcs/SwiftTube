@@ -52,30 +52,22 @@ struct AVPlayerTvos: UIViewControllerRepresentable {
         Coordinator()
     }
 
-    func makeUIViewController(context: Context) -> AVPlayerViewController {
-        let controller = AVPlayerViewController()
-        controller.player = player
-        controller.delegate = context.coordinator
-        controller.allowsPictureInPicturePlayback = true
-        controller.transportBarIncludesTitleView = true
-        controller.customInfoViewControllers = makeInfoTabs()
-        controller.transportBarCustomMenuItems = [makeBookmarkAction()]
-        controller.speeds = [
-            AVPlaybackSpeed(rate: 0.5, localizedName: "0.5×"),
-            AVPlaybackSpeed(rate: 1.0, localizedName: "1×"),
-            AVPlaybackSpeed(rate: 1.25, localizedName: "1.25×"),
-            AVPlaybackSpeed(rate: 1.5, localizedName: "1.5×"),
-            AVPlaybackSpeed(rate: 2.0, localizedName: "2×")
-        ]
-        context.coordinator.onPlayNext = { [videoManager] next in videoManager.setVideo(next) }
-        updateContentProposal(for: controller, coordinator: context.coordinator)
-        return controller
+    static func dismantleUIViewController(_ uiViewController: PlayerContainerViewController, coordinator: Coordinator) {
+        uiViewController.releasePlayerViewController()
     }
 
-    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
-        if uiViewController.player !== player {
-            uiViewController.player = player
-        }
+    /// The shared controller outlives this view; per-presentation state is
+    /// (re)applied here and in `updateUIViewController`, which follows at once.
+    func makeUIViewController(context: Context) -> PlayerContainerViewController {
+        let host = videoManager.playerHost
+        host.playerViewController.customInfoViewControllers = makeInfoTabs()
+        return PlayerContainerViewController(host: host)
+    }
+
+    func updateUIViewController(_ containerViewController: PlayerContainerViewController, context: Context) {
+        let host = videoManager.playerHost
+        host.contentProposalDelegate = context.coordinator
+        let uiViewController = host.playerViewController
         context.coordinator.onPlayNext = { [videoManager] next in videoManager.setVideo(next) }
         updateContentProposal(for: uiViewController, coordinator: context.coordinator)
         // Skip Sponsor — only mutate on transition to avoid flicker.

@@ -18,19 +18,6 @@ public struct NextInfo: Sendable, Codable {
     public let chapters: [Chapter]
 }
 
-// MARK: - Comment
-
-/// A single top-level YouTube comment returned by the `/next` continuation endpoint.
-public struct Comment: Sendable, Identifiable {
-    public let id: String
-    public let author: String
-    public let authorAvatarURL: URL?
-    public let text: String
-    public let likeCount: String
-    public let publishedTime: String
-    public let isLiked: Bool
-}
-
 // MARK: - ITAPIError
 
 public enum ITAPIError: LocalizedError {

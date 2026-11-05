@@ -69,10 +69,14 @@ struct CommentRowView: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                         }
-                        // TODO: reply expansion — InnerTube returns flat top-level
-                        // comments only. Wire up a reply continuation fetch later.
                         Spacer()
                     }
+
+                    #if !os(tvOS)
+                    if comment.replyContinuationToken != nil || !comment.replies.isEmpty {
+                        CommentRepliesView(comment: comment)
+                    }
+                    #endif
                 }
             }
         }

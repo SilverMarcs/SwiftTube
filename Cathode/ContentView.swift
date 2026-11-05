@@ -87,7 +87,7 @@ struct ContentView: View {
             manager.isExpanded = true
         }
         .fullScreenCover(isPresented: $manager.isExpanded, onDismiss: {
-            manager.player?.pause()
+            manager.playerDidDisappear()
         }) {
             AVPlayerViewTvos()
         }

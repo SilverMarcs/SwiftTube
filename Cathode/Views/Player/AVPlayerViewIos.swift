@@ -23,7 +23,7 @@ struct AVPlayerViewIos: View {
                     .buttonStyle(.borderedProminent)
                 }
             } else if let player = manager.player {
-                AVPlayerIos(player: player)
+                AVPlayerIos()
                     .task(id: player.timeControlStatus) {
                         manager.persistCurrentTime()
                     }

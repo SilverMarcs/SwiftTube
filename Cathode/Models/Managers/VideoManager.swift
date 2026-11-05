@@ -77,8 +77,26 @@ final class VideoManager {
     @ObservationIgnored
     private var timeJumpObserver: NSObjectProtocol?
 
+    @ObservationIgnored
+    private var timeControlObservation: NSKeyValueObservation?
+
+    #if !os(macOS)
+    /// The long-lived `AVPlayerViewController` that Picture in Picture, Now
+    /// Playing, and remote commands depend on. It outlives the player UI.
+    @ObservationIgnored
+    let playerHost = PlayerViewControllerHost()
+    #endif
+
     var sponsorSegments: [SponsorSegment] { sponsor.segments }
     var currentSponsorSegment: SponsorSegment? { sponsor.currentSegment }
+
+    init() {
+        #if !os(macOS)
+        playerHost.onPresentationRequest = { [weak self] expanded in
+            self?.isExpanded = expanded
+        }
+        #endif
+    }
 
     isolated deinit {
         loadingTask?.cancel()
@@ -90,22 +108,54 @@ final class VideoManager {
         }
         removeEndObserver()
         removeHealthObservers()
+        timeControlObservation?.invalidate()
     }
 
     // MARK: - Player observation
 
-    private func attachPeriodicObserver(to player: AVPlayer) {
+    /// The single place a player is installed or removed, so observers and
+    /// the shared player view controller always follow `player`.
+    private func installPlayer(_ newPlayer: AVPlayer?) {
         if let timeObserverToken {
-            self.player?.removeTimeObserver(timeObserverToken)
+            player?.removeTimeObserver(timeObserverToken)
             self.timeObserverToken = nil
         }
+        timeControlObservation?.invalidate()
+        timeControlObservation = nil
+
+        player = newPlayer
+        #if !os(macOS)
+        playerHost.setPlayer(newPlayer)
+        #endif
+        guard let newPlayer else { return }
 
         let interval = CMTime(seconds: 1, preferredTimescale: 600)
-        timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
+        timeObserverToken = newPlayer.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.handlePeriodicPlaybackUpdate()
             }
         }
+        timeControlObservation = newPlayer.observe(\.timeControlStatus, options: [.old, .new]) { [weak self] player, change in
+            let wasPaused = change.oldValue == .paused
+            Task { @MainActor [weak self] in
+                self?.handleTimeControlChange(player, wasPaused: wasPaused)
+            }
+        }
+    }
+
+    /// A Play from the lock screen or Control Center can arrive after the app
+    /// was suspended, when the localhost manifest listener is gone. Recover
+    /// right away rather than waiting for the scene to become active.
+    private func handleTimeControlChange(_ player: AVPlayer, wasPaused: Bool) {
+        guard isAppInBackground,
+              wasPaused,
+              self.player === player,
+              player.timeControlStatus != .paused,
+              var session = playbackSession
+        else { return }
+        session.intent = .playing
+        playbackSession = session
+        startPlaybackRecovery()
     }
 
     private func handlePeriodicPlaybackUpdate() {
@@ -357,6 +407,12 @@ final class VideoManager {
             watchtimeNeedsRestartAfterBackground = false
             watchtime.begin(for: video)
         }
+        startPlaybackRecovery()
+    }
+
+    /// Checks the installed item after a suspension, either on activation or
+    /// on a remote Play while still backgrounded.
+    private func startPlaybackRecovery() {
         if let session = playbackSession,
            session.source?.dependsOnManifestServer == true {
             // Claim this session synchronously. AVFoundation can deliver a
@@ -364,12 +420,13 @@ final class VideoManager {
             guard manifestServerRecoveryToken != session.currentToken else { return }
             manifestServerRecoveryToken = session.currentToken
         }
+        let isBackgroundRecovery = isAppInBackground
         Task { @MainActor [weak self] in
-            await self?.restorePlaybackAfterActivationIfNeeded()
+            await self?.recoverPlaybackIfNeeded(inBackground: isBackgroundRecovery)
         }
     }
 
-    private func restorePlaybackAfterActivationIfNeeded() async {
+    private func recoverPlaybackIfNeeded(inBackground: Bool) async {
         guard let video = currentVideo,
               let session = playbackSession
         else { return }
@@ -407,7 +464,8 @@ final class VideoManager {
             manifestIsAvailable = true
         }
 
-        guard !isAppInBackground,
+        // The app changed state during the check; that transition recovers.
+        guard isAppInBackground == inBackground,
               currentVideo?.id == video.id,
               self.player === player,
               var currentSession = playbackSession,
@@ -612,8 +670,12 @@ final class VideoManager {
             let newPlayer = AVPlayer(playerItem: playerItem)
             newPlayer.pause()
             newPlayer.automaticallyWaitsToMinimizeStalling = true
-            player = newPlayer
-            attachPeriodicObserver(to: newPlayer)
+            #if os(iOS)
+            // The default policy pauses video when the app is backgrounded
+            // unless Picture in Picture starts; keep the audio going instead.
+            newPlayer.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
+            #endif
+            installPlayer(newPlayer)
         }
         startInstallationWatchdog(
             for: playerItem,
@@ -810,16 +872,12 @@ final class VideoManager {
     }
 
     private func discardPlayer() {
-        if let timeObserverToken {
-            player?.removeTimeObserver(timeObserverToken)
-            self.timeObserverToken = nil
-        }
         removeEndObserver()
         removeHealthObservers()
         player?.pause()
         player?.currentItem?.cancelPendingSeeks()
         player?.replaceCurrentItem(with: nil)
-        player = nil
+        installPlayer(nil)
     }
 
     private static func isCancellation(_ error: StreamResolutionError) -> Bool {
@@ -860,6 +918,15 @@ final class VideoManager {
     }
 
     // MARK: - Playback controls
+
+    /// Called when the full player UI is dismissed. Leaving it doesn't stop a
+    /// video that is floating in Picture in Picture.
+    func playerDidDisappear() {
+        #if !os(macOS)
+        guard !playerHost.isPictureInPictureActive else { return }
+        #endif
+        player?.pause()
+    }
 
     func togglePlayPause() {
         guard let player,
