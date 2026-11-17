@@ -10,6 +10,9 @@ import AVKit
 
 @main
 struct CathodeApp: App {
+    #if os(iOS)
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    #endif
     @Environment(\.scenePhase) var scenePhase
 
     let videoLoader = VideoLoader()

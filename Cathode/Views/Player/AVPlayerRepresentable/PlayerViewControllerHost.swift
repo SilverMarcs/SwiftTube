@@ -201,13 +201,29 @@ extension PlayerViewControllerHost: AVPlayerViewControllerDelegate {
         contentProposalDelegate?.playerViewController?(playerViewController, didReject: proposal)
     }
     #else
+    #if os(iOS)
+    func playerViewController(
+        _ playerViewController: AVPlayerViewController,
+        willBeginFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator
+    ) {
+        coordinator.animate(alongsideTransition: nil) { context in
+            guard !context.isCancelled else { return }
+            AppDelegate.setFullScreenLandscape(true, in: playerViewController.view.window?.windowScene)
+        }
+    }
+    #endif
+
     func playerViewController(
         _ playerViewController: AVPlayerViewController,
         willEndFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator
     ) {
         let wasPlaying = playerViewController.player?.timeControlStatus == .playing
         coordinator.animate(alongsideTransition: nil) { context in
-            if !context.isCancelled, wasPlaying {
+            guard !context.isCancelled else { return }
+            #if os(iOS)
+            AppDelegate.setFullScreenLandscape(false, in: playerViewController.view.window?.windowScene)
+            #endif
+            if wasPlaying {
                 playerViewController.player?.play()
             }
         }
