@@ -1,3 +1,4 @@
+#if !os(iOS)
 import SwiftUI
 import AVFoundation
 
@@ -144,4 +145,5 @@ final class PlayerLayerUIView: UIView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 }
+#endif
 #endif

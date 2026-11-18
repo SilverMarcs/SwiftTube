@@ -1,3 +1,4 @@
+#if !os(iOS)
 import SwiftUI
 
 struct ShortVideoCard: View {
@@ -96,3 +97,4 @@ struct ShortVideoCard: View {
     }
 
 }
+#endif

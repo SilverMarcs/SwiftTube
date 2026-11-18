@@ -86,20 +86,27 @@ final class VideoLoader {
         shortsLoadTask = nil
     }
 
-    /// Appends the next page of the Shorts feed. No-op when exhausted or already loading.
+    var hasMoreShorts: Bool { shortsPageToken != nil }
+
     func loadMoreShorts() async {
+        do {
+            try await fetchMoreShorts()
+        } catch {
+            print("Error loading more shorts: \(error)")
+        }
+    }
+
+    /// Appends the next page and bubbles up transient failures to the feed.
+    func fetchMoreShorts() async throws {
         if let existing = shortsLoadTask { await existing.value }
         guard let token = shortsPageToken, !isLoadingMoreShorts else { return }
         isLoadingMoreShorts = true
         defer { isLoadingMoreShorts = false }
-        do {
-            let group = try await InnerTubeAPI.shared.fetchShortsMore(continuationToken: token)
-            shortsPageToken = group.nextPageToken
-            let existing = Set(shortVideos.map(\.id))
-            shortVideos.append(contentsOf: group.videos.filter { !existing.contains($0.id) })
-        } catch {
-            print("Error loading more shorts: \(error)")
-        }
+
+        let group = try await InnerTubeAPI.shared.fetchShortsMore(continuationToken: token)
+        shortsPageToken = group.nextPageToken == token ? nil : group.nextPageToken
+        var existing = Set(shortVideos.map(\.id))
+        shortVideos.append(contentsOf: group.videos.filter { existing.insert($0.id).inserted })
     }
 
     func loadRecommendationsIfNeeded() async {

@@ -1,3 +1,4 @@
+#if !os(iOS)
 import SwiftUI
 import AVFoundation
 
@@ -89,3 +90,4 @@ struct ShortsView: View {
         }
     }
 }
+#endif

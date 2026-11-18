@@ -1,5 +1,5 @@
 {
-  "originHash" : "fc0839d0729a4a5f52787b2fe42ea35eca2cecc255585466bd9ae05ba67da170",
+  "originHash" : "77737297761ed8d56a2ef134d1455360c437873c92a326fb0818f3916997f79c",
   "pins" : [
     {
       "identity" : "swiftmediaviewer",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/SilverMarcs/SwiftMediaViewer",
       "state" : {
         "branch" : "main",
-        "revision" : "8468cac2ff3cb0c6d1a94d5c0cacf438508886e2"
+        "revision" : "c281271e17c9072d4cfb7f869319e622b2cefc81"
       }
     }
   ],
