@@ -26,6 +26,9 @@ final class PlayerViewControllerHost: NSObject {
 
     private var pendingRestoreCompletion: ((Bool) -> Void)?
     private var restoreTimeoutTask: Task<Void, Never>?
+    #if os(iOS)
+    private weak var fullScreenWindowScene: UIWindowScene?
+    #endif
 
     private func makePlayerViewController() -> AVPlayerViewController {
         let controller = AVPlayerViewController()
@@ -206,9 +209,14 @@ extension PlayerViewControllerHost: AVPlayerViewControllerDelegate {
         _ playerViewController: AVPlayerViewController,
         willBeginFullScreenPresentationWithAnimationCoordinator coordinator: UIViewControllerTransitionCoordinator
     ) {
+        // AVKit moves the player view during the transition. Its window can
+        // be nil by the time the animation completion runs.
+        let scene = playerViewController.viewIfLoaded?.window?.windowScene
+            ?? coordinator.viewController(forKey: .from)?.viewIfLoaded?.window?.windowScene
         coordinator.animate(alongsideTransition: nil) { context in
             guard !context.isCancelled else { return }
-            AppDelegate.setFullScreenLandscape(true, in: playerViewController.view.window?.windowScene)
+            self.fullScreenWindowScene = scene ?? playerViewController.viewIfLoaded?.window?.windowScene
+            AppDelegate.setFullScreenLandscape(true, in: self.fullScreenWindowScene)
         }
     }
     #endif
@@ -221,7 +229,9 @@ extension PlayerViewControllerHost: AVPlayerViewControllerDelegate {
         coordinator.animate(alongsideTransition: nil) { context in
             guard !context.isCancelled else { return }
             #if os(iOS)
-            AppDelegate.setFullScreenLandscape(false, in: playerViewController.view.window?.windowScene)
+            let scene = self.fullScreenWindowScene ?? playerViewController.viewIfLoaded?.window?.windowScene
+            AppDelegate.setFullScreenLandscape(false, in: scene)
+            self.fullScreenWindowScene = nil
             #endif
             if wasPlaying {
                 playerViewController.player?.play()
