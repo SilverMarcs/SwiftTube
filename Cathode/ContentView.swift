@@ -15,8 +15,17 @@ struct ContentView: View {
     @Binding var selectedTab: TabSelection
 
     @Namespace private var animation
+    #if os(iOS)
+    @State private var shorts = ShortsSession()
+    #endif
 
     private var isCompactSize: Bool { horizontalSizeClass == .compact }
+
+    #if os(iOS)
+    private var showsAccessory: Bool {
+        selectedTab == .shorts ? shorts.feed?.currentVideo != nil : manager.currentVideo != nil
+    }
+    #endif
 
     private var primaryTabs: [TabSelection] {
         isCompactSize ? TabSelection.tabBarTabs : TabSelection.sidebarTabs
@@ -96,6 +105,26 @@ struct ContentView: View {
             manager.isExpanded = true
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        #if os(iOS)
+        .tabViewBottomAccessory(isEnabled: showsAccessory) {
+            if selectedTab == .shorts {
+                ShortsAccessoryView(transitionNamespace: animation)
+            } else if let video = manager.currentVideo {
+                PlayVideoButton(video: video) {
+                    MiniPlayerAccessoryView(transitionNamespace: animation)
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $shorts.isShowingDetail) {
+            if let feed = shorts.feed, let video = feed.currentVideo {
+                VideoDetailView(video: video) {
+                    ShortDetailPlayerView(player: feed.currentPlayer)
+                }
+                .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
+            }
+        }
+        .environment(shorts)
+        #else
         .tabViewBottomAccessory(isEnabled: (selectedTab != .shorts && manager.currentVideo != nil)) {
             if let video = manager.currentVideo {
                 PlayVideoButton(video: video) {
@@ -103,11 +132,13 @@ struct ContentView: View {
                 }
             }
         }
+        #endif
         .fullScreenCover(isPresented: $manager.isExpanded) {
             if let video = manager.currentVideo {
-                VideoDetailView(video: video, showVideo: true)
-                  // .accentColor(.accent)
-                    .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
+                VideoDetailView(video: video) {
+                    AVPlayerViewIos()
+                }
+                .navigationTransition(.zoom(sourceID: "MINIPLAYER", in: animation))
             }
         }
         #endif

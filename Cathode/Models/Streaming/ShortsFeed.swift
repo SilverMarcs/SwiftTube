@@ -10,6 +10,8 @@ final class ShortsFeed: SMVVideoFeed {
     private var nextIndex = 1
     private var activeVideo: Video?
     private var activePlayback = ShortPlaybackModel()
+    /// The player rendering the current Short, shared with its detail view.
+    private(set) var currentPlayer: AVPlayer?
 
     @ObservationIgnored private let watchtime = WatchtimeReporter()
     @ObservationIgnored private weak var observedPlayer: AVPlayer?
@@ -36,6 +38,12 @@ final class ShortsFeed: SMVVideoFeed {
         return batch
     }
 
+    /// The Short on screen, filled in with its playback metadata once it resolves.
+    var currentVideo: Video? {
+        guard let activeVideo else { return nil }
+        return activePlayback.source?.details.map(activeVideo.filling(from:)) ?? activeVideo
+    }
+
     func playback(for id: String) -> ShortPlaybackModel? {
         activeVideo?.id == id ? activePlayback : nil
     }
@@ -58,6 +66,7 @@ final class ShortsFeed: SMVVideoFeed {
               let playback = playback(for: id), let source = playback.source else { return }
 
         observedPlayer = player
+        currentPlayer = player
         watchtime.begin(for: video)
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 1, preferredTimescale: 600), queue: .main
@@ -91,6 +100,7 @@ final class ShortsFeed: SMVVideoFeed {
         }
         watchtime.finalize(playerPosition: observedPlayer?.currentTime().seconds)
         observedPlayer = nil
+        currentPlayer = nil
     }
 }
 #endif

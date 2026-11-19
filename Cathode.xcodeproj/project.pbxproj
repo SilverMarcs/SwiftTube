@@ -58,7 +58,9 @@
 			);
 			platformFiltersByRelativePath = {
 				AppDelegate.swift = (ios, );
+				Models/Streaming/ShortsSession.swift = (ios, );
 				Views/Components/AppCommands.swift = (ios, macos, xros, );
+				Views/Feed/MiniPlayerRow.swift = (ios, macos, xros, );
 				Views/Player/AVPlayerRepresentable/AVPlayerIos.swift = (ios, xros, );
 				Views/Player/AVPlayerRepresentable/AVPlayerMac.swift = (macos, );
 				Views/Player/AVPlayerRepresentable/AVPlayerTvos.swift = (tvos, );
@@ -72,6 +74,10 @@
 				Views/Player/UpNextProposalViewController.swift = (tvos, );
 				Views/Player/UpNextSheet.swift = (ios, macos, xros, );
 				Views/Profile/YTCookieSignInView.swift = (ios, macos, xros, );
+				Views/Shorts/ShortDetailPlayerView.swift = (ios, );
+				Views/Shorts/ShortsAccessoryView.swift = (ios, );
+				Views/Shorts/ShortPlayerLayerUIView.swift = (ios, );
+				Views/Shorts/ShortPlayerLayerView.swift = (ios, );
 				Views/Shorts/ShortVideoCard.swift = (ios, macos, xros, );
 				Views/Shorts/ShortsView.swift = (ios, macos, xros, );
 				Views/Video/VideoActionsToolbarContent.swift = (ios, macos, xros, );
@@ -421,7 +427,7 @@
 				CODE_SIGN_ENTITLEMENTS = Cathode/Cathode.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = J52QUTREBS;
 				ENABLE_APP_SANDBOX = YES;
@@ -457,7 +463,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.19;
+				MARKETING_VERSION = 1.7.20;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SilverMarcs.SwiftTube;
 				PRODUCT_NAME = Cathode;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -483,7 +489,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Cathode/Cathode.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = J52QUTREBS;
 				ENABLE_APP_SANDBOX = YES;
@@ -519,7 +525,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.7.19;
+				MARKETING_VERSION = 1.7.20;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SilverMarcs.SwiftTube;
 				PRODUCT_NAME = Cathode;
 				REGISTER_APP_GROUPS = YES;
@@ -542,7 +548,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TopShelf/TopShelf.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				DEVELOPMENT_TEAM = J52QUTREBS;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TopShelf/Info.plist;
@@ -553,7 +559,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.7.19;
+				MARKETING_VERSION = 1.7.20;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SilverMarcs.SwiftTube.TopShelf;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;
@@ -573,7 +579,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = TopShelf/TopShelf.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				DEVELOPMENT_TEAM = J52QUTREBS;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TopShelf/Info.plist;
@@ -584,7 +590,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.7.19;
+				MARKETING_VERSION = 1.7.20;
 				PRODUCT_BUNDLE_IDENTIFIER = com.SilverMarcs.SwiftTube.TopShelf;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = appletvos;

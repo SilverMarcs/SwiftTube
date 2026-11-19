@@ -1,73 +1,27 @@
 #if !os(tvOS)
 import SwiftUI
 import SwiftMediaViewer
-import AVKit
 
 struct MiniPlayerAccessoryView: View {
     @Environment(VideoManager.self) var manager
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.tabViewBottomAccessoryPlacement) var placement
 
     var transitionNamespace: Namespace.ID?
 
     var body: some View {
         if let video = manager.currentVideo {
-            HStack {
+            MiniPlayerRow(
+                title: video.title,
+                subtitle: video.channelTitle,
+                isPlaying: manager.isPlaying,
+                isLoading: manager.isSetting,
+                transitionNamespace: transitionNamespace,
+                togglePlayback: manager.togglePlayPause
+            ) {
                 CachedAsyncImage(url: video.thumbnailURL, targetSize: 500)
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 40, height: 34)
-                .clipShape(.rect(cornerRadius: 10))
-                .modifier(MiniPlayerSourceModifier(namespace: transitionNamespace))
-                
-                VStack(alignment: .leading) {
-                    Text(video.title)
-                        .font(.system(size: 13))
-                        .bold()
-                        .lineLimit(1)
-                    
-                    Text(video.channelTitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                
-                Spacer()
-                
-                Button {
-                    manager.togglePlayPause()
-                } label: {
-                    Image(systemName: manager.isPlaying ? "pause.fill" : "play.fill")
-                        .contentTransition(.symbolEffect(.replace))
-                }
-                .disabled(manager.isSetting)
-                #if os(macOS)
-                .keyboardShortcut(.space, modifiers: [])
-                .buttonStyle(.glassProminent)
-                .buttonBorderShape(.circle)
-                .controlSize(.large)
-                #else
-                .tint(.primary)
-                #endif
-
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 40, height: 34)
+                    .clipShape(.rect(cornerRadius: 10))
             }
-            .contentShape(.rect)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            #if !os(macOS)
-            .padding(.trailing, 4)
-            #endif
-        }
-    }
-}
-
-private struct MiniPlayerSourceModifier: ViewModifier {
-    let namespace: Namespace.ID?
-
-    func body(content: Content) -> some View {
-        if let namespace {
-            content.matchedTransitionSource(id: "MINIPLAYER", in: namespace)
-        } else {
-            content
         }
     }
 }

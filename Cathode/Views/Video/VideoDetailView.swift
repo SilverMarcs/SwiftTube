@@ -2,15 +2,13 @@ import SwiftUI
 import SwiftMediaViewer
 import AVKit
 
-struct VideoDetailView: View {
+struct VideoDetailView<Header: View>: View {
     @Environment(VideoManager.self) var manager
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) var dismiss
 
     let video: Video
-    @State var showDetail: Bool = false
-
-    var showVideo: Bool = false
+    @ViewBuilder var header: Header
 
     var body: some View {
         NavigationStack {
@@ -36,9 +34,7 @@ struct VideoDetailView: View {
     private var content: some View {
         #if os(iOS) || os(visionOS)
         VStack(spacing: 0) {
-            if showVideo {
-                AVPlayerViewIos()
-            }
+            header
             List {
                 VideoDetailsListSection(video: video)
                 VideoCommentsView(video: video)
@@ -50,5 +46,11 @@ struct VideoDetailView: View {
             VideoCommentsView(video: video)
         }
         #endif
+    }
+}
+
+extension VideoDetailView where Header == EmptyView {
+    init(video: Video) {
+        self.init(video: video) { EmptyView() }
     }
 }
