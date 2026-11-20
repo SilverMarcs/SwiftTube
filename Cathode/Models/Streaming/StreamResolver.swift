@@ -71,7 +71,15 @@ actor StreamResolver {
             let freshSession = freshness == .revalidate ? YouTubeMediaTransport.makeExtractionSession() : nil
             defer { freshSession?.invalidateAndCancel() }
             let activeExtractor = freshSession.map { YouTubeStreamExtractor(session: $0) } ?? extractor
-            let extraction = try await activeExtractor.extract(videoID: videoID, context: context)
+            let extraction: YouTubeStreamExtraction
+            do {
+                extraction = try await activeExtractor.extract(
+                    videoID: videoID, context: context, reusingBootstrap: prefersProgressive
+                )
+            } catch {
+                if prefersProgressive { await activeExtractor.discardCachedBootstrap() }
+                throw error
+            }
             let source = if prefersProgressive, let progressive = try? progressiveSource(from: extraction) {
                 progressive
             } else {
