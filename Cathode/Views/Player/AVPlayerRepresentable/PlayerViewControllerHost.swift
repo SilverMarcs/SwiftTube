@@ -28,7 +28,25 @@ final class PlayerViewControllerHost: NSObject {
     private var restoreTimeoutTask: Task<Void, Never>?
     #if os(iOS)
     private weak var fullScreenWindowScene: UIWindowScene?
+    private var sceneActivationObserver: NSObjectProtocol?
     #endif
+
+    override init() {
+        super.init()
+        #if os(iOS)
+        sceneActivationObserver = NotificationCenter.default.addObserver(
+            forName: UIScene.didActivateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            MainActor.assumeIsolated {
+                guard let scene = notification.object as? UIWindowScene,
+                      scene === self?.fullScreenWindowScene else { return }
+                AppDelegate.reapplyFullScreenLandscape(in: scene)
+            }
+        }
+        #endif
+    }
 
     private func makePlayerViewController() -> AVPlayerViewController {
         let controller = AVPlayerViewController()

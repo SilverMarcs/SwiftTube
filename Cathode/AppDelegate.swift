@@ -21,4 +21,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         scene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
         scene.requestGeometryUpdate(.iOS(interfaceOrientations: isFullScreen ? .landscape : .portrait))
     }
+
+    /// Under Portrait Orientation Lock, iOS brings the app back from the
+    /// background in portrait even though the player is still full screen.
+    static func reapplyFullScreenLandscape(in scene: UIWindowScene) {
+        guard orientationLock == .landscape else { return }
+        scene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+        scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscape))
+    }
 }
