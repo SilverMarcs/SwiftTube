@@ -35,16 +35,14 @@ actor StreamResolver {
     func resolvePlaybackSource(
         videoID: String,
         freshness: Freshness = .standard,
-        startingWith strategy: PlaybackStrategy = .authenticatedEmbedded,
-        prefersProgressive: Bool = false
+        startingWith strategy: PlaybackStrategy = .authenticatedEmbedded
     ) async throws -> PlaybackSource {
         var attempt: PlaybackStrategy? = strategy
         var lastError: StreamResolutionError?
         while let strategy = attempt {
             do {
                 return try await resolvePlaybackAttempt(
-                    videoID: videoID, strategy: strategy, freshness: freshness,
-                    prefersProgressive: prefersProgressive
+                    videoID: videoID, strategy: strategy, freshness: freshness
                 )
             } catch let error as StreamResolutionError {
                 if case .cancelled = error { throw error }
@@ -60,8 +58,7 @@ actor StreamResolver {
     func resolvePlaybackAttempt(
         videoID: String,
         strategy: PlaybackStrategy,
-        freshness: Freshness = .standard,
-        prefersProgressive: Bool = false
+        freshness: Freshness = .standard
     ) async throws -> PlaybackSource {
         do {
             try Task.checkCancellation()
@@ -74,13 +71,9 @@ actor StreamResolver {
             let activeExtractor = freshSession.map { YouTubeStreamExtractor(session: $0) } ?? extractor
             do {
                 let extraction = try await activeExtractor.extract(videoID: videoID, context: context)
-                let source = if prefersProgressive, let progressive = try? progressiveSource(from: extraction) {
-                    progressive
-                } else {
-                    try await prepareSource(
-                        from: extraction, allowingLowQualityFallback: strategy == .visionOS
-                    )
-                }
+                let source = try await prepareSource(
+                    from: extraction, allowingLowQualityFallback: strategy == .visionOS
+                )
                 return source.using(strategy, details: extraction.details)
             } catch {
                 if !Task.isCancelled { await extractor.discardCachedBootstrap() }

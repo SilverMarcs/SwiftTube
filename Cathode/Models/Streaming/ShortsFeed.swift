@@ -65,9 +65,6 @@ final class ShortsFeed: SMVVideoFeed {
         guard let player, let video = activeVideo, video.id == id,
               let playback = playback(for: id), let source = playback.source else { return }
 
-        if source.kind == .progressive {
-            player.automaticallyWaitsToMinimizeStalling = false
-        }
         observedPlayer = player
         currentPlayer = player
         watchtime.begin(for: video)

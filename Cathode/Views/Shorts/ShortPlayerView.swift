@@ -9,7 +9,6 @@ import AVFoundation
 struct ShortPlayerView: View {
     let video: Video
     let url: URL
-    let startsImmediately: Bool
     let isActive: Bool
     let onFailure: (String) -> Void
 
@@ -48,7 +47,6 @@ struct ShortPlayerView: View {
     private func setup() {
         teardown()
         let queue = AVQueuePlayer()
-        queue.automaticallyWaitsToMinimizeStalling = !startsImmediately
         // AVPlayerLooper seamlessly re-enqueues the item for gapless looping.
         let loop = AVPlayerLooper(player: queue, templateItem: AVPlayerItem(url: url))
         looper = loop

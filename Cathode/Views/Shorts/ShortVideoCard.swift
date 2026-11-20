@@ -18,12 +18,7 @@ struct ShortVideoCard: View {
         ZStack {
             Color.black
             if let source = playback.source {
-                ShortPlayerView(
-                    video: video,
-                    url: source.url,
-                    startsImmediately: source.kind == .progressive,
-                    isActive: isActive
-                ) { message in
+                ShortPlayerView(video: video, url: source.url, isActive: isActive) { message in
                     Task { await playback.playerFailed(message, source: source, videoID: video.id) }
                 }
             } else if playback.isResolving {

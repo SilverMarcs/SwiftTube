@@ -4,8 +4,6 @@ import Observation
 @MainActor
 @Observable
 final class ShortPlaybackModel {
-    nonisolated static let fastLoadingKey = "shortsFastLoading"
-
     private(set) var source: PlaybackSource?
     private(set) var isResolving = false
     private(set) var error: String?
@@ -48,11 +46,7 @@ final class ShortPlaybackModel {
         defer { if loadID == id { isResolving = false } }
 
         do {
-            let result = try await resolver.resolvePlaybackSource(
-                videoID: videoID,
-                startingWith: strategy,
-                prefersProgressive: UserDefaults.standard.bool(forKey: Self.fastLoadingKey)
-            )
+            let result = try await resolver.resolvePlaybackSource(videoID: videoID, startingWith: strategy)
             guard !Task.isCancelled, loadID == id else { return }
             source = result
         } catch {
