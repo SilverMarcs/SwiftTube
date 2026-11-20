@@ -68,26 +68,24 @@ actor StreamResolver {
             guard let context = await YouTubeStreamExtractor.playbackContext(for: strategy) else {
                 throw StreamResolutionError.noPlayableSource
             }
+            if freshness == .revalidate { await extractor.discardCachedBootstrap() }
             let freshSession = freshness == .revalidate ? YouTubeMediaTransport.makeExtractionSession() : nil
             defer { freshSession?.invalidateAndCancel() }
             let activeExtractor = freshSession.map { YouTubeStreamExtractor(session: $0) } ?? extractor
-            let extraction: YouTubeStreamExtraction
             do {
-                extraction = try await activeExtractor.extract(
-                    videoID: videoID, context: context, reusingBootstrap: prefersProgressive
-                )
+                let extraction = try await activeExtractor.extract(videoID: videoID, context: context)
+                let source = if prefersProgressive, let progressive = try? progressiveSource(from: extraction) {
+                    progressive
+                } else {
+                    try await prepareSource(
+                        from: extraction, allowingLowQualityFallback: strategy == .visionOS
+                    )
+                }
+                return source.using(strategy, details: extraction.details)
             } catch {
-                if prefersProgressive { await activeExtractor.discardCachedBootstrap() }
+                if !Task.isCancelled { await extractor.discardCachedBootstrap() }
                 throw error
             }
-            let source = if prefersProgressive, let progressive = try? progressiveSource(from: extraction) {
-                progressive
-            } else {
-                try await prepareSource(
-                    from: extraction, allowingLowQualityFallback: strategy == .visionOS
-                )
-            }
-            return source.using(strategy, details: extraction.details)
         } catch is CancellationError {
             throw StreamResolutionError.cancelled
         } catch let error as StreamResolutionError {

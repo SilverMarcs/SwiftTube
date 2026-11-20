@@ -170,7 +170,7 @@ actor YouTubeStreamExtractor {
 
     private let session: URLSession
     private let urlSigner: YouTubePlayerURLSigner
-    private var cachedBootstrap: (cookies: String?, bootstrap: WatchBootstrap, fetchedAt: Date)?
+    private var cachedBootstrap: (isSignedIn: Bool, bootstrap: WatchBootstrap, fetchedAt: Date)?
 
     init(
         session: URLSession = YouTubeMediaTransport.session,
@@ -203,8 +203,7 @@ actor YouTubeStreamExtractor {
 
     func extract(
         videoID: String,
-        context: YouTubePlaybackContext = .anonymous,
-        reusingBootstrap: Bool = false
+        context: YouTubePlaybackContext = .anonymous
     ) async throws -> YouTubeStreamExtraction {
         do {
             try Task.checkCancellation()
@@ -221,7 +220,7 @@ actor YouTubeStreamExtractor {
             // Each attempt pins one client and credential snapshot. The caller
             // advances to anonymous extraction only after this attempt fails.
             let bootstrap = try await watchBootstrap(
-                videoID: videoID, cookies: context.cookies, reusingCached: reusingBootstrap
+                videoID: videoID, cookies: context.cookies
             )
             let response = try await Self.fetch(videoID: videoID, client: client,
                                                 bootstrap: bootstrap, authentication: authentication,
@@ -445,18 +444,18 @@ actor YouTubeStreamExtractor {
     }
 
     /// The watch page is most of a resolve's latency, and its visitor data,
-    /// STS, and player JS are session-wide rather than per-video.
+    /// STS, and player JS are session-wide rather than per-video. Keyed by
+    /// sign-in rather than the cookie string, which rotates during renewal.
     private func watchBootstrap(
         videoID: String,
-        cookies: String?,
-        reusingCached: Bool
+        cookies: String?
     ) async throws -> WatchBootstrap {
-        if reusingCached, let cachedBootstrap, cachedBootstrap.cookies == cookies,
+        if let cachedBootstrap, cachedBootstrap.isSignedIn == (cookies != nil),
            Date().timeIntervalSince(cachedBootstrap.fetchedAt) < 30 * 60 {
             return cachedBootstrap.bootstrap
         }
         let bootstrap = try await Self.fetchWatchBootstrap(videoID: videoID, session: session, cookies: cookies)
-        cachedBootstrap = (cookies, bootstrap, Date())
+        cachedBootstrap = (cookies != nil, bootstrap, Date())
         return bootstrap
     }
 
