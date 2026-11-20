@@ -10,6 +10,7 @@ import SwiftMediaViewer
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(ShortPlaybackModel.fastLoadingKey) private var fastShortsLoading = false
 
     var body: some View {
         SettingsSplitView {
@@ -40,6 +41,17 @@ struct SettingsView: View {
                     #if os(tvOS)
                     .foregroundStyle(.primary)
                     #endif
+            }
+
+            Section {
+                Toggle("Faster Loading", isOn: $fastShortsLoading)
+                    #if os(tvOS)
+                    .foregroundStyle(.primary)
+                    #endif
+            } header: {
+                Text("Shorts")
+            } footer: {
+                Text("Plays Shorts at 360p and skips HD stream preparation so they start sooner.")
             }
 
             Section("Cache") {
